@@ -14,7 +14,248 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      agent_pricing: {
+        Row: {
+          agent_id: string
+          created_at: string
+          id: string
+          plan_id: string
+          retail_price: number
+          updated_at: string
+        }
+        Insert: {
+          agent_id: string
+          created_at?: string
+          id?: string
+          plan_id: string
+          retail_price: number
+          updated_at?: string
+        }
+        Update: {
+          agent_id?: string
+          created_at?: string
+          id?: string
+          plan_id?: string
+          retail_price?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_pricing_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agent_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_pricing_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "esim_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agent_profiles: {
+        Row: {
+          business_license: string | null
+          company_name: string
+          contact_person: string
+          country: string
+          created_at: string
+          id: string
+          phone: string
+          status: Database["public"]["Enums"]["agent_status"]
+          updated_at: string
+          user_id: string
+          wallet_balance: number
+        }
+        Insert: {
+          business_license?: string | null
+          company_name: string
+          contact_person: string
+          country: string
+          created_at?: string
+          id?: string
+          phone: string
+          status?: Database["public"]["Enums"]["agent_status"]
+          updated_at?: string
+          user_id: string
+          wallet_balance?: number
+        }
+        Update: {
+          business_license?: string | null
+          company_name?: string
+          contact_person?: string
+          country?: string
+          created_at?: string
+          id?: string
+          phone?: string
+          status?: Database["public"]["Enums"]["agent_status"]
+          updated_at?: string
+          user_id?: string
+          wallet_balance?: number
+        }
+        Relationships: []
+      }
+      esim_plans: {
+        Row: {
+          country_code: string
+          country_name: string
+          created_at: string
+          currency: string
+          data_amount: string
+          description: string | null
+          id: string
+          is_active: boolean
+          supplier_plan_id: string
+          title: string
+          updated_at: string
+          validity_days: number
+          wholesale_price: number
+        }
+        Insert: {
+          country_code: string
+          country_name: string
+          created_at?: string
+          currency?: string
+          data_amount: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          supplier_plan_id: string
+          title: string
+          updated_at?: string
+          validity_days: number
+          wholesale_price: number
+        }
+        Update: {
+          country_code?: string
+          country_name?: string
+          created_at?: string
+          currency?: string
+          data_amount?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          supplier_plan_id?: string
+          title?: string
+          updated_at?: string
+          validity_days?: number
+          wholesale_price?: number
+        }
+        Relationships: []
+      }
+      orders: {
+        Row: {
+          activation_code: string | null
+          agent_id: string
+          created_at: string
+          customer_email: string
+          customer_name: string
+          customer_phone: string | null
+          esim_iccid: string | null
+          esim_qr_code: string | null
+          id: string
+          plan_id: string
+          retail_price: number
+          status: Database["public"]["Enums"]["order_status"]
+          supplier_order_id: string | null
+          updated_at: string
+          wholesale_price: number
+        }
+        Insert: {
+          activation_code?: string | null
+          agent_id: string
+          created_at?: string
+          customer_email: string
+          customer_name: string
+          customer_phone?: string | null
+          esim_iccid?: string | null
+          esim_qr_code?: string | null
+          id?: string
+          plan_id: string
+          retail_price: number
+          status?: Database["public"]["Enums"]["order_status"]
+          supplier_order_id?: string | null
+          updated_at?: string
+          wholesale_price: number
+        }
+        Update: {
+          activation_code?: string | null
+          agent_id?: string
+          created_at?: string
+          customer_email?: string
+          customer_name?: string
+          customer_phone?: string | null
+          esim_iccid?: string | null
+          esim_qr_code?: string | null
+          id?: string
+          plan_id?: string
+          retail_price?: number
+          status?: Database["public"]["Enums"]["order_status"]
+          supplier_order_id?: string | null
+          updated_at?: string
+          wholesale_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orders_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agent_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "esim_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wallet_transactions: {
+        Row: {
+          agent_id: string
+          amount: number
+          balance_after: number
+          created_at: string
+          description: string | null
+          id: string
+          reference_id: string | null
+          transaction_type: Database["public"]["Enums"]["transaction_type"]
+        }
+        Insert: {
+          agent_id: string
+          amount: number
+          balance_after: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          reference_id?: string | null
+          transaction_type: Database["public"]["Enums"]["transaction_type"]
+        }
+        Update: {
+          agent_id?: string
+          amount?: number
+          balance_after?: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          reference_id?: string | null
+          transaction_type?: Database["public"]["Enums"]["transaction_type"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wallet_transactions_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agent_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -23,7 +264,9 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      agent_status: "pending" | "approved" | "suspended"
+      order_status: "pending" | "completed" | "failed" | "cancelled"
+      transaction_type: "deposit" | "purchase" | "refund"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +393,10 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      agent_status: ["pending", "approved", "suspended"],
+      order_status: ["pending", "completed", "failed", "cancelled"],
+      transaction_type: ["deposit", "purchase", "refund"],
+    },
   },
 } as const

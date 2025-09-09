@@ -78,6 +78,7 @@ export default function Layout({ children }: LayoutProps) {
     { name: "Pricing", href: "/pricing", icon: DollarSign },
     { name: "Wallet", href: "/wallet", icon: Wallet },
     { name: "Orders", href: "/orders", icon: ShoppingCart },
+    ...(isAdmin ? [{ name: "Admin: Agents", href: "/admin/agents", icon: ShieldCheck }] : []),
   ];
 
   return (

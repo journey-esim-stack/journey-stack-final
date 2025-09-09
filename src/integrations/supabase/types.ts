@@ -292,6 +292,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      profile_markups_equal: {
+        Args: { _id: string; _markup_type: string; _markup_value: number }
+        Returns: boolean
+      }
     }
     Enums: {
       agent_status: "pending" | "approved" | "suspended"

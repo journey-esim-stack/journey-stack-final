@@ -22,49 +22,16 @@ export default function Layout({ children }: LayoutProps) {
       (event, session) => {
         setUser(session?.user ?? null);
         setLoading(false);
-        
-        // Check if user needs to complete profile setup
-        if (session?.user) {
-          setTimeout(() => {
-            checkProfileStatus(session.user.id);
-          }, 100);
-        }
       }
     );
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
       setLoading(false);
-      
-      if (session?.user) {
-        checkProfileStatus(session.user.id);
-      }
     });
 
     return () => subscription.unsubscribe();
   }, []);
-
-  const checkProfileStatus = async (userId: string) => {
-    try {
-      // Don't redirect if already on profile setup page
-      if (window.location.pathname === "/profile-setup") {
-        return;
-      }
-
-      const { data: profile } = await supabase
-        .from("agent_profiles")
-        .select("status")
-        .eq("user_id", userId)
-        .maybeSingle();
-
-      // If no profile or profile not approved, redirect to profile setup
-      if (!profile || profile.status !== "approved") {
-        window.location.href = "/profile-setup";
-      }
-    } catch (error) {
-      console.error("Error checking profile status:", error);
-    }
-  };
 
   const handleSignOut = async () => {
     const { error } = await supabase.auth.signOut();

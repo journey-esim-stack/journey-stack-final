@@ -54,15 +54,48 @@ const Auth = () => {
     );
 
     // Listen first
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session?.user) {
-        navigate("/", { replace: true });
+        // Check profile status before redirecting
+        try {
+          const { data: profile } = await supabase
+            .from("agent_profiles")
+            .select("status")
+            .eq("user_id", session.user.id)
+            .maybeSingle();
+
+          if (!profile || profile.status !== "approved") {
+            navigate("/profile-setup", { replace: true });
+          } else {
+            navigate("/plans", { replace: true });
+          }
+        } catch (error) {
+          console.error("Error checking profile:", error);
+          navigate("/profile-setup", { replace: true });
+        }
       }
     });
 
     // Then get existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) navigate("/", { replace: true });
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (session?.user) {
+        try {
+          const { data: profile } = await supabase
+            .from("agent_profiles")
+            .select("status")
+            .eq("user_id", session.user.id)
+            .maybeSingle();
+
+          if (!profile || profile.status !== "approved") {
+            navigate("/profile-setup", { replace: true });
+          } else {
+            navigate("/plans", { replace: true });
+          }
+        } catch (error) {
+          console.error("Error checking profile:", error);
+          navigate("/profile-setup", { replace: true });
+        }
+      }
     });
 
     return () => {

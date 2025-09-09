@@ -53,19 +53,16 @@ const Auth = () => {
       window.location.href
     );
 
-    // Listen first
+    // Simple auth state handling
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log("Auth state changed:", event, session?.user?.id);
       if (session?.user) {
-        navigate("/plans", { replace: true });
+        navigate("/plans");
       }
     });
 
-    // Then get existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
-      console.log("Existing session:", session?.user?.id);
       if (session?.user) {
-        navigate("/plans", { replace: true });
+        navigate("/plans");
       }
     });
 

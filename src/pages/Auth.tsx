@@ -54,47 +54,18 @@ const Auth = () => {
     );
 
     // Listen first
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log("Auth state changed:", event, session?.user?.id);
       if (session?.user) {
-        // Check profile status before redirecting
-        try {
-          const { data: profile } = await supabase
-            .from("agent_profiles")
-            .select("status")
-            .eq("user_id", session.user.id)
-            .maybeSingle();
-
-          if (!profile || profile.status !== "approved") {
-            navigate("/profile-setup", { replace: true });
-          } else {
-            navigate("/plans", { replace: true });
-          }
-        } catch (error) {
-          console.error("Error checking profile:", error);
-          navigate("/profile-setup", { replace: true });
-        }
+        navigate("/plans", { replace: true });
       }
     });
 
     // Then get existing session
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log("Existing session:", session?.user?.id);
       if (session?.user) {
-        try {
-          const { data: profile } = await supabase
-            .from("agent_profiles")
-            .select("status")
-            .eq("user_id", session.user.id)
-            .maybeSingle();
-
-          if (!profile || profile.status !== "approved") {
-            navigate("/profile-setup", { replace: true });
-          } else {
-            navigate("/plans", { replace: true });
-          }
-        } catch (error) {
-          console.error("Error checking profile:", error);
-          navigate("/profile-setup", { replace: true });
-        }
+        navigate("/plans", { replace: true });
       }
     });
 
@@ -106,13 +77,15 @@ const Auth = () => {
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoadingIn(true);
-    const { error } = await supabase.auth.signInWithPassword({ email: emailIn.trim(), password: passwordIn });
+    console.log("Attempting sign in with:", emailIn);
+    const { error } = await supabase.auth.signInWithPassword({ 
+      email: emailIn.trim(), 
+      password: passwordIn 
+    });
+    console.log("Sign in result:", error);
     setLoadingIn(false);
     if (error) {
       toast({ title: "Sign in failed", description: error.message, variant: "destructive" as any });
-    } else {
-      toast({ title: "Welcome back", description: "Signed in successfully." });
-      // Redirect handled by onAuthStateChange
     }
   };
 

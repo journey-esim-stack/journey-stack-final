@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { LogOut, Package, DollarSign, Wallet, ShoppingCart } from "lucide-react";
+import { LogOut, Package, DollarSign, Wallet, ShoppingCart, ShieldCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface LayoutProps {
@@ -14,6 +14,7 @@ interface LayoutProps {
 export default function Layout({ children }: LayoutProps) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
   const location = useLocation();
   const { toast } = useToast();
 
@@ -32,6 +33,17 @@ export default function Layout({ children }: LayoutProps) {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', user.id)
+      .then(({ data }) => {
+        setIsAdmin(!!data?.some((r: any) => r.role === 'admin'));
+      });
+  }, [user]);
 
   const handleSignOut = async () => {
     const { error } = await supabase.auth.signOut();

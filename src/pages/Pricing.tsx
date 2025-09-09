@@ -37,6 +37,8 @@ export default function Pricing() {
   const [availablePlans, setAvailablePlans] = useState<EsimPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [agentId, setAgentId] = useState<string | null>(null);
+  const [markupType, setMarkupType] = useState<'percent' | 'flat'>('percent');
+  const [markupValue, setMarkupValue] = useState<number>(40);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -51,12 +53,14 @@ export default function Pricing() {
       // Get agent profile
       const { data: profile, error: profileError } = await supabase
         .from("agent_profiles")
-        .select("id")
+        .select("id, markup_type, markup_value")
         .eq("user_id", user.id)
         .single();
 
       if (profileError) throw profileError;
       setAgentId(profile.id);
+      setMarkupType((profile.markup_type as 'percent' | 'flat') ?? 'percent');
+      setMarkupValue(Number(profile.markup_value ?? 40));
 
       // Fetch current pricing
       const { data: pricingData, error: pricingError } = await supabase
@@ -139,19 +143,22 @@ export default function Pricing() {
 
   const plansWithPricing = availablePlans.map(plan => {
     const existingPricing = pricing.find(p => p.plan_id === plan.id);
+    const base = Number(plan.wholesale_price) || 0;
+    const computed = markupType === 'percent' ? base * (1 + (Number(markupValue) || 0) / 100) : base + (Number(markupValue) || 0);
     return {
       ...plan,
       retail_price: existingPricing?.retail_price || 0,
       pricing_id: existingPricing?.id,
-    };
+      agent_cost: Number(computed.toFixed(2)),
+    } as any;
   });
 
   return (
     <Layout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold">Pricing Management</h1>
-          <p className="text-muted-foreground">Set your retail prices for eSIM plans</p>
+          <h1 className="text-3xl font-bold">Your eSIM Plan Costs</h1>
+          <p className="text-muted-foreground">Prices you will be charged per plan based on your contract markup</p>
         </div>
 
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -173,41 +180,11 @@ export default function Pricing() {
                   </div>
                 </div>
                 
-                <div className="space-y-2">
-                  <Label htmlFor={`price-${plan.id}`}>Your Retail Price</Label>
-                  <div className="flex space-x-2">
-                    <Input
-                      id={`price-${plan.id}`}
-                      type="number"
-                      step="0.01"
-                      min={plan.wholesale_price}
-                      defaultValue={plan.retail_price}
-                      placeholder="Set retail price"
-                      onBlur={(e) => {
-                        const value = parseFloat(e.target.value);
-                        if (value && value > plan.wholesale_price) {
-                          updatePricing(plan.id, value);
-                        }
-                      }}
-                    />
-                    <Button
-                      size="sm"
-                      onClick={() => {
-                        const input = document.getElementById(`price-${plan.id}`) as HTMLInputElement;
-                        const value = parseFloat(input.value);
-                        if (value && value > plan.wholesale_price) {
-                          updatePricing(plan.id, value);
-                        }
-                      }}
-                    >
-                      Update
-                    </Button>
-                  </div>
-                  {plan.retail_price > 0 && (
-                    <p className="text-sm text-muted-foreground">
-                      Margin: {plan.currency} {(plan.retail_price - plan.wholesale_price).toFixed(2)}
-                    </p>
-                  )}
+                <div className="space-y-1">
+                  <p className="text-sm font-medium">Your cost: {plan.currency} {plan.agent_cost}</p>
+                  <p className="text-xs text-muted-foreground">
+                    Markup: {markupType === 'percent' ? `${markupValue}%` : `${plan.currency} ${markupValue}`}
+                  </p>
                 </div>
               </CardContent>
             </Card>

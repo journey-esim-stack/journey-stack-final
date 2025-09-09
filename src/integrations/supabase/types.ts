@@ -221,6 +221,24 @@ export type Database = {
           },
         ]
       }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
       wallet_transactions: {
         Row: {
           agent_id: string
@@ -267,10 +285,17 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
       agent_status: "pending" | "approved" | "suspended"
+      app_role: "admin" | "agent"
       order_status: "pending" | "completed" | "failed" | "cancelled"
       transaction_type: "deposit" | "purchase" | "refund"
     }
@@ -401,6 +426,7 @@ export const Constants = {
   public: {
     Enums: {
       agent_status: ["pending", "approved", "suspended"],
+      app_role: ["admin", "agent"],
       order_status: ["pending", "completed", "failed", "cancelled"],
       transaction_type: ["deposit", "purchase", "refund"],
     },

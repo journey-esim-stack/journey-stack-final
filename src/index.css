@@ -26,7 +26,7 @@ All colors MUST be HSL.
     --popover: 0 0% 100% / 0.9;
     --popover-foreground: 24 50% 15%;
 
-    --primary: 24 100% 63%;  /* #FF8A40 */
+    --primary: 24 100% 55%;  /* Darker orange #E6742A */
     --primary-foreground: 0 0% 100%;
 
     --secondary: 24 100% 85% / 0.6;
@@ -35,7 +35,7 @@ All colors MUST be HSL.
     --muted: 0 0% 100% / 0.3;
     --muted-foreground: 24 30% 35%;
 
-    --accent: 24 100% 70% / 0.7;
+    --accent: 24 100% 60% / 0.7;
     --accent-foreground: 24 100% 15%;
 
     --destructive: 0 84.2% 60.2%;
@@ -43,24 +43,24 @@ All colors MUST be HSL.
 
     --border: 0 0% 100% / 0.15;
     --input: 0 0% 100% / 0.05;
-    --ring: 24 100% 63%;
+    --ring: 24 100% 55%;
 
     --radius: 1.5rem;
 
     /* Enhanced glassmorphism effects */
     --glass-bg: 0 0% 100% / 0.05;
     --glass-border: 0 0% 100% / 0.18;
-    --glass-shadow: 0 25px 50px -12px hsl(24 100% 50% / 0.15), 
+    --glass-shadow: 0 25px 50px -12px hsl(24 100% 45% / 0.15), 
                    0 0 0 1px hsl(0 0% 100% / 0.05) inset;
 
     --sidebar-background: 0 0% 98%;
     --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 24 100% 63%;
+    --sidebar-primary: 24 100% 55%;
     --sidebar-primary-foreground: 0 0% 98%;
     --sidebar-accent: 240 4.8% 95.9%;
     --sidebar-accent-foreground: 240 5.9% 10%;
     --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 24 100% 63%;
+    --sidebar-ring: 24 100% 55%;
   }
 
   .dark {
@@ -81,7 +81,7 @@ All colors MUST be HSL.
     --popover: 222.2 84% 4.9% / 0.95;
     --popover-foreground: 24 20% 90%;
 
-    --primary: 24 100% 68%;
+    --primary: 24 100% 60%;
     --primary-foreground: 222.2 47.4% 11.2%;
 
     --secondary: 24 80% 15% / 0.8;
@@ -98,7 +98,7 @@ All colors MUST be HSL.
 
     --border: 0 0% 100% / 0.08;
     --input: 0 0% 0% / 0.15;
-    --ring: 24 100% 68%;
+    --ring: 24 100% 60%;
 
     /* Dark mode enhanced glassmorphism */
     --glass-bg: 0 0% 0% / 0.15;
@@ -108,12 +108,12 @@ All colors MUST be HSL.
 
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 24 100% 68%;
+    --sidebar-primary: 24 100% 60%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 240 3.7% 15.9%;
     --sidebar-accent-foreground: 240 4.8% 95.9%;
     --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 24 100% 68%;
+    --sidebar-ring: 24 100% 60%;
   }
 }
 
@@ -145,7 +145,7 @@ All colors MUST be HSL.
     -webkit-backdrop-filter: blur(25px) saturate(200%);
     border: 1.5px solid hsl(var(--glass-border));
     box-shadow: var(--glass-shadow),
-                0 0 40px hsl(24 100% 50% / 0.1);
+                0 0 40px hsl(24 100% 45% / 0.1);
   }
   
   .glass-intense {
@@ -154,7 +154,7 @@ All colors MUST be HSL.
     -webkit-backdrop-filter: blur(30px) saturate(220%) brightness(110%);
     border: 2px solid hsl(var(--glass-border));
     box-shadow: var(--glass-shadow),
-                0 0 60px hsl(24 100% 50% / 0.15),
+                0 0 60px hsl(24 100% 45% / 0.15),
                 0 0 0 1px hsl(0 0% 100% / 0.1) inset;
   }
 }

@@ -27,7 +27,7 @@ export default function Layout({ children }: LayoutProps) {
         if (session?.user) {
           setTimeout(() => {
             checkProfileStatus(session.user.id);
-          }, 0);
+          }, 100);
         }
       }
     );
@@ -46,6 +46,11 @@ export default function Layout({ children }: LayoutProps) {
 
   const checkProfileStatus = async (userId: string) => {
     try {
+      // Don't redirect if already on profile setup page
+      if (window.location.pathname === "/profile-setup") {
+        return;
+      }
+
       const { data: profile } = await supabase
         .from("agent_profiles")
         .select("status")

@@ -52,7 +52,15 @@ export default function ProfileSetup() {
         .eq("user_id", user.id)
         .maybeSingle();
 
-      if (error) throw error;
+      if (error) {
+        console.error("Profile fetch error:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load profile data",
+          variant: "destructive",
+        });
+        return;
+      }
 
       if (profileData) {
         setProfile(profileData);
@@ -71,6 +79,7 @@ export default function ProfileSetup() {
         }
       }
     } catch (error) {
+      console.error("Error in checkProfile:", error);
       toast({
         title: "Error",
         description: "Failed to load profile data",

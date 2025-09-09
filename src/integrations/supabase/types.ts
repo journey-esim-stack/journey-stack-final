@@ -64,6 +64,8 @@ export type Database = {
           country: string
           created_at: string
           id: string
+          markup_type: string
+          markup_value: number
           phone: string
           status: Database["public"]["Enums"]["agent_status"]
           updated_at: string
@@ -77,6 +79,8 @@ export type Database = {
           country: string
           created_at?: string
           id?: string
+          markup_type?: string
+          markup_value?: number
           phone: string
           status?: Database["public"]["Enums"]["agent_status"]
           updated_at?: string
@@ -90,6 +94,8 @@ export type Database = {
           country?: string
           created_at?: string
           id?: string
+          markup_type?: string
+          markup_value?: number
           phone?: string
           status?: Database["public"]["Enums"]["agent_status"]
           updated_at?: string

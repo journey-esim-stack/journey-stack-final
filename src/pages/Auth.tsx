@@ -112,12 +112,19 @@ const Auth = () => {
   };
 
   return (
-    <main className="min-h-screen bg-background">
+    <main className="min-h-screen bg-gradient-subtle">
+      <header className="container mx-auto px-4 py-6">
+        <div className="flex items-center space-x-2">
+          <div className="text-2xl font-bold text-primary">Journey</div>
+          <div className="text-2xl font-bold text-foreground">Stack</div>
+        </div>
+      </header>
+      
       <section className="container mx-auto max-w-lg px-4 py-12">
-        <Card className="border-border/50">
-          <CardHeader>
-            <CardTitle className="text-2xl">Journey eSIM Agent Portal</CardTitle>
-            <CardDescription>Sign in or create your agent account</CardDescription>
+        <Card className="border-border/50 shadow-subtle">
+          <CardHeader className="text-center">
+            <CardTitle className="text-2xl font-semibold">Agent Portal</CardTitle>
+            <CardDescription>Sign in to your account or create a new one to get started</CardDescription>
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="signin" className="w-full">
@@ -136,7 +143,7 @@ const Auth = () => {
                     <Label htmlFor="passwordIn">Password</Label>
                     <Input id="passwordIn" type="password" autoComplete="current-password" value={passwordIn} onChange={(e) => setPasswordIn(e.target.value)} required />
                   </div>
-                  <Button type="submit" className="w-full" disabled={loadingIn}>
+                  <Button type="submit" className="w-full shadow-orange" disabled={loadingIn}>
                     {loadingIn ? "Signing in..." : "Sign In"}
                   </Button>
                 </form>
@@ -168,7 +175,7 @@ const Auth = () => {
                     <Label htmlFor="country">Country</Label>
                     <Input id="country" value={country} onChange={(e) => setCountry(e.target.value)} />
                   </div>
-                  <Button type="submit" className="w-full" disabled={loadingUp}>
+                  <Button type="submit" className="w-full shadow-orange" disabled={loadingUp}>
                     {loadingUp ? "Creating account..." : "Create Account"}
                   </Button>
                 </form>

@@ -88,11 +88,11 @@ export default function Plans() {
     <Layout>
       <div className="space-y-8 animate-fade-in">
         {/* Header Section */}
-        <div className="glass-card p-8 text-center">
-          <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+        <div className="glass-intense p-8 text-center">
+          <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r from-primary via-primary to-accent bg-clip-text text-transparent">
             Available eSIM Plans
           </h1>
-          <p className="text-muted-foreground text-lg">
+          <p className="text-muted-foreground text-lg mb-6">
             Browse and manage premium eSIM plans for your customers worldwide
           </p>
           <div className="flex items-center justify-center gap-2 mt-4 text-sm text-muted-foreground">
@@ -105,22 +105,22 @@ export default function Plans() {
         </div>
 
         {/* Search and Filter Section */}
-        <div className="glass-card p-6">
+        <div className="glass-intense p-6">
           <div className="flex flex-col md:flex-row gap-4">
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-primary" />
               <Input
                 placeholder="Search by country, plan name, or data amount..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 glass"
+                className="pl-10 glass-intense border-0"
               />
             </div>
             <Select value={selectedRegion} onValueChange={setSelectedRegion}>
-              <SelectTrigger className="w-full md:w-[200px] glass">
+              <SelectTrigger className="w-full md:w-[200px] glass-intense border-0">
                 <SelectValue placeholder="Filter by region" />
               </SelectTrigger>
-              <SelectContent className="glass">
+              <SelectContent className="glass-intense border-0">
                 <SelectItem value="all">All Regions</SelectItem>
                 {regions.map((region) => (
                   <SelectItem key={region} value={region}>
@@ -135,12 +135,12 @@ export default function Plans() {
             <div className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">
               <span>Showing {filteredPlans.length} of {plans.length} plans</span>
               {searchQuery && (
-                <Badge variant="secondary" className="glass">
+                <Badge variant="secondary" className="glass-intense border-0">
                   Search: {searchQuery}
                 </Badge>
               )}
               {selectedRegion !== "all" && (
-                <Badge variant="secondary" className="glass">
+                <Badge variant="secondary" className="glass-intense border-0">
                   Region: {selectedRegion}
                 </Badge>
               )}
@@ -153,7 +153,7 @@ export default function Plans() {
           {filteredPlans.map((plan, index) => (
             <Card 
               key={plan.id} 
-              className="glass-card hover:scale-105 transition-all duration-300 animate-scale-in border-0"
+              className="glass-intense hover:scale-105 transition-all duration-300 animate-scale-in border-0 bg-transparent"
               style={{ animationDelay: `${index * 100}ms` }}
             >
               <CardHeader className="pb-4">
@@ -167,7 +167,7 @@ export default function Plans() {
                       </CardDescription>
                     </div>
                   </div>
-                  <Badge variant="secondary" className="glass text-xs">
+                  <Badge variant="secondary" className="glass-intense text-xs border-0">
                     {plan.country_code}
                   </Badge>
                 </div>
@@ -181,19 +181,19 @@ export default function Plans() {
                 )}
                 
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="glass p-3 rounded-lg text-center">
+                <div className="glass-intense p-3 rounded-xl text-center">
                     <Database className="h-4 w-4 mx-auto mb-1 text-primary" />
                     <p className="font-semibold text-sm">{plan.data_amount}</p>
                     <p className="text-xs text-muted-foreground">Data</p>
                   </div>
-                  <div className="glass p-3 rounded-lg text-center">
+                  <div className="glass-intense p-3 rounded-xl text-center">
                     <Clock className="h-4 w-4 mx-auto mb-1 text-primary" />
                     <p className="font-semibold text-sm">{plan.validity_days} days</p>
                     <p className="text-xs text-muted-foreground">Validity</p>
                   </div>
                 </div>
                 
-                <div className="glass p-4 rounded-lg text-center">
+                <div className="glass-intense p-4 rounded-xl text-center">
                   <p className="text-xs text-muted-foreground mb-1">Wholesale Price</p>
                   <p className="text-2xl font-bold text-primary">
                     {plan.currency} {plan.wholesale_price}
@@ -212,7 +212,7 @@ export default function Plans() {
 
         {/* Empty State */}
         {filteredPlans.length === 0 && !loading && (
-          <Card className="glass-card border-0">
+          <Card className="glass-intense border-0 bg-transparent">
             <CardContent className="text-center py-16">
               <Globe className="h-16 w-16 mx-auto mb-4 text-muted-foreground opacity-50" />
               <h3 className="text-xl font-semibold mb-2">No plans found</h3>

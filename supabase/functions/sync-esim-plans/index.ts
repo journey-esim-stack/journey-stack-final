@@ -32,7 +32,7 @@ serve(async (req) => {
 
     // Fetch data packages from eSIM Access API
     // Based on docs, this endpoint should list all available data packages
-    const response = await fetch('https://api.esimaccess.com/api/v1/open/package/query', {
+    const response = await fetch('https://api.esimaccess.com/api/v1/packages', {
       method: 'POST',
       headers: {
         'RT-AccessCode': accessCode,

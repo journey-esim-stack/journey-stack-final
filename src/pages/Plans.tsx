@@ -1,9 +1,13 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { Search, Globe, Clock, Database } from "lucide-react";
 import Layout from "@/components/Layout";
+import { getCountryFlag, getRegion, getAllRegions } from "@/utils/countryFlags";
 
 interface EsimPlan {
   id: string;
@@ -21,7 +25,12 @@ interface EsimPlan {
 export default function Plans() {
   const [plans, setPlans] = useState<EsimPlan[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedRegion, setSelectedRegion] = useState<string>("all");
   const { toast } = useToast();
+
+  // Get unique regions from plans
+  const regions = getAllRegions();
 
   useEffect(() => {
     fetchPlans();
@@ -48,11 +57,28 @@ export default function Plans() {
     }
   };
 
+  // Filter plans based on search and region
+  const filteredPlans = useMemo(() => {
+    return plans.filter((plan) => {
+      const matchesSearch = 
+        plan.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        plan.country_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        plan.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        plan.data_amount.toLowerCase().includes(searchQuery.toLowerCase());
+      
+      const matchesRegion = 
+        selectedRegion === "all" || 
+        getRegion(plan.country_code) === selectedRegion;
+      
+      return matchesSearch && matchesRegion;
+    });
+  }, [plans, searchQuery, selectedRegion]);
+
   if (loading) {
     return (
       <Layout>
         <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
         </div>
       </Layout>
     );
@@ -60,47 +86,141 @@ export default function Plans() {
 
   return (
     <Layout>
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold">Available eSIM Plans</h1>
-          <p className="text-muted-foreground">Browse and manage available eSIM plans for your customers</p>
+      <div className="space-y-8 animate-fade-in">
+        {/* Header Section */}
+        <div className="glass-card p-8 text-center">
+          <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+            Available eSIM Plans
+          </h1>
+          <p className="text-muted-foreground text-lg">
+            Browse and manage premium eSIM plans for your customers worldwide
+          </p>
+          <div className="flex items-center justify-center gap-2 mt-4 text-sm text-muted-foreground">
+            <Globe className="h-4 w-4" />
+            <span>{plans.length} plans available</span>
+            <span>•</span>
+            <Database className="h-4 w-4" />
+            <span>{regions.length} regions covered</span>
+          </div>
         </div>
 
+        {/* Search and Filter Section */}
+        <div className="glass-card p-6">
+          <div className="flex flex-col md:flex-row gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by country, plan name, or data amount..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 glass"
+              />
+            </div>
+            <Select value={selectedRegion} onValueChange={setSelectedRegion}>
+              <SelectTrigger className="w-full md:w-[200px] glass">
+                <SelectValue placeholder="Filter by region" />
+              </SelectTrigger>
+              <SelectContent className="glass">
+                <SelectItem value="all">All Regions</SelectItem>
+                {regions.map((region) => (
+                  <SelectItem key={region} value={region}>
+                    {region}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          
+          {searchQuery || selectedRegion !== "all" ? (
+            <div className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">
+              <span>Showing {filteredPlans.length} of {plans.length} plans</span>
+              {searchQuery && (
+                <Badge variant="secondary" className="glass">
+                  Search: {searchQuery}
+                </Badge>
+              )}
+              {selectedRegion !== "all" && (
+                <Badge variant="secondary" className="glass">
+                  Region: {selectedRegion}
+                </Badge>
+              )}
+            </div>
+          ) : null}
+        </div>
+
+        {/* Plans Grid */}
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {plans.map((plan) => (
-            <Card key={plan.id} className="hover:shadow-md transition-shadow">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg">{plan.title}</CardTitle>
-                  <Badge variant="secondary">{plan.country_code}</Badge>
+          {filteredPlans.map((plan, index) => (
+            <Card 
+              key={plan.id} 
+              className="glass-card hover:scale-105 transition-all duration-300 animate-scale-in border-0"
+              style={{ animationDelay: `${index * 100}ms` }}
+            >
+              <CardHeader className="pb-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <span className="text-3xl">{getCountryFlag(plan.country_code)}</span>
+                    <div>
+                      <CardTitle className="text-lg leading-tight">{plan.title}</CardTitle>
+                      <CardDescription className="text-sm font-medium">
+                        {plan.country_name}
+                      </CardDescription>
+                    </div>
+                  </div>
+                  <Badge variant="secondary" className="glass text-xs">
+                    {plan.country_code}
+                  </Badge>
                 </div>
-                <CardDescription>{plan.country_name}</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="text-sm text-muted-foreground">
-                  {plan.description}
+              
+              <CardContent className="space-y-6">
+                {plan.description && (
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    {plan.description}
+                  </p>
+                )}
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="glass p-3 rounded-lg text-center">
+                    <Database className="h-4 w-4 mx-auto mb-1 text-primary" />
+                    <p className="font-semibold text-sm">{plan.data_amount}</p>
+                    <p className="text-xs text-muted-foreground">Data</p>
+                  </div>
+                  <div className="glass p-3 rounded-lg text-center">
+                    <Clock className="h-4 w-4 mx-auto mb-1 text-primary" />
+                    <p className="font-semibold text-sm">{plan.validity_days} days</p>
+                    <p className="text-xs text-muted-foreground">Validity</p>
+                  </div>
                 </div>
-                <div className="flex justify-between items-center">
-                  <div>
-                    <p className="font-medium">{plan.data_amount}</p>
-                    <p className="text-sm text-muted-foreground">{plan.validity_days} days</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-bold text-lg">
-                      {plan.currency} {plan.wholesale_price}
-                    </p>
-                    <p className="text-sm text-muted-foreground">Wholesale</p>
-                  </div>
+                
+                <div className="glass p-4 rounded-lg text-center">
+                  <p className="text-xs text-muted-foreground mb-1">Wholesale Price</p>
+                  <p className="text-2xl font-bold text-primary">
+                    {plan.currency} {plan.wholesale_price}
+                  </p>
+                </div>
+
+                <div className="pt-2 border-t border-glass-border">
+                  <p className="text-xs text-muted-foreground text-center">
+                    Region: {getRegion(plan.country_code)}
+                  </p>
                 </div>
               </CardContent>
             </Card>
           ))}
         </div>
 
-        {plans.length === 0 && (
-          <Card>
-            <CardContent className="text-center py-12">
-              <p className="text-muted-foreground">No eSIM plans available</p>
+        {/* Empty State */}
+        {filteredPlans.length === 0 && !loading && (
+          <Card className="glass-card border-0">
+            <CardContent className="text-center py-16">
+              <Globe className="h-16 w-16 mx-auto mb-4 text-muted-foreground opacity-50" />
+              <h3 className="text-xl font-semibold mb-2">No plans found</h3>
+              <p className="text-muted-foreground">
+                {searchQuery || selectedRegion !== "all" 
+                  ? "Try adjusting your search or filter criteria"
+                  : "No eSIM plans are currently available"}
+              </p>
             </CardContent>
           </Card>
         )}

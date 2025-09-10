@@ -144,7 +144,18 @@ export default function Pricing() {
   const plansWithPricing = availablePlans.map(plan => {
     const existingPricing = pricing.find(p => p.plan_id === plan.id);
     const base = Number(plan.wholesale_price) || 0;
-    const computed = markupType === 'percent' ? base * (1 + (Number(markupValue) || 0) / 100) : base + (Number(markupValue) || 0);
+    const markupVal = Number(markupValue) || 0;
+    
+    // Calculate the agent cost based on markup type
+    let computed = base;
+    if (markupType === 'percent') {
+      computed = base * (1 + markupVal / 100);
+    } else {
+      computed = base + markupVal;
+    }
+    
+    console.log(`Plan: ${plan.title}, Base: ${base}, Markup: ${markupVal}% (${markupType}), Computed: ${computed}`);
+    
     return {
       ...plan,
       retail_price: existingPricing?.retail_price || 0,

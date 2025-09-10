@@ -64,6 +64,9 @@ export default function AdminAgents() {
       if (error) throw error;
       
       toast({ title: "Saved", description: `Updated ${agent.company_name} markup` });
+      
+      // Refresh the data to ensure UI reflects the changes
+      await fetchAgents();
     } catch (err) {
       console.error("Save error:", err);
       toast({ title: "Error", description: "Failed to save", variant: "destructive" });

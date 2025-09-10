@@ -28,17 +28,29 @@ serve(async (req) => {
       throw new Error('eSIM Access credentials not configured');
     }
 
-    console.log('Fetching plans from eSIM Access API...');
+console.log('Fetching plans from eSIM Access API...');
+
+    // Prepare headers with sanitized AccessCode and HMAC signature (provider may require it)
+    const code = String(accessCode).trim().replace(/^"+|"+$/g, '');
+    const key = String(secretKey).trim().replace(/^"+|"+$/g, '');
+    const bodyStr = '';
+    const requestId = crypto.randomUUID();
+    const timestamp = Date.now().toString();
+    const enc = new TextEncoder();
+    const cryptoKey = await crypto.subtle.importKey('raw', enc.encode(key), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+    const sigBuf = await crypto.subtle.sign('HMAC', cryptoKey, enc.encode(timestamp + requestId + code + bodyStr));
+    const signature = Array.from(new Uint8Array(sigBuf)).map(b => b.toString(16).padStart(2, '0')).join('');
 
     // Fetch data packages from eSIM Access API (correct endpoint per docs)
-const response = await fetch('https://api.esimaccess.com/api/v1/open/package/list', {
+    const response = await fetch('https://api.esimaccess.com/api/v1/open/package/list', {
       method: 'POST',
       headers: {
-        'RT-AccessCode': accessCode,
-        'Content-Type': 'application/json',
+        'RT-AccessCode': code,
+        'RT-RequestID': requestId,
+        'RT-Timestamp': timestamp,
+        'RT-Signature': signature,
       },
-      // Empty payload supported; filters can be added later, e.g. { locationCode: 'US' }
-      body: JSON.stringify({})
+      body: bodyStr
     });
 
     if (!response.ok) {

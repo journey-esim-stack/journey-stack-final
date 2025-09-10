@@ -20,8 +20,19 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const { plan_id, order_id } = await req.json();
-    console.log('Request payload:', { plan_id, order_id });
+    let requestBody;
+    try {
+      requestBody = await req.json();
+      console.log('Request payload:', requestBody);
+    } catch (parseError) {
+      console.error('Failed to parse request body:', parseError);
+      return new Response(JSON.stringify({ error: 'Invalid JSON in request body' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const { plan_id, order_id } = requestBody;
     
     if (!plan_id || !order_id) {
       console.error('Missing required fields:', { plan_id, order_id });
@@ -31,6 +42,8 @@ serve(async (req) => {
       });
     }
 
+    console.log('Fetching plan details for plan_id:', plan_id);
+
     // Get the plan details
     const { data: plan, error: planError } = await supabaseClient
       .from('esim_plans')
@@ -38,8 +51,11 @@ serve(async (req) => {
       .eq('id', plan_id)
       .single();
 
+    console.log('Plan query result:', { plan, planError });
+
     if (planError || !plan) {
-      return new Response(JSON.stringify({ error: 'Plan not found' }), {
+      console.error('Plan not found:', planError);
+      return new Response(JSON.stringify({ error: 'Plan not found', details: planError }), {
         status: 404,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -48,7 +64,15 @@ serve(async (req) => {
     const accessCode = Deno.env.get('ESIMACCESS_ACCESS_CODE');
     const secretKey = Deno.env.get('ESIMACCESS_SECRET_KEY');
 
+    console.log('Environment variables check:', {
+      hasAccessCode: !!accessCode,
+      hasSecretKey: !!secretKey,
+      accessCodeLength: accessCode?.length || 0,
+      secretKeyLength: secretKey?.length || 0
+    });
+
     if (!accessCode || !secretKey) {
+      console.error('Missing eSIM Access credentials');
       return new Response(JSON.stringify({ error: 'eSIM Access credentials not configured' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -57,7 +81,6 @@ serve(async (req) => {
 
     console.log('Creating eSIM with eSIM Access API...');
     console.log('Plan supplier_plan_id:', plan.supplier_plan_id);
-    console.log('API Credentials configured:', { hasAccessCode: !!accessCode, hasSecretKey: !!secretKey });
 
     // Create eSIM via eSIM Access API
     const apiPayload = {
@@ -66,7 +89,7 @@ serve(async (req) => {
       plan_id: plan.supplier_plan_id,
       quantity: 1
     };
-    console.log('API Request payload:', apiPayload);
+    console.log('API Request payload:', { ...apiPayload, secret_key: '[HIDDEN]' });
 
     const response = await fetch('https://api.esimaccess.com/api/v1/esim/order', {
       method: 'POST',
@@ -137,23 +160,12 @@ serve(async (req) => {
   } catch (error) {
     console.error('Unexpected error in create-esim function:', error);
     console.error('Error stack:', error.stack);
-    
-    // Update order to failed status
-    try {
-      await supabaseClient
-        .from('orders')
-        .update({ 
-          status: 'failed',
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', order_id);
-      console.log('Updated order status to failed');
-    } catch (updateErr) {
-      console.error('Failed to update order status to failed:', updateErr);
-    }
+    console.error('Error message:', error.message);
+    console.error('Error name:', error.name);
     
     return new Response(JSON.stringify({ 
-      error: error.message || 'Unknown error occurred',
+      error: 'Internal server error',
+      message: error.message || 'Unknown error occurred',
       details: error.toString()
     }), {
       status: 500,

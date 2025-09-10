@@ -402,7 +402,7 @@ const fetchPlans = async () => {
           {filteredPlans.map((plan, index) => (
             <Card 
               key={plan.id} 
-              className="glass-card hover:scale-105 transition-all duration-300 animate-scale-in border-0"
+              className="glass-intense hover:scale-105 transition-all duration-300 animate-scale-in border-0"
               style={{ animationDelay: `${index * 100}ms` }}
             >
               <CardHeader className="pb-4">

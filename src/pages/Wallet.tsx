@@ -128,10 +128,12 @@ export default function Wallet() {
 
   const getTransactionTypeColor = (type: string) => {
     switch (type) {
-      case "credit":
+      case "deposit":
         return "bg-green-100 text-green-800";
-      case "debit":
+      case "purchase":
         return "bg-red-100 text-red-800";
+      case "refund":
+        return "bg-blue-100 text-blue-800";
       default:
         return "bg-gray-100 text-gray-800";
     }
@@ -217,13 +219,13 @@ export default function Wallet() {
                       </TableCell>
                       <TableCell>
                         <Badge className={getTransactionTypeColor(transaction.transaction_type)}>
-                          {transaction.transaction_type === "credit" ? "Top-up" : "Purchase"}
+                          {transaction.transaction_type === "deposit" ? "Top-up" : transaction.transaction_type === "purchase" ? "Purchase" : "Transaction"}
                         </Badge>
                       </TableCell>
                       <TableCell>{transaction.description || "-"}</TableCell>
                       <TableCell>
-                        <span className={transaction.transaction_type === "credit" ? "text-green-600" : "text-red-600"}>
-                          {transaction.transaction_type === "credit" ? "+" : "-"}
+                        <span className={transaction.transaction_type === "deposit" ? "text-green-600" : "text-red-600"}>
+                          {transaction.transaction_type === "deposit" ? "+" : "-"}
                           USD {Math.abs(transaction.amount).toFixed(2)}
                         </span>
                       </TableCell>

@@ -79,7 +79,7 @@ serve(async (req) => {
     // Insert transaction
     const { error: insertErr } = await supabase.from("wallet_transactions").insert({
       agent_id: profile.id,
-      transaction_type: "credit",
+      transaction_type: "deposit", // Use correct enum value
       description: "Stripe Top-Up",
       reference_id: session_id,
       amount,

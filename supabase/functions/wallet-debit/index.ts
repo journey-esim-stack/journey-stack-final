@@ -59,10 +59,10 @@ serve(async (req) => {
     // Insert transaction
     const { error: insertErr } = await supabase.from("wallet_transactions").insert({
       agent_id: profile.id,
-      transaction_type: "debit",
+      transaction_type: "purchase", // Use correct enum value
       description: description ?? "Cart purchase",
       reference_id: reference_id ?? `cart-${Date.now()}`,
-      amount,
+      amount: -amount, // Negative for debit/purchase
       balance_after: newBalance,
     });
     if (insertErr) throw insertErr;

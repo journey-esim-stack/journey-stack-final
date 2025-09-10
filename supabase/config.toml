@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.test-esim]
 verify_jwt = false
+
+[functions.debug-simple]
+verify_jwt = false

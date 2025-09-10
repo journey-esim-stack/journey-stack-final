@@ -1,1 +1,7 @@
 project_id = "cccktfactlzxuprpyhgh"
+
+[functions.create-esim]
+verify_jwt = false
+
+[functions.test-esim]
+verify_jwt = false

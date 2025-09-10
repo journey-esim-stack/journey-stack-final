@@ -21,6 +21,7 @@ interface EsimPlan {
   wholesale_price: number;
   currency: string;
   is_active: boolean;
+  agent_price?: number; // Calculated agent price based on markup
 }
 
 export default function Plans() {
@@ -29,6 +30,7 @@ export default function Plans() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedRegion, setSelectedRegion] = useState<string>("all");
   const [selectedCountry, setSelectedCountry] = useState<string>("all");
+  const [agentMarkup, setAgentMarkup] = useState<{ type: string; value: number }>({ type: 'percent', value: 40 });
   const { toast } = useToast();
 
   // Popular countries for quick filtering
@@ -60,6 +62,20 @@ const fetchPlans = async () => {
       
       if (!user) {
         throw new Error("User not authenticated");
+      }
+
+      // Fetch agent markup settings
+      const { data: agentProfile } = await supabase
+        .from("agent_profiles")
+        .select("markup_type, markup_value")
+        .eq("user_id", user.id)
+        .single();
+
+      if (agentProfile) {
+        setAgentMarkup({
+          type: agentProfile.markup_type || 'percent',
+          value: Number(agentProfile.markup_value) || 40
+        });
       }
 
       // Fetch all plans in batches to overcome 1000 row limit
@@ -103,7 +119,24 @@ const fetchPlans = async () => {
       console.log("Sample country codes:", allPlans.slice(0, 5)?.map(p => p.country_code) || []);
       console.log("Looking for Singapore plans:", allPlans?.filter(p => p.country_name?.toLowerCase().includes('singapore') || p.country_code?.toLowerCase().includes('sg')) || []);
       
-      setPlans(allPlans);
+      // Calculate agent prices for each plan
+      const plansWithAgentPrices = allPlans.map(plan => {
+        const basePrice = Number(plan.wholesale_price) || 0;
+        let agentPrice = basePrice;
+        
+        if (agentMarkup.type === 'percent') {
+          agentPrice = basePrice * (1 + agentMarkup.value / 100);
+        } else {
+          agentPrice = basePrice + agentMarkup.value;
+        }
+        
+        return {
+          ...plan,
+          agent_price: agentPrice
+        };
+      });
+      
+      setPlans(plansWithAgentPrices);
     } catch (error) {
       console.error("Fetch error:", error);
       toast({
@@ -345,9 +378,9 @@ const fetchPlans = async () => {
                 </div>
                 
                 <div className="glass-intense p-4 rounded-xl text-center">
-                  <p className="text-xs text-muted-foreground mb-1">Wholesale Price</p>
+                  <p className="text-xs text-muted-foreground mb-1">Agent Price</p>
                   <p className="text-2xl font-bold text-primary">
-                    {plan.currency} {plan.wholesale_price}
+                    {plan.currency} {plan.agent_price?.toFixed(2) || plan.wholesale_price}
                   </p>
                 </div>
 

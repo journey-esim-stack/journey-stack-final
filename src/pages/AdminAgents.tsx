@@ -63,6 +63,15 @@ export default function AdminAgents() {
         .eq("id", agent.id);
       if (error) throw error;
       
+      // Update the local state to reflect changes immediately
+      setAgents(prevAgents => 
+        prevAgents.map(a => 
+          a.id === agent.id 
+            ? { ...a, markup_type: agent.markup_type, markup_value: agent.markup_value }
+            : a
+        )
+      );
+      
       toast({ title: "Saved", description: `Updated ${agent.company_name} markup` });
     } catch (err) {
       console.error("Save error:", err);

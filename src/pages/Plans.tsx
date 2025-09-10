@@ -156,9 +156,12 @@ const fetchPlans = async () => {
 
       const matchesCountry = 
         selectedCountry === "all" || 
-        plan.country_name === selectedCountry ||
-        // Also check regional plans for country mentions
-        (plan.country_code === 'RG' && plan.title?.toLowerCase().includes(selectedCountry.toLowerCase()));
+        plan.country_code === selectedCountry ||
+        // Also check regional plans for country mentions in title
+        (plan.country_code === 'RG' && (
+          plan.title?.toLowerCase().includes(popularCountries.find(c => c.code === selectedCountry)?.name.toLowerCase() || selectedCountry.toLowerCase()) ||
+          plan.description?.toLowerCase().includes(popularCountries.find(c => c.code === selectedCountry)?.name.toLowerCase() || selectedCountry.toLowerCase())
+        ));
       
       const result = matchesSearch && matchesRegion && matchesCountry;
       

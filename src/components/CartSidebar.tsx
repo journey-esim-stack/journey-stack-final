@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Badge } from '@/components/ui/badge';
@@ -18,6 +18,13 @@ export default function CartSidebar({ isOpen: externalIsOpen, onOpenChange }: Ca
   const { state, updateQuantity, removeFromCart, clearCart } = useCart();
   const [internalIsOpen, setInternalIsOpen] = useState(false);
   const { toast } = useToast();
+
+  // Open the cart when a custom event is dispatched (from header icon)
+  useEffect(() => {
+    const open = () => setIsOpen(true);
+    document.addEventListener('openCart', open);
+    return () => document.removeEventListener('openCart', open);
+  }, []);
 
   // Use external control if provided, otherwise use internal state
   const isOpen = externalIsOpen !== undefined ? externalIsOpen : internalIsOpen;
@@ -66,6 +73,7 @@ export default function CartSidebar({ isOpen: externalIsOpen, onOpenChange }: Ca
       {externalIsOpen === undefined && (
         <SheetTrigger asChild>
           <Button
+            data-testid="cart-trigger"
             variant="outline"
             size="icon"
             className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg glass-intense border-0 z-50 hover:scale-110 transition-all duration-200"

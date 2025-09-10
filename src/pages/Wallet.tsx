@@ -32,7 +32,13 @@ export default function Wallet() {
   const [topUpAmount, setTopUpAmount] = useState<number>(10);
 
   useEffect(() => {
-    fetchWalletData();
+    const run = async () => {
+      try {
+        await supabase.functions.invoke('sync-topups');
+      } catch {}
+      await fetchWalletData();
+    };
+    run();
   }, []);
 
   // Listen for URL changes and visibility changes to refresh data

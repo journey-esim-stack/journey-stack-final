@@ -48,12 +48,12 @@ const fetchPlans = async () => {
         throw new Error("User not authenticated");
       }
 
-      // Try fetching with detailed logging
+      // Fetch ALL plans without any limits
       const { data, error, count } = await supabase
         .from("esim_plans")
-        .select("*", { count: 'exact' })
+        .select("*", { count: 'exact', head: false })
         .eq("is_active", true)
-        .limit(2000)
+        .range(0, 1999)
         .order("country_name", { ascending: true });
 
       console.log("Query executed - Error:", error);

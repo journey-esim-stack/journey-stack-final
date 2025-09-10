@@ -91,7 +91,7 @@ serve(async (req) => {
     };
     console.log('API Request payload:', { ...apiPayload, secret_key: '[HIDDEN]' });
 
-    const response = await fetch('https://api.esimaccess.com/api/v1/esim/order', {
+    const response = await fetch('https://api.esimaccess.com/api/v1/order', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

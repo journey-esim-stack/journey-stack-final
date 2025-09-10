@@ -169,22 +169,17 @@ export default function Pricing() {
                 <CardDescription>{plan.country_name}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  <div>
-                    <p className="font-medium">Data: {plan.data_amount}</p>
-                    <p className="text-muted-foreground">Validity: {plan.validity_days} days</p>
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div>
+                      <p className="font-medium">Data: {plan.data_amount}</p>
+                      <p className="text-muted-foreground">Validity: {plan.validity_days} days</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-2xl font-bold text-primary">{plan.currency} {plan.agent_cost}</p>
+                      <Badge variant="secondary">Your Price</Badge>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <p className="font-medium">Wholesale: {plan.currency} {plan.wholesale_price}</p>
-                    <Badge variant="outline">Cost</Badge>
-                  </div>
-                </div>
-                
-                <div className="space-y-1">
-                  <p className="text-sm font-medium">Your cost: {plan.currency} {plan.agent_cost}</p>
-                  <p className="text-xs text-muted-foreground">
-                    Markup: {markupType === 'percent' ? `${markupValue}%` : `${plan.currency} ${markupValue}`}
-                  </p>
                 </div>
               </CardContent>
             </Card>

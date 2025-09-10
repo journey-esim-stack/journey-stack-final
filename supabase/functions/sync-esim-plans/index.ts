@@ -30,18 +30,15 @@ serve(async (req) => {
 
     console.log('Fetching plans from eSIM Access API...');
 
-    // Fetch data packages from eSIM Access API
-    // Based on docs, this endpoint should list all available data packages
-    const response = await fetch('https://api.esimaccess.com/api/v1/packages', {
+    // Fetch data packages from eSIM Access API (correct endpoint per docs)
+    const response = await fetch('https://api.esimaccess.com/api/v1/open/package/query', {
       method: 'POST',
       headers: {
         'RT-AccessCode': accessCode,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        // Include any required parameters based on API docs
-        // May need to filter by country or other criteria
-      })
+      // Empty payload supported; country filter can be added later: { countryCode: 'US' }
+      body: JSON.stringify({})
     });
 
     if (!response.ok) {
@@ -53,26 +50,40 @@ serve(async (req) => {
     const apiData = await response.json();
     console.log('Received data from eSIM Access:', apiData);
 
-    if (!apiData.success || !apiData.data) {
-      throw new Error('Invalid API response format');
+    if (!apiData?.success) {
+      throw new Error(`Invalid API response format (success=false)`);
     }
 
-    const plans = apiData.data;
-    console.log(`Processing ${plans.length} plans...`);
+    // Handle multiple possible response shapes (data vs obj, list wrappers, etc.)
+    let rawPlans: any = apiData.data ?? apiData.obj ?? [];
+    if (!Array.isArray(rawPlans)) {
+      rawPlans = rawPlans?.list ?? rawPlans?.data ?? rawPlans?.packages ?? rawPlans?.results ?? [];
+    }
+    if (!Array.isArray(rawPlans)) {
+      throw new Error('Invalid API response: no plans array found');
+    }
+    const plans = rawPlans;
+    console.log(`Processing ${plans.length} plans...`),
 
     // Transform API data to match our esim_plans table structure
-    const transformedPlans = plans.map((plan: any) => ({
-      supplier_plan_id: plan.packageCode || plan.slug,
-      title: plan.title || plan.packageName,
-      country_name: plan.countryName,
-      country_code: plan.countryCode,
-      data_amount: plan.data, // e.g., "1GB", "5GB"
-      validity_days: plan.days || plan.validityDays,
-      wholesale_price: parseFloat(plan.price),
-      currency: plan.currency || 'USD',
-      description: plan.description || `${plan.data} data plan for ${plan.countryName}`,
-      is_active: true
-    }));
+    const transformedPlans = plans.map((plan: any) => {
+      const dataStr = plan.data || plan.dataAmount || plan.flow || plan.dataFlow || plan.size || '';
+      const days = plan.days ?? plan.validityDays ?? plan.validity ?? plan.period ?? null;
+      const priceVal = parseFloat(String(plan.price ?? plan.priceUsd ?? plan.wholesalePrice ?? 0));
+      const currency = plan.currency || plan.currencyCode || 'USD';
+      return {
+        supplier_plan_id: plan.packageCode || plan.slug || plan.code || `${plan.countryCode}-${dataStr}-${days}`.toLowerCase(),
+        title: plan.title || plan.packageName || `${dataStr} - ${plan.countryName}`,
+        country_name: plan.countryName,
+        country_code: plan.countryCode,
+        data_amount: dataStr, // e.g., "1GB", "5GB"
+        validity_days: days || 0,
+        wholesale_price: priceVal,
+        currency,
+        description: plan.description || `${dataStr} data plan for ${plan.countryName}`,
+        is_active: true
+      };
+    });
 
     console.log('Transformed plans:', transformedPlans.length);
 
@@ -94,13 +105,17 @@ serve(async (req) => {
 
     // Deactivate plans that are no longer available
     const activePlanIds = transformedPlans.map(p => p.supplier_plan_id);
-    const { error: deactivateError } = await supabase
-      .from('esim_plans')
-      .update({ is_active: false })
-      .not('supplier_plan_id', 'in', `(${activePlanIds.map(id => `"${id}"`).join(',')})`);
+    if (activePlanIds.length > 0) {
+      const { error: deactivateError } = await supabase
+        .from('esim_plans')
+        .update({ is_active: false })
+        .not('supplier_plan_id', 'in', `(${activePlanIds.map(id => `"${id}"`).join(',')})`);
 
-    if (deactivateError) {
-      console.error('Error deactivating old plans:', deactivateError);
+      if (deactivateError) {
+        console.error('Error deactivating old plans:', deactivateError);
+      }
+    } else {
+      console.log('No active plans returned; skipping deactivation step.');
     }
 
     return new Response(

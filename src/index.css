@@ -20,36 +20,36 @@ All colors MUST be HSL.
     --background: 0 0% 100%;
     --foreground: 24 50% 15%;
 
-    --card: 0 0% 100% / 0.05;
+    --card: 0 0% 100%;
     --card-foreground: 24 50% 15%;
 
-    --popover: 0 0% 100% / 0.9;
+    --popover: 0 0% 100%;
     --popover-foreground: 24 50% 15%;
 
-    --primary: 24 100% 55%;  /* Darker orange #E6742A */
+    --primary: 24 100% 55%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 24 100% 85% / 0.6;
+    --secondary: 24 100% 95%;
     --secondary-foreground: 24 100% 20%;
 
-    --muted: 0 0% 100% / 0.3;
-    --muted-foreground: 24 30% 35%;
+    --muted: 24 20% 96%;
+    --muted-foreground: 24 30% 40%;
 
-    --accent: 24 100% 60% / 0.7;
+    --accent: 24 100% 90%;
     --accent-foreground: 24 100% 15%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 0 0% 100% / 0.15;
-    --input: 0 0% 100% / 0.05;
+    --border: 24 20% 90%;
+    --input: 24 20% 95%;
     --ring: 24 100% 55%;
 
     --radius: 1.5rem;
 
     /* Enhanced glassmorphism effects */
-    --glass-bg: 0 0% 100% / 0.05;
-    --glass-border: 0 0% 100% / 0.18;
+    --glass-bg: 0 0% 100%;
+    --glass-border: 24 20% 85%;
     --glass-shadow: 0 25px 50px -12px hsl(24 100% 45% / 0.15), 
                    0 0 0 1px hsl(0 0% 100% / 0.05) inset;
 
@@ -72,37 +72,37 @@ All colors MUST be HSL.
       hsl(24 80% 15%) 100%      /* Dark orange */
     );
     
-    --background: 222.2 84% 4.9%;
+    --background: 24 10% 8%;
     --foreground: 24 20% 90%;
 
-    --card: 0 0% 0% / 0.15;
+    --card: 24 15% 12%;
     --card-foreground: 24 20% 90%;
 
-    --popover: 222.2 84% 4.9% / 0.95;
+    --popover: 24 15% 12%;
     --popover-foreground: 24 20% 90%;
 
     --primary: 24 100% 60%;
     --primary-foreground: 222.2 47.4% 11.2%;
 
-    --secondary: 24 80% 15% / 0.8;
+    --secondary: 24 20% 20%;
     --secondary-foreground: 24 20% 90%;
 
-    --muted: 0 0% 0% / 0.4;
+    --muted: 24 15% 15%;
     --muted-foreground: 24 15% 65%;
 
-    --accent: 24 80% 25% / 0.8;
+    --accent: 24 20% 25%;
     --accent-foreground: 24 20% 90%;
 
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 0 0% 100% / 0.08;
-    --input: 0 0% 0% / 0.15;
+    --border: 24 15% 25%;
+    --input: 24 15% 15%;
     --ring: 24 100% 60%;
 
     /* Dark mode enhanced glassmorphism */
-    --glass-bg: 0 0% 0% / 0.15;
-    --glass-border: 0 0% 100% / 0.08;
+    --glass-bg: 24 15% 12%;
+    --glass-border: 24 15% 25%;
     --glass-shadow: 0 25px 50px -12px hsl(24 100% 30% / 0.3), 
                    0 0 0 1px hsl(0 0% 100% / 0.03) inset;
 
@@ -131,7 +131,7 @@ All colors MUST be HSL.
 
 @layer utilities {
   .glass {
-    background: hsl(var(--glass-bg));
+    background: hsl(var(--glass-bg) / 0.8);
     backdrop-filter: blur(20px) saturate(180%);
     -webkit-backdrop-filter: blur(20px) saturate(180%);
     border: 1px solid hsl(var(--glass-border));
@@ -140,7 +140,7 @@ All colors MUST be HSL.
   
   .glass-card {
     @apply glass rounded-3xl;
-    background: hsl(var(--glass-bg));
+    background: hsl(var(--glass-bg) / 0.9);
     backdrop-filter: blur(25px) saturate(200%);
     -webkit-backdrop-filter: blur(25px) saturate(200%);
     border: 1.5px solid hsl(var(--glass-border));
@@ -149,12 +149,20 @@ All colors MUST be HSL.
   }
   
   .glass-intense {
-    background: hsl(var(--glass-bg));
+    background: hsl(var(--glass-bg) / 0.95);
     backdrop-filter: blur(30px) saturate(220%) brightness(110%);
     -webkit-backdrop-filter: blur(30px) saturate(220%) brightness(110%);
     border: 2px solid hsl(var(--glass-border));
     box-shadow: var(--glass-shadow),
                 0 0 60px hsl(24 100% 45% / 0.15),
                 0 0 0 1px hsl(0 0% 100% / 0.1) inset;
+  }
+  
+  .glass-subtle {
+    background: hsl(var(--glass-bg) / 0.6);
+    backdrop-filter: blur(15px) saturate(150%);
+    -webkit-backdrop-filter: blur(15px) saturate(150%);
+    border: 1px solid hsl(var(--glass-border) / 0.5);
+    box-shadow: 0 8px 25px hsl(24 100% 45% / 0.1);
   }
 }

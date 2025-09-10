@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { LogOut, Package, DollarSign, Wallet, ShoppingCart, ShieldCheck } from "lucide-react";
+import { LogOut, Package, DollarSign, Wallet, ShoppingCart, ShieldCheck, Smartphone } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import CartSidebar from "@/components/CartSidebar";
 import CartIcon from "@/components/CartIcon";
@@ -81,6 +81,7 @@ export default function Layout({ children }: LayoutProps) {
     { name: "Pricing", href: "/pricing", icon: DollarSign },
     { name: "Wallet", href: "/wallet", icon: Wallet },
     { name: "Orders", href: "/orders", icon: ShoppingCart },
+    { name: "eSIMs", href: "/esims", icon: Smartphone },
     ...(isAdmin ? [{ name: "Admin: Agents", href: "/admin/agents", icon: ShieldCheck }] : []),
   ];
 

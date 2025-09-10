@@ -141,7 +141,12 @@ const fetchPlans = async () => {
         plan.title?.toLowerCase().includes(searchLower) ||
         plan.country_name?.toLowerCase().includes(searchLower) ||
         plan.description?.toLowerCase().includes(searchLower) ||
-        plan.data_amount?.toLowerCase().includes(searchLower)
+        plan.data_amount?.toLowerCase().includes(searchLower) ||
+        // Include regional/multi-country plans that mention the search term in title or description
+        (plan.country_code === 'RG' && (
+          plan.title?.toLowerCase().includes(searchLower) ||
+          plan.description?.toLowerCase().includes(searchLower)
+        ))
       );
       
       const planRegion = getRegion(plan.country_code);

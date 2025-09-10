@@ -62,7 +62,11 @@ export default function AdminAgents() {
         .update({ markup_type: agent.markup_type, markup_value: agent.markup_value })
         .eq("id", agent.id);
       if (error) throw error;
-      toast({ title: "Saved", description: `Updated ${agent.company_name}` });
+      
+      // Refresh the agents list to show updated values
+      await fetchAgents();
+      
+      toast({ title: "Saved", description: `Updated ${agent.company_name} markup` });
     } catch (err) {
       toast({ title: "Error", description: "Failed to save", variant: "destructive" });
     }

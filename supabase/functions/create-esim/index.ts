@@ -61,25 +61,81 @@ serve(async (req) => {
       });
     }
 
-    // For now, create a dummy eSIM to test database update
-    const dummyESIMData = {
-      iccid: `89860000000${Date.now()}`,
-      qr_code: `LPA:1$dummy.esim.com$${Date.now()}`,
-      activation_code: `LPA:1$dummy.esim.com$${Date.now()}`,
-      order_id: `TEST_${Date.now()}`
-    };
+    const accessCode = Deno.env.get('ESIMACCESS_ACCESS_CODE');
+    const secretKey = Deno.env.get('ESIMACCESS_SECRET_KEY');
 
-    console.log('Updating order with dummy eSIM data:', dummyESIMData);
+    console.log('Environment variables check:', {
+      hasAccessCode: !!accessCode,
+      hasSecretKey: !!secretKey,
+      accessCodeLength: accessCode?.length || 0,
+      secretKeyLength: secretKey?.length || 0
+    });
+
+    if (!accessCode || !secretKey) {
+      console.error('Missing eSIM Access credentials');
+      return new Response(JSON.stringify({ error: 'eSIM Access credentials not configured' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    console.log('Creating eSIM with eSIM Access API...');
+    console.log('Plan supplier_plan_id:', plan.supplier_plan_id);
+
+    // Create eSIM via eSIM Access API
+    const apiPayload = {
+      access_code: accessCode,
+      secret_key: secretKey,
+      plan_id: plan.supplier_plan_id,
+      quantity: 1
+    };
+    console.log('API Request payload:', { ...apiPayload, secret_key: '[HIDDEN]' });
+
+    const response = await fetch('https://api.esimaccess.com/api/v1/esim/order', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(apiPayload),
+    });
+
+    console.log('API Response status:', response.status);
+    console.log('API Response headers:', Object.fromEntries(response.headers.entries()));
+
+    const esimData = await response.json();
+    console.log('API Response data:', esimData);
+    
+    if (!response.ok) {
+      console.error('eSIM Access API error - Status:', response.status);
+      console.error('eSIM Access API error - Data:', esimData);
+      return new Response(JSON.stringify({ 
+        error: 'Failed to create eSIM', 
+        details: esimData,
+        status: response.status,
+        plan_id: plan.supplier_plan_id
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    console.log('eSIM creation successful, updating order...');
+    console.log('eSIM Data received:', { 
+      iccid: esimData.iccid, 
+      hasQRCode: !!esimData.qr_code,
+      hasActivationCode: !!esimData.activation_code,
+      orderId: esimData.order_id
+    });
 
     // Update the order with eSIM details
     const { error: updateError } = await supabaseClient
       .from('orders')
       .update({
         status: 'completed',
-        esim_iccid: dummyESIMData.iccid,
-        esim_qr_code: dummyESIMData.qr_code,
-        activation_code: dummyESIMData.activation_code,
-        supplier_order_id: dummyESIMData.order_id,
+        esim_iccid: esimData.iccid,
+        esim_qr_code: esimData.qr_code,
+        activation_code: esimData.activation_code,
+        supplier_order_id: esimData.order_id,
         updated_at: new Date().toISOString()
       })
       .eq('id', order_id);
@@ -92,12 +148,11 @@ serve(async (req) => {
       });
     }
 
-    console.log('Order updated successfully with dummy eSIM details');
+    console.log('Order updated successfully with eSIM details');
     return new Response(JSON.stringify({ 
       success: true, 
-      iccid: dummyESIMData.iccid,
-      order_id: order_id,
-      message: 'Dummy eSIM created for testing'
+      iccid: esimData.iccid,
+      order_id: order_id 
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

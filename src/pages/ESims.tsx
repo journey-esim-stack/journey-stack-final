@@ -5,16 +5,19 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, Wifi, MapPin, Globe, Database, RefreshCw } from "lucide-react";
+import { Search, Wifi, MapPin, Globe, Database, RefreshCw, Eye, Activity } from "lucide-react";
 import { format } from "date-fns";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import Layout from "@/components/Layout";
+import { ESimDetailModal } from "@/components/ESimDetailModal";
 
 interface Order {
   id: string;
   created_at: string;
   esim_iccid: string | null;
+  esim_qr_code?: string;
+  activation_code?: string;
   status: string;
   plan_id: string;
   customer_name: string;
@@ -24,6 +27,7 @@ interface Order {
     country_name: string;
     country_code: string;
     data_amount: string;
+    validity_days: number;
   };
 }
 
@@ -32,11 +36,30 @@ const ESims = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [retryingId, setRetryingId] = useState<string | null>(null);
+  const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
     fetchOrders();
   }, []);
+
+  // Auto-refresh effect for pending orders
+  useEffect(() => {
+    if (!autoRefreshEnabled) return;
+
+    const hasPendingOrders = orders.some(order => order.status === 'pending');
+    if (!hasPendingOrders) {
+      setAutoRefreshEnabled(false);
+      return;
+    }
+
+    const interval = setInterval(() => {
+      fetchOrders();
+    }, 5000); // Refresh every 5 seconds
+
+    return () => clearInterval(interval);
+  }, [autoRefreshEnabled, orders]);
 
   const fetchOrders = async () => {
     try {
@@ -71,7 +94,8 @@ const ESims = () => {
             title,
             country_name,
             country_code,
-            data_amount
+            data_amount,
+            validity_days
           )
         `)
         .eq("agent_id", agentProfile.id)
@@ -89,7 +113,8 @@ const ESims = () => {
             title,
             country_name,
             country_code,
-            data_amount
+            data_amount,
+            validity_days
           )
         `)
         .eq("agent_id", agentProfile.id)
@@ -265,9 +290,33 @@ const ESims = () => {
 
         <Card className="glass-card">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Wifi className="h-5 w-5" />
-              eSIM Inventory
+            <CardTitle className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Wifi className="h-5 w-5" />
+                eSIM Inventory
+              </div>
+              <div className="flex items-center gap-2">
+                {orders.some(order => order.status === 'pending') && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setAutoRefreshEnabled(!autoRefreshEnabled)}
+                    className={`transition-colors ${autoRefreshEnabled ? 'bg-primary/10 text-primary border-primary' : ''}`}
+                  >
+                    <Activity className={`h-4 w-4 mr-2 ${autoRefreshEnabled ? 'animate-pulse' : ''}`} />
+                    {autoRefreshEnabled ? 'Auto-refresh ON' : 'Auto-refresh'}
+                  </Button>
+                )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={fetchOrders}
+                  disabled={loading}
+                >
+                  <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+                  Refresh
+                </Button>
+              </div>
             </CardTitle>
             <div className="relative mt-4">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-primary h-4 w-4" />
@@ -342,6 +391,20 @@ const ESims = () => {
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
+                            {order.esim_iccid && order.status === "completed" && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedOrder(order);
+                                }}
+                                className="h-8 px-2 text-xs"
+                              >
+                                <Eye className="h-3 w-3 mr-1" />
+                                View eSIM
+                              </Button>
+                            )}
                             {order.status === "failed" && (
                               <Button
                                 variant="outline"
@@ -365,6 +428,7 @@ const ESims = () => {
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   retryESIMCreation(order.id, order.plan_id);
+                                  setAutoRefreshEnabled(true);
                                 }}
                                 className="h-8 px-2 text-xs"
                               >
@@ -382,6 +446,15 @@ const ESims = () => {
             )}
           </CardContent>
         </Card>
+
+        {/* eSIM Detail Modal */}
+        {selectedOrder && (
+          <ESimDetailModal
+            isOpen={!!selectedOrder}
+            onClose={() => setSelectedOrder(null)}
+            order={selectedOrder}
+          />
+        )}
       </div>
     </Layout>
   );

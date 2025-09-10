@@ -48,27 +48,48 @@ const fetchPlans = async () => {
         throw new Error("User not authenticated");
       }
 
-      // Fetch ALL plans without any limits
-      const { data, error, count } = await supabase
-        .from("esim_plans")
-        .select("*", { count: 'exact', head: false })
-        .eq("is_active", true)
-        .range(0, 1999)
-        .order("country_name", { ascending: true });
+      // Fetch all plans in batches to overcome 1000 row limit
+      let allPlans: EsimPlan[] = [];
+      let from = 0;
+      const batchSize = 1000;
+      let hasMore = true;
 
-      console.log("Query executed - Error:", error);
-      console.log("Query executed - Count:", count);
-      console.log("Query executed - Data length:", data?.length || 0);
-      
-      if (error) {
-        console.error("Detailed Supabase error:", JSON.stringify(error, null, 2));
-        throw error;
+      while (hasMore) {
+        console.log(`Fetching batch ${from} to ${from + batchSize - 1}`);
+        
+        const { data, error, count } = await supabase
+          .from("esim_plans")
+          .select("*", { count: 'exact' })
+          .eq("is_active", true)
+          .range(from, from + batchSize - 1)
+          .order("country_name", { ascending: true });
+
+        if (error) {
+          console.error("Detailed Supabase error:", JSON.stringify(error, null, 2));
+          throw error;
+        }
+
+        if (data && data.length > 0) {
+          allPlans = [...allPlans, ...data];
+          console.log(`Batch fetched: ${data.length} plans. Total so far: ${allPlans.length}`);
+          
+          // Check if we got fewer than batchSize, meaning we're done
+          if (data.length < batchSize) {
+            hasMore = false;
+          } else {
+            from += batchSize;
+          }
+        } else {
+          hasMore = false;
+        }
       }
+
+      console.log("Final total plans fetched:", allPlans.length);
+      console.log("Sample countries:", allPlans.slice(0, 5)?.map(p => p.country_name) || []);
+      console.log("Sample country codes:", allPlans.slice(0, 5)?.map(p => p.country_code) || []);
+      console.log("Looking for Singapore plans:", allPlans?.filter(p => p.country_name?.toLowerCase().includes('singapore') || p.country_code?.toLowerCase().includes('sg')) || []);
       
-      console.log("Sample countries:", data?.slice(0, 5)?.map(p => p.country_name) || []);
-      console.log("Sample country codes:", data?.slice(0, 5)?.map(p => p.country_code) || []);
-      console.log("Looking for Singapore plans:", data?.filter(p => p.country_name?.toLowerCase().includes('singapore') || p.country_code?.toLowerCase().includes('sg')) || []);
-      setPlans(data || []);
+      setPlans(allPlans);
     } catch (error) {
       console.error("Fetch error:", error);
       toast({

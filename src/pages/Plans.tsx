@@ -403,7 +403,7 @@ const fetchPlans = async () => {
                         </CardDescription>
                       </div>
                     </div>
-                    <Badge variant="secondary" className="glass-intense text-xs border border-border">
+                    <Badge variant="secondary" className="glass-intense text-xs border border-primary/30">
                       {plan.country_code}
                     </Badge>
                   </div>

@@ -2,13 +2,17 @@ import { useEffect, useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Search, Globe, Clock, Database } from "lucide-react";
+import { Search, Globe, Clock, Database, Wifi, Router, ShoppingCart, Check } from "lucide-react";
 import Layout from "@/components/Layout";
 import { getCountryFlag, getRegion, getAllRegions } from "@/utils/countryFlags";
+import { useCart } from "@/contexts/CartContext";
+import RegionalPlanDropdown from "@/components/RegionalPlanDropdown";
+import CartSidebar from "@/components/CartSidebar";
 
 interface EsimPlan {
   id: string;
@@ -31,7 +35,9 @@ export default function Plans() {
   const [selectedRegion, setSelectedRegion] = useState<string>("all");
   const [selectedCountry, setSelectedCountry] = useState<string>("all");
   const [agentMarkup, setAgentMarkup] = useState<{ type: string; value: number }>({ type: 'percent', value: 40 });
+  const [addedToCart, setAddedToCart] = useState<Set<string>>(new Set());
   const { toast } = useToast();
+  const { addToCart } = useCart();
 
   // Popular countries for quick filtering
   const popularCountries = [
@@ -237,6 +243,38 @@ const fetchPlans = async () => {
     return filtered;
   }, [plans, searchQuery, selectedRegion, selectedCountry]);
 
+  const handleAddToCart = (plan: EsimPlan) => {
+    if (!plan.agent_price) return;
+    
+    addToCart({
+      id: plan.id,
+      planId: plan.id,
+      title: plan.title,
+      countryName: plan.country_name,
+      countryCode: plan.country_code,
+      dataAmount: plan.data_amount,
+      validityDays: plan.validity_days,
+      agentPrice: plan.agent_price,
+      currency: plan.currency
+    });
+
+    setAddedToCart(prev => new Set(prev).add(plan.id));
+    
+    toast({
+      title: "Added to Cart",
+      description: `${plan.title} has been added to your cart`,
+    });
+
+    // Remove the "added" state after 2 seconds
+    setTimeout(() => {
+      setAddedToCart(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(plan.id);
+        return newSet;
+      });
+    }, 2000);
+  };
+
   if (loading) {
     return (
       <Layout>
@@ -353,10 +391,13 @@ const fetchPlans = async () => {
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-3">
                     <span className="text-3xl">{getCountryFlag(plan.country_code)}</span>
-                    <div>
+                    <div className="flex-1">
                       <CardTitle className="text-lg leading-tight">{plan.title}</CardTitle>
-                      <CardDescription className="text-sm font-medium">
+                      <CardDescription className="text-sm font-medium flex items-center gap-2">
                         {plan.country_name}
+                        {plan.country_code === 'RG' && (
+                          <RegionalPlanDropdown planTitle={plan.title} countryCode={plan.country_code} />
+                        )}
                       </CardDescription>
                     </div>
                   </div>
@@ -374,7 +415,7 @@ const fetchPlans = async () => {
                 )}
                 
                 <div className="grid grid-cols-2 gap-4">
-                <div className="glass-intense p-3 rounded-xl text-center">
+                  <div className="glass-intense p-3 rounded-xl text-center">
                     <Database className="h-4 w-4 mx-auto mb-1 text-primary" />
                     <p className="font-semibold text-sm">{plan.data_amount}</p>
                     <p className="text-xs text-muted-foreground">Data</p>
@@ -385,6 +426,18 @@ const fetchPlans = async () => {
                     <p className="text-xs text-muted-foreground">Validity</p>
                   </div>
                 </div>
+
+                {/* 5G Network & Hotspot Features */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="flex items-center gap-2 p-2 glass-subtle rounded-lg">
+                    <Wifi className="h-4 w-4 text-green-500" />
+                    <span className="text-xs font-medium">5G Network</span>
+                  </div>
+                  <div className="flex items-center gap-2 p-2 glass-subtle rounded-lg">
+                    <Router className="h-4 w-4 text-blue-500" />
+                    <span className="text-xs font-medium">Hotspot Sharing</span>
+                  </div>
+                </div>
                 
                 <div className="glass-intense p-4 rounded-xl text-center">
                   <p className="text-xs text-muted-foreground mb-1">Agent Price</p>
@@ -392,6 +445,26 @@ const fetchPlans = async () => {
                     {plan.currency} {plan.agent_price?.toFixed(2) || plan.wholesale_price}
                   </p>
                 </div>
+
+                {/* Add to Cart Button */}
+                <Button
+                  onClick={() => handleAddToCart(plan)}
+                  className="w-full"
+                  variant={addedToCart.has(plan.id) ? "outline" : "default"}
+                  disabled={addedToCart.has(plan.id)}
+                >
+                  {addedToCart.has(plan.id) ? (
+                    <>
+                      <Check className="h-4 w-4 mr-2" />
+                      Added to Cart
+                    </>
+                  ) : (
+                    <>
+                      <ShoppingCart className="h-4 w-4 mr-2" />
+                      Add to Cart
+                    </>
+                  )}
+                </Button>
 
                 <div className="pt-2 border-t border-glass-border">
                   <p className="text-xs text-muted-foreground text-center">
@@ -417,6 +490,9 @@ const fetchPlans = async () => {
             </CardContent>
           </Card>
         )}
+
+        {/* Floating Cart Sidebar */}
+        <CartSidebar />
       </div>
     </Layout>
   );

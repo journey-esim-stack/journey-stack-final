@@ -35,6 +35,16 @@ export default function Wallet() {
     fetchWalletData();
   }, []);
 
+  // Listen for URL changes to refresh data when returning from payment
+  useEffect(() => {
+    const handleFocus = () => {
+      fetchWalletData();
+    };
+    
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, []);
+
   const fetchWalletData = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -58,9 +68,15 @@ export default function Wallet() {
         .order("created_at", { ascending: false })
         .limit(50);
 
-      if (transactionsError) throw transactionsError;
-      setTransactions(transactionsData || []);
+      if (transactionsError) {
+        console.error("Transaction fetch error:", transactionsError);
+        // Don't throw error for transactions - just log it
+        setTransactions([]);
+      } else {
+        setTransactions(transactionsData || []);
+      }
     } catch (error) {
+      console.error("Wallet data fetch error:", error);
       toast({
         title: "Error",
         description: "Failed to fetch wallet data",
@@ -126,7 +142,7 @@ export default function Wallet() {
           <p className="text-muted-foreground">Manage your wallet balance and view transaction history</p>
         </div>
 
-        <Card>
+        <Card className="glass-card">
           <CardHeader>
             <CardTitle>Top Up Wallet</CardTitle>
             <CardDescription>Minimum top-up is USD 10</CardDescription>
@@ -150,7 +166,7 @@ export default function Wallet() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="glass-card">
           <CardHeader>
             <CardTitle>Current Balance</CardTitle>
             <CardDescription>Your available wallet balance</CardDescription>
@@ -162,7 +178,7 @@ export default function Wallet() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="glass-card">
           <CardHeader>
             <CardTitle>Transaction History</CardTitle>
             <CardDescription>Recent wallet transactions - Credits (top-ups) and debits (purchases)</CardDescription>

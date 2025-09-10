@@ -135,13 +135,13 @@ export default function Wallet() {
   const getTransactionTypeColor = (type: string) => {
     switch (type) {
       case "deposit":
-        return "bg-green-100 text-green-800";
+        return "bg-green-100 text-green-800 border-green-200";
       case "purchase":
-        return "bg-red-100 text-red-800";
+        return "bg-red-100 text-red-800 border-red-200";
       case "refund":
-        return "bg-blue-100 text-blue-800";
+        return "bg-blue-100 text-blue-800 border-blue-200";
       default:
-        return "bg-gray-100 text-gray-800";
+        return "bg-gray-100 text-gray-800 border-gray-200";
     }
   };
 
@@ -224,8 +224,10 @@ export default function Wallet() {
                         {format(new Date(transaction.created_at), "MMM dd, yyyy HH:mm")}
                       </TableCell>
                       <TableCell>
-                        <Badge className={getTransactionTypeColor(transaction.transaction_type)}>
-                          {transaction.transaction_type === "deposit" ? "Top-up" : transaction.transaction_type === "purchase" ? "Purchase" : "Transaction"}
+                        <Badge 
+                          className={`${getTransactionTypeColor(transaction.transaction_type)} inline-flex items-center justify-center px-2.5 py-1 text-xs font-medium rounded-full whitespace-nowrap border`}
+                        >
+                          {transaction.transaction_type === "deposit" ? "Top-up" : transaction.transaction_type === "purchase" ? "Purchase" : "Refund"}
                         </Badge>
                       </TableCell>
                       <TableCell>{transaction.description || "-"}</TableCell>

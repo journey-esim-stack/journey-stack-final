@@ -137,11 +137,22 @@ const fetchPlans = async () => {
       }
       
       const searchLower = searchQuery?.toLowerCase() || "";
+      
+      // Check if search matches Asian countries and this is an Asian regional plan
+      const asianCountryNames = ['singapore', 'thailand', 'malaysia', 'indonesia', 'philippines', 'cambodia', 'vietnam'];
+      const isSearchingForAsianCountry = asianCountryNames.some(country => searchLower.includes(country));
+      const isAsianRegionalPlan = plan.country_code === 'RG' && (
+        plan.title?.toLowerCase().includes('asia') || 
+        plan.description?.toLowerCase().includes('asia')
+      );
+      
       const matchesSearch = !searchQuery || (
         plan.title?.toLowerCase().includes(searchLower) ||
         plan.country_name?.toLowerCase().includes(searchLower) ||
         plan.description?.toLowerCase().includes(searchLower) ||
         plan.data_amount?.toLowerCase().includes(searchLower) ||
+        // Include Asian regional plans when searching for Asian countries
+        (isSearchingForAsianCountry && isAsianRegionalPlan) ||
         // Include regional/multi-country plans that mention the search term in title or description
         (plan.country_code === 'RG' && (
           plan.title?.toLowerCase().includes(searchLower) ||
@@ -154,9 +165,14 @@ const fetchPlans = async () => {
         selectedRegion === "all" || 
         planRegion === selectedRegion;
 
+      // Countries covered by Asian regional plans
+      const asianCountries = ['SG', 'TH', 'MY', 'ID', 'PH', 'KH', 'VN']; // Singapore, Thailand, Malaysia, Indonesia, Philippines, Cambodia, Vietnam
+      
       const matchesCountry = 
         selectedCountry === "all" || 
         plan.country_code === selectedCountry ||
+        // Check if this is an Asian regional plan and selected country is in Asia
+        (isAsianRegionalPlan && asianCountries.includes(selectedCountry)) ||
         // Also check regional plans for country mentions in title
         (plan.country_code === 'RG' && (
           plan.title?.toLowerCase().includes(popularCountries.find(c => c.code === selectedCountry)?.name.toLowerCase() || selectedCountry.toLowerCase()) ||

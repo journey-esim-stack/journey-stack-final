@@ -13,14 +13,18 @@ serve(async (req) => {
   }
 
   try {
+    console.log('=== Create eSIM Function Started ===');
+    
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
     const { plan_id, order_id } = await req.json();
+    console.log('Request payload:', { plan_id, order_id });
     
     if (!plan_id || !order_id) {
+      console.error('Missing required fields:', { plan_id, order_id });
       return new Response(JSON.stringify({ error: 'plan_id and order_id are required' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

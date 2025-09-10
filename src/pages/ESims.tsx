@@ -244,7 +244,6 @@ const ESims = () => {
                     <TableRow className="border-b border-border/50">
                       <TableHead className="text-muted-foreground font-medium">eSIM ICCID</TableHead>
                       <TableHead className="text-muted-foreground font-medium">Date Assigned</TableHead>
-                      <TableHead className="text-muted-foreground font-medium">Customer</TableHead>
                       <TableHead className="text-muted-foreground font-medium">Country</TableHead>
                       <TableHead className="text-muted-foreground font-medium">Data Plan</TableHead>
                       <TableHead className="text-muted-foreground font-medium">Status</TableHead>
@@ -253,21 +252,18 @@ const ESims = () => {
                   </TableHeader>
                   <TableBody>
                     {filteredOrders.map((order) => (
-                      <TableRow key={order.id} className="cursor-pointer hover:bg-muted/30 transition-colors border-b border-border/30">
+                      <TableRow 
+                        key={order.id} 
+                        className="hover:bg-muted/30 transition-colors border-b border-border/30 cursor-pointer"
+                        onClick={() => order.esim_iccid && handleESIMClick(order.esim_iccid)}
+                      >
                         <TableCell 
-                          className={`font-mono text-sm ${order.esim_iccid ? 'text-primary hover:underline cursor-pointer' : 'text-muted-foreground'} transition-all`}
-                          onClick={() => order.esim_iccid && handleESIMClick(order.esim_iccid)}
+                          className={`font-mono text-sm ${order.esim_iccid ? 'text-primary font-medium' : 'text-muted-foreground'} transition-all`}
                         >
                           {order.esim_iccid || "Pending..."}
                         </TableCell>
                         <TableCell className="text-muted-foreground">
                           {format(new Date(order.created_at), "MMM dd, yyyy HH:mm")}
-                        </TableCell>
-                        <TableCell>
-                          <div className="space-y-1">
-                            <div className="font-medium">{order.customer_name}</div>
-                            <div className="text-sm text-muted-foreground">{order.customer_email}</div>
-                          </div>
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
@@ -305,7 +301,18 @@ const ESims = () => {
                               </Button>
                             )}
                             {order.status === "pending" && (
-                              <span className="text-xs text-muted-foreground">Processing...</span>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  retryESIMCreation(order.id, order.plan_id);
+                                }}
+                                className="h-8 px-2 text-xs"
+                              >
+                                <RefreshCw className="h-3 w-3 mr-1" />
+                                Create eSIM
+                              </Button>
                             )}
                           </div>
                         </TableCell>

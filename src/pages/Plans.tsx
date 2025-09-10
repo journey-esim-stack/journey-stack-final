@@ -491,11 +491,11 @@ const fetchPlans = async () => {
 
                 {/* Network Features */}
                 <div className="grid grid-cols-2 gap-2">
-                  <div className="flex items-center gap-2 p-2 glass-subtle rounded-lg">
+                  <div className="flex items-center gap-2 p-2">
                     <Wifi className="h-4 w-4 text-green-500" />
                     <span className="text-xs font-medium">5G Premium Network</span>
                   </div>
-                  <div className="flex items-center gap-2 p-2 glass-subtle rounded-lg">
+                  <div className="flex items-center gap-2 p-2">
                     <Router className="h-4 w-4 text-blue-500" />
                     <span className="text-xs font-medium">Hotspot Sharing</span>
                   </div>

@@ -63,7 +63,7 @@ serve(async (req) => {
       throw new Error('Invalid API response: no plans array found');
     }
     const plans = rawPlans;
-    console.log(`Processing ${plans.length} plans...`),
+    console.log(`Processing ${plans.length} plans...`);
 
     // Transform API data to match our esim_plans table structure
     const transformedPlans = plans.map((plan: any) => {

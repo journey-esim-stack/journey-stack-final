@@ -36,20 +36,28 @@ export default function Plans() {
     fetchPlans();
   }, []);
 
-  const fetchPlans = async () => {
+const fetchPlans = async () => {
     try {
+      // Add pagination and better error handling
       const { data, error } = await supabase
         .from("esim_plans")
         .select("*")
         .eq("is_active", true)
-        .order("country_name", { ascending: true });
+        .order("country_name", { ascending: true })
+        .limit(1000); // Limit to first 1000 for better performance
 
-      if (error) throw error;
+      if (error) {
+        console.error("Supabase error:", error);
+        throw error;
+      }
+      
+      console.log("Fetched plans:", data?.length || 0);
       setPlans(data || []);
     } catch (error) {
+      console.error("Fetch error:", error);
       toast({
         title: "Error",
-        description: "Failed to fetch eSIM plans",
+        description: "Failed to fetch eSIM plans. Please check your permissions.",
         variant: "destructive",
       });
     } finally {

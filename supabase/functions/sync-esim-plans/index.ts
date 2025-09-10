@@ -20,7 +20,7 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Get eSIM Access API credentials
+// Get eSIM Access API credentials
     const accessCode = Deno.env.get('ESIMACCESS_ACCESS_CODE');
     const secretKey = Deno.env.get('ESIMACCESS_SECRET_KEY');
 
@@ -28,9 +28,31 @@ serve(async (req) => {
       throw new Error('eSIM Access credentials not configured');
     }
 
-console.log('Fetching plans from eSIM Access API...');
+    console.log('AccessCode length:', accessCode.length);
+    console.log('AccessCode first 8 chars:', accessCode.substring(0, 8));
+    console.log('SecretKey configured:', !!secretKey);
 
-    // First try simple header format (some endpoints may not need full HMAC)
+    console.log('Fetching plans from eSIM Access API...');
+
+    // Try the balance endpoint first to test authentication
+    const balanceResponse = await fetch('https://api.esimaccess.com/api/v1/open/balance/query', {
+      method: 'POST',
+      headers: {
+        'RT-AccessCode': accessCode,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({})
+    });
+
+    console.log('Balance check status:', balanceResponse.status);
+    const balanceText = await balanceResponse.text();
+    console.log('Balance response:', balanceText);
+
+    if (!balanceResponse.ok) {
+      throw new Error(`Balance check failed: ${balanceResponse.status} - ${balanceText}`);
+    }
+
+    // If balance check works, try the package list
     const response = await fetch('https://api.esimaccess.com/api/v1/open/package/list', {
       method: 'POST',
       headers: {

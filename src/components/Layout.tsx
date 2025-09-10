@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { LogOut, Package, DollarSign, Wallet, ShoppingCart, ShieldCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import CartSidebar from "@/components/CartSidebar";
+import { useCart } from "@/contexts/CartContext";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -18,6 +19,7 @@ export default function Layout({ children }: LayoutProps) {
   const [isAdmin, setIsAdmin] = useState(false);
   const location = useLocation();
   const { toast } = useToast();
+  const { state } = useCart();
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -111,7 +113,30 @@ export default function Layout({ children }: LayoutProps) {
                 })}
               </div>
             </div>
-            <div className="flex items-center">
+            <div className="flex items-center space-x-3">
+              {/* Cart Icon with Badge - We'll use a direct approach since CartSidebar already handles the floating button */}
+              <div className="relative">
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  onClick={() => {
+                    // Trigger the cart sidebar by simulating a click on the floating button
+                    const cartButton = document.querySelector('[role="button"]:has([data-testid="shopping-cart"]), button:has(svg[class*="ShoppingCart"])');
+                    if (cartButton) {
+                      (cartButton as HTMLElement).click();
+                    }
+                  }}
+                  className="relative"
+                >
+                  <ShoppingCart className="h-5 w-5" />
+                  {state.items.length > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs rounded-full h-5 w-5 flex items-center justify-center font-medium">
+                      {state.items.reduce((sum, item) => sum + item.quantity, 0)}
+                    </span>
+                  )}
+                </Button>
+              </div>
+              
               <Button variant="ghost" onClick={handleSignOut}>
                 <LogOut className="h-4 w-4 mr-2" />
                 Sign Out

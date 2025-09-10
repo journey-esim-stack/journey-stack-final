@@ -26,13 +26,16 @@ export default function TopupSuccess() {
 
     const confirm = async () => {
       try {
+        console.log("Confirming top-up with session ID:", sessionId);
         const { data, error } = await supabase.functions.invoke("confirm-topup", {
           body: { session_id: sessionId },
         });
+        console.log("Confirm topup response:", { data, error });
         if (error) throw error;
         setResult({ amount: data?.amount, balance: data?.balance });
         toast({ title: "Top-up confirmed", description: `Balance updated successfully.` });
       } catch (e) {
+        console.error("Top-up confirmation error:", e);
         toast({ title: "Confirmation failed", description: "Please contact support.", variant: "destructive" });
       } finally {
         setProcessing(false);

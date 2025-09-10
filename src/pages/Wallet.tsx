@@ -35,14 +35,17 @@ export default function Wallet() {
     fetchWalletData();
   }, []);
 
-  // Listen for URL changes to refresh data when returning from payment
+  // Listen for URL changes and visibility changes to refresh data
   useEffect(() => {
-    const handleFocus = () => {
-      fetchWalletData();
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        console.log("Page became visible, refreshing wallet data");
+        fetchWalletData();
+      }
     };
     
-    window.addEventListener('focus', handleFocus);
-    return () => window.removeEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, []);
 
   const fetchWalletData = async () => {
@@ -68,11 +71,15 @@ export default function Wallet() {
         .order("created_at", { ascending: false })
         .limit(50);
 
+      console.log("Agent ID:", profileData.id);
+      console.log("Transactions query result:", { transactionsData, transactionsError });
+
       if (transactionsError) {
         console.error("Transaction fetch error:", transactionsError);
         // Don't throw error for transactions - just log it
         setTransactions([]);
       } else {
+        console.log("Setting transactions:", transactionsData);
         setTransactions(transactionsData || []);
       }
     } catch (error) {
@@ -103,8 +110,14 @@ export default function Wallet() {
       if (error) throw error;
       if (data?.url) {
         window.open(data.url, '_blank');
+        
+        // Add a slight delay before refreshing to allow the window to open
+        setTimeout(() => {
+          fetchWalletData();
+        }, 1000);
       }
     } catch (e) {
+      console.error("Top-up error:", e);
       toast({
         title: 'Top-up failed',
         description: 'Could not create top-up session',

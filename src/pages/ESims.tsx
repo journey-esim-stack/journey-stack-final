@@ -159,40 +159,68 @@ const ESims = () => {
     try {
       setRetryingId(orderId);
       
-      // First test if basic function works
-      console.log('Testing basic function...');
-      const debugResponse = await fetch('https://cccktfactlzxuprpyhgh.supabase.co/functions/v1/debug-simple', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
-      });
-      const debugData = await debugResponse.json();
-      console.log('Debug function result:', debugData);
+      console.log('Calling create-esim function directly...');
       
-      if (!debugResponse.ok) {
-        toast.error(`Debug test failed: ${debugData.error}`);
+      // Use direct fetch to get detailed error info  
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      
+      const response = await fetch('https://cccktfactlzxuprpyhgh.supabase.co/functions/v1/create-esim', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({ 
+          plan_id: planId, 
+          order_id: orderId 
+        })
+      });
+      
+      console.log('Response status:', response.status);
+      console.log('Response ok:', response.ok);
+      
+      let responseData;
+      try {
+        responseData = await response.json();
+        console.log('Response data:', responseData);
+      } catch (jsonError) {
+        console.error('Failed to parse response as JSON:', jsonError);
+        const textResponse = await response.text();
+        console.log('Response as text:', textResponse);
+        toast.error(`API error: ${response.status} - Failed to parse response`);
         return;
       }
       
-      // Now try with Supabase invoke method
-      console.log('Calling create-esim via supabase.functions.invoke...');
-      const { data, error } = await supabase.functions.invoke('create-esim', {
-        body: { 
-          plan_id: planId, 
-          order_id: orderId 
+      if (!response.ok) {
+        // Extract detailed error information
+        const errorMsg = responseData?.error || 'Unknown error';
+        const details = responseData?.details || '';
+        const apiStatus = responseData?.status || '';
+        
+        let fullErrorMsg = errorMsg;
+        if (details && typeof details === 'object') {
+          // If details is an object (eSIM Access API response), extract meaningful info
+          const detailMsg = details.message || details.error || JSON.stringify(details);
+          fullErrorMsg = `${errorMsg}: ${detailMsg}`;
+        } else if (details) {
+          fullErrorMsg = `${errorMsg}: ${details}`;
         }
-      });
-      
-      console.log('Supabase invoke result:', { data, error });
-      
-      if (error) {
-        toast.error(`Supabase invoke error: ${error.message}`);
-        console.error('Supabase invoke error:', error);
-      } else if ((data as any)?.error) {
-        toast.error(`Function returned error: ${(data as any).error}`);
-        console.error('Function error:', data);
+        
+        if (apiStatus) {
+          fullErrorMsg = `${fullErrorMsg} (API Status: ${apiStatus})`;
+        }
+        
+        toast.error(fullErrorMsg);
+        console.error('Create eSIM failed:', { 
+          status: response.status, 
+          error: responseData?.error,
+          details: responseData?.details,
+          apiStatus: responseData?.status
+        });
       } else {
-        toast.success('eSIM created successfully');
-        console.log('Success:', data);
+        toast.success('eSIM created successfully!');
+        console.log('eSIM creation successful:', responseData);
       }
 
       // Refresh the orders list

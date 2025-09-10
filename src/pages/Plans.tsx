@@ -409,13 +409,7 @@ const fetchPlans = async () => {
                 </div>
               </CardHeader>
               
-              <CardContent className="space-y-6">
-                {plan.description && (
-                  <p className="text-sm text-muted-foreground leading-relaxed">
-                    {plan.description}
-                  </p>
-                )}
-                
+               <CardContent className="space-y-6">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="glass-intense p-3 rounded-xl text-center">
                     <Database className="h-4 w-4 mx-auto mb-1 text-primary" />
@@ -433,15 +427,11 @@ const fetchPlans = async () => {
                 <div className="grid grid-cols-1 gap-2">
                   <div className="flex items-center gap-2 p-2 glass-subtle rounded-lg">
                     <Wifi className="h-4 w-4 text-green-500" />
-                    <span className="text-xs font-medium">5G Network</span>
+                    <span className="text-xs font-medium">5G Premium Network</span>
                   </div>
                   <div className="flex items-center gap-2 p-2 glass-subtle rounded-lg">
                     <Router className="h-4 w-4 text-blue-500" />
                     <span className="text-xs font-medium">Hotspot Sharing</span>
-                  </div>
-                  <div className="flex items-center gap-2 p-2 glass-subtle rounded-lg">
-                    <Globe className="h-4 w-4 text-purple-500" />
-                    <span className="text-xs font-medium">Premium Network Access</span>
                   </div>
                 </div>
                 
@@ -476,12 +466,6 @@ const fetchPlans = async () => {
                   </div>
                   <p className="text-xs text-muted-foreground text-center">
                     Quantity can be adjusted in cart
-                  </p>
-                </div>
-
-                <div className="pt-2 border-t border-glass-border">
-                  <p className="text-xs text-muted-foreground text-center">
-                    Region: {getRegion(plan.country_code)}
                   </p>
                 </div>
               </CardContent>

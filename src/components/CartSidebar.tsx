@@ -9,10 +9,19 @@ import { getCountryFlag } from '@/utils/countryFlags';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
-export default function CartSidebar() {
+interface CartSidebarProps {
+  isOpen?: boolean;
+  onOpenChange?: (open: boolean) => void;
+}
+
+export default function CartSidebar({ isOpen: externalIsOpen, onOpenChange }: CartSidebarProps = {}) {
   const { state, updateQuantity, removeFromCart, clearCart } = useCart();
-  const [isOpen, setIsOpen] = useState(false);
+  const [internalIsOpen, setInternalIsOpen] = useState(false);
   const { toast } = useToast();
+
+  // Use external control if provided, otherwise use internal state
+  const isOpen = externalIsOpen !== undefined ? externalIsOpen : internalIsOpen;
+  const setIsOpen = onOpenChange || setInternalIsOpen;
 
   const handleCheckout = async () => {
     if (state.items.length === 0) return;
@@ -53,20 +62,23 @@ export default function CartSidebar() {
 
   return (
     <Sheet open={isOpen} onOpenChange={setIsOpen}>
-      <SheetTrigger asChild>
-        <Button
-          variant="outline"
-          size="icon"
-          className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg glass-intense border-0 z-50"
-        >
-          <ShoppingCart className="h-6 w-6" />
-          {state.items.length > 0 && (
-            <Badge className="absolute -top-2 -right-2 h-6 w-6 rounded-full p-0 flex items-center justify-center bg-primary text-primary-foreground">
-              {state.items.reduce((sum, item) => sum + item.quantity, 0)}
-            </Badge>
-          )}
-        </Button>
-      </SheetTrigger>
+      {/* Only show the floating trigger if no external control is provided */}
+      {externalIsOpen === undefined && (
+        <SheetTrigger asChild>
+          <Button
+            variant="outline"
+            size="icon"
+            className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg glass-intense border-0 z-50 hover:scale-110 transition-all duration-200"
+          >
+            <ShoppingCart className="h-6 w-6" />
+            {state.items.length > 0 && (
+              <Badge className="absolute -top-2 -right-2 h-6 w-6 rounded-full p-0 flex items-center justify-center bg-primary text-primary-foreground animate-bounce">
+                {state.items.reduce((sum, item) => sum + item.quantity, 0)}
+              </Badge>
+            )}
+          </Button>
+        </SheetTrigger>
+      )}
       <SheetContent className="w-full sm:max-w-lg glass-intense border-0">
         <SheetHeader>
           <SheetTitle className="flex items-center gap-2">

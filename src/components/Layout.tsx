@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { LogOut, Package, DollarSign, Wallet, ShoppingCart, ShieldCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import CartSidebar from "@/components/CartSidebar";
+import CartIcon from "@/components/CartIcon";
 import { useCart } from "@/contexts/CartContext";
 
 interface LayoutProps {
@@ -115,32 +116,7 @@ export default function Layout({ children }: LayoutProps) {
             </div>
             <div className="flex items-center space-x-4">
               {/* Enhanced Cart Icon */}
-              <div className="relative">
-                <Button 
-                  variant="ghost" 
-                  size="sm"
-                  onClick={() => {
-                    // Find and click the cart sidebar trigger
-                    const cartTrigger = document.querySelector('button:has(svg)') as HTMLElement;
-                    const allButtons = document.querySelectorAll('button');
-                    const cartButton = Array.from(allButtons).find(btn => 
-                      btn.querySelector('svg') && btn.classList.contains('fixed')
-                    );
-                    if (cartButton) {
-                      (cartButton as HTMLElement).click();
-                    }
-                  }}
-                  className="relative glass-subtle hover:glass-card transition-all duration-200 rounded-xl px-3 py-2"
-                >
-                  <ShoppingCart className="h-5 w-5 text-primary" />
-                  {state.items.length > 0 && (
-                    <span className="absolute -top-2 -right-2 bg-gradient-to-r from-primary to-primary/80 text-primary-foreground text-xs rounded-full h-5 w-5 flex items-center justify-center font-bold shadow-lg animate-pulse">
-                      {state.items.reduce((sum, item) => sum + item.quantity, 0)}
-                    </span>
-                  )}
-                  <span className="sr-only">Shopping Cart</span>
-                </Button>
-              </div>
+              <CartIcon />
               
               <Button variant="ghost" onClick={handleSignOut} className="hover:glass-subtle transition-all duration-200 rounded-xl">
                 <LogOut className="h-4 w-4 mr-2" />

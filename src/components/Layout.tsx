@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { LogOut, Package, DollarSign, Wallet, ShoppingCart, ShieldCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import CartSidebar from "@/components/CartSidebar";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -123,6 +124,9 @@ export default function Layout({ children }: LayoutProps) {
       <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
         {children}
       </main>
+      
+      {/* Global Cart Sidebar */}
+      <CartSidebar />
     </div>
   );
 }

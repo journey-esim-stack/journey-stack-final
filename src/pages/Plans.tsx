@@ -13,7 +13,7 @@ import Layout from "@/components/Layout";
 import { getCountryFlag, getRegion, getAllRegions } from "@/utils/countryFlags";
 import { useCart } from "@/contexts/CartContext";
 import RegionalPlanDropdown from "@/components/RegionalPlanDropdown";
-import CartSidebar from "@/components/CartSidebar";
+
 
 interface EsimPlan {
   id: string;
@@ -530,8 +530,6 @@ const fetchPlans = async () => {
           </Card>
         )}
 
-        {/* Floating Cart Sidebar */}
-        <CartSidebar />
       </div>
     </Layout>
   );

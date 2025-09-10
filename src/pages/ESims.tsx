@@ -3,8 +3,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, Wifi, MapPin, Globe, Database } from "lucide-react";
+import { Search, Wifi, MapPin, Globe, Database, RefreshCw } from "lucide-react";
 import { format } from "date-fns";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -78,7 +79,7 @@ const ESims = () => {
       console.log("All orders for agent:", allOrders);
       console.log("All orders error:", allOrdersError);
 
-      // Fetch orders with eSIM data (completed orders)
+      // Fetch orders with eSIM data (completed and pending orders)
       const { data, error } = await supabase
         .from("orders")
         .select(`
@@ -91,7 +92,7 @@ const ESims = () => {
           )
         `)
         .eq("agent_id", agentProfile.id)
-        .eq("status", "completed")
+        .in("status", ["completed", "pending", "failed"])
         .order("created_at", { ascending: false });
 
       console.log("Completed orders with eSIMs:", data);
@@ -134,9 +135,45 @@ const ESims = () => {
     }
   };
 
+  const getStatusText = (status: string) => {
+    switch (status.toLowerCase()) {
+      case "completed":
+        return "Active";
+      case "pending":
+        return "Processing";
+      case "failed":
+        return "Failed";
+      default:
+        return status;
+    }
+  };
+
   const handleESIMClick = (iccid: string | null) => {
     if (iccid) {
       navigate(`/esims/${iccid}`);
+    }
+  };
+
+  const retryESIMCreation = async (orderId: string, planId: string) => {
+    try {
+      const { data, error } = await supabase.functions.invoke('create-esim', {
+        body: {
+          plan_id: planId,
+          order_id: orderId
+        }
+      });
+      
+      if (error) {
+        toast.error("Failed to retry eSIM creation");
+        console.error("Retry eSIM creation error:", error);
+      } else {
+        toast.success("eSIM creation retry initiated");
+        // Refresh the orders list
+        fetchOrders();
+      }
+    } catch (error) {
+      toast.error("Failed to retry eSIM creation");
+      console.error("Retry eSIM creation error:", error);
     }
   };
 
@@ -211,16 +248,17 @@ const ESims = () => {
                       <TableHead className="text-muted-foreground font-medium">Country</TableHead>
                       <TableHead className="text-muted-foreground font-medium">Data Plan</TableHead>
                       <TableHead className="text-muted-foreground font-medium">Status</TableHead>
+                      <TableHead className="text-muted-foreground font-medium">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filteredOrders.map((order) => (
                       <TableRow key={order.id} className="cursor-pointer hover:bg-muted/30 transition-colors border-b border-border/30">
                         <TableCell 
-                          className="font-mono text-sm text-primary hover:underline cursor-pointer transition-all"
-                          onClick={() => handleESIMClick(order.esim_iccid)}
+                          className={`font-mono text-sm ${order.esim_iccid ? 'text-primary hover:underline cursor-pointer' : 'text-muted-foreground'} transition-all`}
+                          onClick={() => order.esim_iccid && handleESIMClick(order.esim_iccid)}
                         >
-                          {order.esim_iccid || "N/A"}
+                          {order.esim_iccid || "Pending..."}
                         </TableCell>
                         <TableCell className="text-muted-foreground">
                           {format(new Date(order.created_at), "MMM dd, yyyy HH:mm")}
@@ -244,9 +282,32 @@ const ESims = () => {
                           </div>
                         </TableCell>
                         <TableCell>
-                          <Badge className={`${getStatusColor(order.status)} inline-flex items-center justify-center px-2.5 py-1 text-xs font-medium rounded-full whitespace-nowrap border`}>
-                            {order.status}
-                          </Badge>
+                          <div className="flex items-center gap-2">
+                            <Badge className={`${getStatusColor(order.status)} inline-flex items-center justify-center px-2.5 py-1 text-xs font-medium rounded-full whitespace-nowrap border`}>
+                              {getStatusText(order.status)}
+                            </Badge>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            {order.status === "failed" && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  retryESIMCreation(order.id, order.plan_id);
+                                }}
+                                className="h-8 px-2 text-xs"
+                              >
+                                <RefreshCw className="h-3 w-3 mr-1" />
+                                Retry
+                              </Button>
+                            )}
+                            {order.status === "pending" && (
+                              <span className="text-xs text-muted-foreground">Processing...</span>
+                            )}
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}

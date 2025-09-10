@@ -105,7 +105,9 @@ serve(async (req) => {
         const item = cart_items[i];
         
         try {
-          const { error: esimError } = await supabase.functions.invoke('create-esim', {
+          console.log(`Creating eSIM for order ${order.id} with plan ${item.planId}`);
+          
+          const { data: esimData, error: esimError } = await supabase.functions.invoke('create-esim', {
             body: {
               plan_id: item.planId,
               order_id: order.id
@@ -114,9 +116,21 @@ serve(async (req) => {
           
           if (esimError) {
             console.error(`Failed to create eSIM for order ${order.id}:`, esimError);
+            // Update order status to failed
+            await supabase
+              .from("orders")
+              .update({ status: "failed" })
+              .eq("id", order.id);
+          } else {
+            console.log(`Successfully created eSIM for order ${order.id}:`, esimData);
           }
         } catch (esimCreateError) {
           console.error(`Error creating eSIM for order ${order.id}:`, esimCreateError);
+          // Update order status to failed
+          await supabase
+            .from("orders")
+            .update({ status: "failed" })
+            .eq("id", order.id);
         }
       }
     }

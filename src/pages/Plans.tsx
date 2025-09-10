@@ -38,6 +38,7 @@ export default function Plans() {
   const [selectedCountry, setSelectedCountry] = useState<string>("all");
   const [agentMarkup, setAgentMarkup] = useState<{ type: string; value: number }>({ type: 'percent', value: 40 });
   const [addedToCart, setAddedToCart] = useState<Set<string>>(new Set());
+  const [dayPassDays, setDayPassDays] = useState<Record<string, number>>({});
   const { toast } = useToast();
   const { addToCart } = useCart();
 
@@ -54,7 +55,14 @@ export default function Plans() {
   ];
 
   // Get unique regions from plans
-  const regions = getAllRegions();
+   const regions = getAllRegions();
+   
+   // Detect Day Pass (Unlimited FUP) plans based on title/description
+   const isDayPass = (p: EsimPlan) => {
+     const t = (p.title || '').toLowerCase();
+     const d = (p.description || '').toLowerCase();
+     return /\/\s*day\b/.test(t) || t.includes('daily') || /\/\s*day\b/.test(d) || d.includes('daily');
+   };
 
   useEffect(() => {
     fetchPlans();
@@ -246,7 +254,15 @@ const fetchPlans = async () => {
   }, [plans, searchQuery, selectedRegion, selectedCountry]);
 
   const handleAddToCart = (plan: EsimPlan) => {
-    if (!plan.agent_price) return;
+    if (plan.agent_price == null) return;
+    
+    const days = isDayPass(plan) 
+      ? (dayPassDays[plan.id] ?? Math.max(plan.validity_days || 1, 1)) 
+      : plan.validity_days;
+
+    const price = isDayPass(plan)
+      ? Number(plan.agent_price) * days
+      : Number(plan.agent_price);
     
     addToCart({
       id: plan.id,
@@ -255,8 +271,8 @@ const fetchPlans = async () => {
       countryName: plan.country_name,
       countryCode: plan.country_code,
       dataAmount: plan.data_amount,
-      validityDays: plan.validity_days,
-      agentPrice: plan.agent_price,
+      validityDays: days,
+      agentPrice: price,
       currency: plan.currency
     });
 
@@ -435,11 +451,37 @@ const fetchPlans = async () => {
                   </div>
                 </div>
                 
-                <div className="glass-intense p-4 rounded-xl text-center">
+                <div className="glass-intense p-4 rounded-xl text-center space-y-2">
+                  {isDayPass(plan) && (
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-xs text-muted-foreground">Number of Days</span>
+                      <Input
+                        type="number"
+                        min={1}
+                        max={365}
+                        value={dayPassDays[plan.id] ?? Math.max(plan.validity_days || 1, 1)}
+                        onChange={(e) => {
+                          const v = Math.max(1, Math.min(365, Number(e.target.value) || 1));
+                          setDayPassDays(prev => ({ ...prev, [plan.id]: v }));
+                        }}
+                        className="w-20 text-center glass-intense"
+                        aria-label="Number of days"
+                      />
+                    </div>
+                  )}
                   <p className="text-xs text-muted-foreground mb-1">Agent Price</p>
                   <p className="text-2xl font-bold text-primary">
-                    {plan.currency} {plan.agent_price?.toFixed(2) || plan.wholesale_price}
+                    {plan.currency} {(
+                      isDayPass(plan)
+                        ? Number(plan.agent_price ?? 0) * (dayPassDays[plan.id] ?? Math.max(plan.validity_days || 1, 1))
+                        : Number(plan.agent_price ?? plan.wholesale_price ?? 0)
+                    ).toFixed(2)}
                   </p>
+                  {isDayPass(plan) && (
+                    <p className="text-xs text-muted-foreground">
+                      {plan.currency} {Number(plan.agent_price ?? 0).toFixed(2)} per day × {(dayPassDays[plan.id] ?? Math.max(plan.validity_days || 1, 1))} days
+                    </p>
+                  )}
                 </div>
 
                 {/* Add to Cart Section */}
@@ -459,13 +501,13 @@ const fetchPlans = async () => {
                       ) : (
                         <>
                           <ShoppingCart className="h-4 w-4 mr-2" />
-                          Add to Cart
+                          {isDayPass(plan) ? 'Add with Days' : 'Add to Cart'}
                         </>
                       )}
                     </Button>
                   </div>
                   <p className="text-xs text-muted-foreground text-center">
-                    Quantity can be adjusted in cart
+                    {isDayPass(plan) ? 'Days can be adjusted above' : 'Quantity can be adjusted in cart'}
                   </p>
                 </div>
               </CardContent>

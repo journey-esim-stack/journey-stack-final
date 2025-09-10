@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { Search, Globe, Clock, Database } from "lucide-react";
 import Layout from "@/components/Layout";
@@ -27,7 +28,20 @@ export default function Plans() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedRegion, setSelectedRegion] = useState<string>("all");
+  const [selectedCountry, setSelectedCountry] = useState<string>("all");
   const { toast } = useToast();
+
+  // Popular countries for quick filtering
+  const popularCountries = [
+    { name: "UAE (Dubai)", code: "AE", flag: "🇦🇪" },
+    { name: "Singapore", code: "SG", flag: "🇸🇬" },
+    { name: "UK", code: "GB", flag: "🇬🇧" },
+    { name: "USA", code: "US", flag: "🇺🇸" },
+    { name: "Italy", code: "IT", flag: "🇮🇹" },
+    { name: "Thailand", code: "TH", flag: "🇹🇭" },
+    { name: "Indonesia", code: "ID", flag: "🇮🇩" },
+    { name: "Spain", code: "ES", flag: "🇪🇸" },
+  ];
 
   // Get unique regions from plans
   const regions = getAllRegions();
@@ -102,9 +116,9 @@ const fetchPlans = async () => {
     }
   };
 
-// Filter plans based on search and region
+// Filter plans based on search, region, and country
   const filteredPlans = useMemo(() => {
-    console.log("Filtering plans. Total plans:", plans.length, "Search:", searchQuery, "Region:", selectedRegion);
+    console.log("Filtering plans. Total plans:", plans.length, "Search:", searchQuery, "Region:", selectedRegion, "Country:", selectedCountry);
     
     if (plans.length > 0) {
       console.log("Sample plan structure:", plans[0]);
@@ -134,12 +148,16 @@ const fetchPlans = async () => {
       const matchesRegion = 
         selectedRegion === "all" || 
         planRegion === selectedRegion;
+
+      const matchesCountry = 
+        selectedCountry === "all" || 
+        plan.country_code === selectedCountry;
       
-      const result = matchesSearch && matchesRegion;
+      const result = matchesSearch && matchesRegion && matchesCountry;
       
       // Debug specific plans
       if (searchQuery && searchQuery.toLowerCase() === "singapore") {
-        console.log(`Plan ${plan.country_name}: matchesSearch=${matchesSearch}, matchesRegion=${matchesRegion}, result=${result}`);
+        console.log(`Plan ${plan.country_name}: matchesSearch=${matchesSearch}, matchesRegion=${matchesRegion}, matchesCountry=${matchesCountry}, result=${result}`);
       }
       
       return result;
@@ -149,7 +167,7 @@ const fetchPlans = async () => {
     console.log("Sample filtered countries:", filtered.slice(0, 5).map(p => p.country_name));
     
     return filtered;
-  }, [plans, searchQuery, selectedRegion]);
+  }, [plans, searchQuery, selectedRegion, selectedCountry]);
 
   if (loading) {
     return (
@@ -207,9 +225,34 @@ const fetchPlans = async () => {
               </SelectContent>
             </Select>
           </div>
+
+          {/* Popular Countries Tabs */}
+          <div className="mt-6">
+            <h3 className="text-sm font-medium text-muted-foreground mb-3">Popular Countries</h3>
+            <Tabs value={selectedCountry} onValueChange={setSelectedCountry} className="w-full">
+              <TabsList className="h-auto p-1 glass-intense border-0 flex-wrap justify-start">
+                <TabsTrigger 
+                  value="all" 
+                  className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-full px-4 py-2 text-sm"
+                >
+                  All Countries
+                </TabsTrigger>
+                {popularCountries.map((country) => (
+                  <TabsTrigger 
+                    key={country.code} 
+                    value={country.code}
+                    className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-full px-4 py-2 text-sm flex items-center gap-2"
+                  >
+                    <span>{country.flag}</span>
+                    <span>{country.name}</span>
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            </Tabs>
+          </div>
           
-          {searchQuery || selectedRegion !== "all" ? (
-            <div className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">
+          {(searchQuery || selectedRegion !== "all" || selectedCountry !== "all") ? (
+            <div className="mt-4 flex items-center gap-2 text-sm text-muted-foreground flex-wrap">
               <span>Showing {filteredPlans.length} of {plans.length} plans</span>
               {searchQuery && (
                 <Badge variant="secondary" className="glass-intense border-0">
@@ -219,6 +262,11 @@ const fetchPlans = async () => {
               {selectedRegion !== "all" && (
                 <Badge variant="secondary" className="glass-intense border-0">
                   Region: {selectedRegion}
+                </Badge>
+              )}
+              {selectedCountry !== "all" && (
+                <Badge variant="secondary" className="glass-intense border-0">
+                  Country: {popularCountries.find(c => c.code === selectedCountry)?.name || selectedCountry}
                 </Badge>
               )}
             </div>

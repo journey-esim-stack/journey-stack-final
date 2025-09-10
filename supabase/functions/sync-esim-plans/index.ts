@@ -50,8 +50,14 @@ const response = await fetch('https://api.esimaccess.com/api/v1/open/package/lis
     const apiData = await response.json();
     console.log('Received data from eSIM Access:', apiData);
 
-    if (!apiData?.success) {
-      throw new Error(`Invalid API response format (success=false)`);
+// Some endpoints return success as boolean or string "true"
+    const successVal = apiData?.success;
+    const isSuccess = successVal === true || String(successVal).toLowerCase() === 'true';
+    if (!isSuccess) {
+      const errCode = apiData?.errorCode ?? apiData?.code ?? 'unknown';
+      const errMsg = apiData?.errorMessage ?? apiData?.errorMsg ?? 'Unknown error from provider';
+      console.error('eSIM Access returned error:', { errCode, errMsg, apiData });
+      throw new Error(`Provider error: ${errCode} - ${errMsg}`);
     }
 
     // Handle multiple possible response shapes (data vs obj, list wrappers, etc.)

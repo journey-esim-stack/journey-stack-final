@@ -158,31 +158,30 @@ const ESims = () => {
   const retryESIMCreation = async (orderId: string, planId: string) => {
     try {
       setRetryingId(orderId);
-      // First try via supabase.functions.invoke
+      
+      // First test the environment and API
+      console.log('Testing eSIM creation environment...');
+      const testResult = await fetch('https://cccktfactlzxuprpyhgh.supabase.co/functions/v1/test-esim', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      const testData = await testResult.json();
+      console.log('Test result:', testData);
+      
+      if (!testResult.ok) {
+        toast.error(`Environment test failed: ${testData.error}`);
+        return;
+      }
+      
+      // If test passed, try actual creation
       const { data, error } = await supabase.functions.invoke('create-esim', {
         body: { plan_id: planId, order_id: orderId }
       });
 
       if (error || (data as any)?.error) {
-        // Fallback: call full URL to capture error body in detail
-        const { data: sessionData } = await supabase.auth.getSession();
-        const token = sessionData.session?.access_token;
-        const res = await fetch('https://cccktfactlzxuprpyhgh.supabase.co/functions/v1/create-esim', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-          },
-          body: JSON.stringify({ plan_id: planId, order_id: orderId })
-        });
-        const body = await res.json().catch(() => ({}));
-        if (!res.ok) {
-          const msg = body?.error || body?.details || `Create eSIM failed (${res.status})`;
-          toast.error(msg);
-          console.error('Create eSIM failed:', { status: res.status, body });
-        } else {
-          toast.success('eSIM created successfully');
-        }
+        const msg = (data as any)?.error || error?.message || 'Failed to create eSIM';
+        toast.error(msg);
+        console.error('Create eSIM error:', { error, data });
       } else {
         toast.success('eSIM created successfully');
       }

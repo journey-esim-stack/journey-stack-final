@@ -162,7 +162,7 @@ All colors MUST be HSL.
     background: hsl(var(--glass-bg) / 0.6);
     backdrop-filter: blur(15px) saturate(150%);
     -webkit-backdrop-filter: blur(15px) saturate(150%);
-    border: 1px solid hsl(var(--glass-border) / 0.5);
+    border: none;
     box-shadow: 0 8px 25px hsl(24 100% 45% / 0.1);
   }
 }

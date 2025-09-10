@@ -1,6 +1,7 @@
 // Country code to flag emoji mapping
 export const getCountryFlag = (countryCode: string): string => {
   const flagMap: Record<string, string> = {
+    'AF': '🇦🇫', // Afghanistan
     'SG': '🇸🇬', // Singapore
     'MY': '🇲🇾', // Malaysia
     'TH': '🇹🇭', // Thailand
@@ -59,6 +60,20 @@ export const getCountryFlag = (countryCode: string): string => {
     'LU': '🇱🇺', // Luxembourg
     'MT': '🇲🇹', // Malta
     'CY': '🇨🇾', // Cyprus
+    'BD': '🇧🇩', // Bangladesh
+    'PK': '🇵🇰', // Pakistan
+    'LK': '🇱🇰', // Sri Lanka
+    'NP': '🇳🇵', // Nepal
+    'MM': '🇲🇲', // Myanmar
+    'KH': '🇰🇭', // Cambodia
+    'LA': '🇱🇦', // Laos
+    'BN': '🇧🇳', // Brunei
+    'MN': '🇲🇳', // Mongolia
+    'KZ': '🇰🇿', // Kazakhstan
+    'UZ': '🇺🇿', // Uzbekistan
+    'TM': '🇹🇲', // Turkmenistan
+    'KG': '🇰🇬', // Kyrgyzstan
+    'TJ': '🇹🇯', // Tajikistan
   };
 
   return flagMap[countryCode.toUpperCase()] || '🌍';

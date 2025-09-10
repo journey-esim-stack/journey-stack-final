@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 // Fixed imports - using Router instead of HotspotIcon
-import { Search, Globe, Clock, Database, Wifi, Router, ShoppingCart, Check } from "lucide-react";
+import { Search, Globe, Clock, Database, Wifi, Router, ShoppingCart, Check, ArrowUpDown } from "lucide-react";
 import Layout from "@/components/Layout";
 import { getCountryFlag, getRegion, getAllRegions } from "@/utils/countryFlags";
 import { useCart } from "@/contexts/CartContext";
@@ -39,6 +39,7 @@ export default function Plans() {
   const [agentMarkup, setAgentMarkup] = useState<{ type: string; value: number }>({ type: 'percent', value: 40 });
   const [addedToCart, setAddedToCart] = useState<Set<string>>(new Set());
   const [dayPassDays, setDayPassDays] = useState<Record<string, number>>({});
+  const [sortBy, setSortBy] = useState<string>("default");
   const { toast } = useToast();
   const { addToCart } = useCart();
 
@@ -253,6 +254,36 @@ const fetchPlans = async () => {
     return filtered;
   }, [plans, searchQuery, selectedRegion, selectedCountry]);
 
+  // Sort filtered plans
+  const sortedPlans = useMemo(() => {
+    const sorted = [...filteredPlans];
+    
+    switch (sortBy) {
+      case "price-asc":
+        return sorted.sort((a, b) => (Number(a.agent_price) || 0) - (Number(b.agent_price) || 0));
+      case "price-desc":
+        return sorted.sort((a, b) => (Number(b.agent_price) || 0) - (Number(a.agent_price) || 0));
+      case "duration-asc":
+        return sorted.sort((a, b) => (a.validity_days || 0) - (b.validity_days || 0));
+      case "duration-desc":
+        return sorted.sort((a, b) => (b.validity_days || 0) - (a.validity_days || 0));
+      case "data-asc":
+        return sorted.sort((a, b) => {
+          const aData = parseFloat(a.data_amount.replace(/[^0-9.]/g, '')) || 0;
+          const bData = parseFloat(b.data_amount.replace(/[^0-9.]/g, '')) || 0;
+          return aData - bData;
+        });
+      case "data-desc":
+        return sorted.sort((a, b) => {
+          const aData = parseFloat(a.data_amount.replace(/[^0-9.]/g, '')) || 0;
+          const bData = parseFloat(b.data_amount.replace(/[^0-9.]/g, '')) || 0;
+          return bData - aData;
+        });
+      default:
+        return sorted;
+    }
+  }, [filteredPlans, sortBy]);
+
   const handleAddToCart = (plan: EsimPlan) => {
     if (plan.agent_price == null) return;
     
@@ -348,6 +379,25 @@ const fetchPlans = async () => {
                 ))}
               </SelectContent>
             </Select>
+            <Select value={sortBy} onValueChange={setSortBy}>
+              <SelectTrigger className="w-full md:w-[200px] glass-intense border-0">
+                <SelectValue placeholder="Sort By" />
+              </SelectTrigger>
+              <SelectContent className="glass-intense border-0">
+                <SelectItem value="default">
+                  <div className="flex items-center gap-2">
+                    <ArrowUpDown className="h-4 w-4" />
+                    Default
+                  </div>
+                </SelectItem>
+                <SelectItem value="price-asc">Price: Low to High</SelectItem>
+                <SelectItem value="price-desc">Price: High to Low</SelectItem>
+                <SelectItem value="duration-asc">Duration: Short to Long</SelectItem>
+                <SelectItem value="duration-desc">Duration: Long to Short</SelectItem>
+                <SelectItem value="data-asc">Data: Low to High</SelectItem>
+                <SelectItem value="data-desc">Data: High to Low</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Popular Countries Tabs */}
@@ -377,7 +427,7 @@ const fetchPlans = async () => {
           
           {(searchQuery || selectedRegion !== "all" || selectedCountry !== "all") ? (
             <div className="mt-4 flex items-center gap-2 text-sm text-muted-foreground flex-wrap">
-              <span>Showing {filteredPlans.length} of {plans.length} plans</span>
+              <span>Showing {sortedPlans.length} of {plans.length} plans</span>
               {searchQuery && (
                 <Badge variant="secondary" className="glass-intense border-0">
                   Search: {searchQuery}
@@ -399,7 +449,7 @@ const fetchPlans = async () => {
 
         {/* Plans Grid */}
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {filteredPlans.map((plan, index) => (
+          {sortedPlans.map((plan, index) => (
             <Card 
               key={plan.id} 
               className="glass-intense hover:scale-105 transition-all duration-300 animate-scale-in border-0"

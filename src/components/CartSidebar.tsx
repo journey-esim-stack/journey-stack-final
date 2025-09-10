@@ -36,9 +36,12 @@ export default function CartSidebar({ isOpen: externalIsOpen, onOpenChange }: Ca
       const { error, data } = await supabase.functions.invoke('wallet-debit', {
         body: {
           amount: Number(state.total.toFixed(2)),
-          description: 'Cart purchase',
+          description: `eSIM purchase: ${state.items.map(item => item.title).join(", ")}`,
           reference_id: `cart-${Date.now()}`,
-          cart_items: state.items,
+          cart_items: state.items.map(item => ({
+            ...item,
+            wholesalePrice: item.agentPrice * 0.8 // Estimate wholesale price as 80% of agent price
+          })),
           customer_info: {
             name: "Customer Name", // TODO: Get from user profile or form
             email: "customer@example.com", // TODO: Get from user profile or form

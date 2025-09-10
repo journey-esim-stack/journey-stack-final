@@ -56,11 +56,18 @@ serve(async (req) => {
       .eq("id", profile.id);
     if (updateErr) throw updateErr;
 
+    // Create better description from cart items
+    let transactionDescription = description ?? "Cart purchase";
+    if (cart_items && Array.isArray(cart_items) && cart_items.length > 0) {
+      const planNames = cart_items.map((item: any) => item.title).join(", ");
+      transactionDescription = `eSIM purchase: ${planNames}`;
+    }
+
     // Insert transaction
     const { error: insertErr } = await supabase.from("wallet_transactions").insert({
       agent_id: profile.id,
       transaction_type: "purchase", // Use correct enum value
-      description: description ?? "Cart purchase",
+      description: transactionDescription,
       reference_id: reference_id ?? `cart-${Date.now()}`,
       amount: -amount, // Negative for debit/purchase
       balance_after: newBalance,
@@ -78,7 +85,7 @@ serve(async (req) => {
         agent_id: profile.id,
         plan_id: item.planId,
         retail_price: item.agentPrice * item.quantity,
-        wholesale_price: item.wholesalePrice * item.quantity,
+        wholesale_price: item.wholesalePrice || item.agentPrice * item.quantity, // Fallback to agentPrice if wholesalePrice missing
         customer_name: customer_info.name,
         customer_email: customer_info.email,
         customer_phone: customer_info.phone || null,
@@ -91,6 +98,27 @@ serve(async (req) => {
         .select("id");
       if (orderErr) throw orderErr;
       orderIds = orderData?.map(o => o.id) || [];
+
+      // Create eSIMs for each order
+      for (let i = 0; i < orderData.length; i++) {
+        const order = orderData[i];
+        const item = cart_items[i];
+        
+        try {
+          const { error: esimError } = await supabase.functions.invoke('create-esim', {
+            body: {
+              plan_id: item.planId,
+              order_id: order.id
+            }
+          });
+          
+          if (esimError) {
+            console.error(`Failed to create eSIM for order ${order.id}:`, esimError);
+          }
+        } catch (esimCreateError) {
+          console.error(`Error creating eSIM for order ${order.id}:`, esimCreateError);
+        }
+      }
     }
 
     return new Response(JSON.stringify({ balance: newBalance, order_ids: orderIds }), {

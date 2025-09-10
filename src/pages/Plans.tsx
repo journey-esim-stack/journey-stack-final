@@ -390,23 +390,23 @@ const fetchPlans = async () => {
               style={{ animationDelay: `${index * 100}ms` }}
             >
               <CardHeader className="pb-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <span className="text-3xl">{getCountryFlag(plan.country_code)}</span>
-                    <div className="flex-1">
-                      <CardTitle className="text-lg leading-tight">{plan.title}</CardTitle>
-                      <CardDescription className="text-sm font-medium flex items-center gap-2">
-                        {plan.country_name}
-                        {plan.country_code === 'RG' && (
-                          <RegionalPlanDropdown planTitle={plan.title} countryCode={plan.country_code} />
-                        )}
-                      </CardDescription>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <span className="text-3xl">{getCountryFlag(plan.country_code)}</span>
+                      <div className="flex-1">
+                        <CardTitle className="text-lg leading-tight">{plan.title}</CardTitle>
+                        <CardDescription className="text-sm font-medium flex flex-col gap-1">
+                          <span>{plan.country_name}</span>
+                          {plan.country_code === 'RG' && (
+                            <RegionalPlanDropdown planTitle={plan.title} countryCode={plan.country_code} />
+                          )}
+                        </CardDescription>
+                      </div>
                     </div>
+                    <Badge variant="secondary" className="glass-intense text-xs border border-border">
+                      {plan.country_code}
+                    </Badge>
                   </div>
-                  <Badge variant="secondary" className="glass-intense text-xs border-0">
-                    {plan.country_code}
-                  </Badge>
-                </div>
               </CardHeader>
               
                <CardContent className="space-y-6">
@@ -424,7 +424,7 @@ const fetchPlans = async () => {
                 </div>
 
                 {/* Network Features */}
-                <div className="grid grid-cols-1 gap-2">
+                <div className="grid grid-cols-2 gap-2">
                   <div className="flex items-center gap-2 p-2 glass-subtle rounded-lg">
                     <Wifi className="h-4 w-4 text-green-500" />
                     <span className="text-xs font-medium">5G Premium Network</span>

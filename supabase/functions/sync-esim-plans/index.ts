@@ -31,13 +31,13 @@ serve(async (req) => {
     console.log('Fetching plans from eSIM Access API...');
 
     // Fetch data packages from eSIM Access API (correct endpoint per docs)
-    const response = await fetch('https://api.esimaccess.com/api/v1/open/package/query', {
+const response = await fetch('https://api.esimaccess.com/api/v1/open/package/list', {
       method: 'POST',
       headers: {
         'RT-AccessCode': accessCode,
         'Content-Type': 'application/json',
       },
-      // Empty payload supported; country filter can be added later: { countryCode: 'US' }
+      // Empty payload supported; filters can be added later, e.g. { locationCode: 'US' }
       body: JSON.stringify({})
     });
 
@@ -55,9 +55,9 @@ serve(async (req) => {
     }
 
     // Handle multiple possible response shapes (data vs obj, list wrappers, etc.)
-    let rawPlans: any = apiData.data ?? apiData.obj ?? [];
+let rawPlans: any = apiData.data ?? apiData.obj ?? [];
     if (!Array.isArray(rawPlans)) {
-      rawPlans = rawPlans?.list ?? rawPlans?.data ?? rawPlans?.packages ?? rawPlans?.results ?? [];
+      rawPlans = rawPlans?.packageList ?? rawPlans?.list ?? rawPlans?.data ?? rawPlans?.packages ?? rawPlans?.results ?? [];
     }
     if (!Array.isArray(rawPlans)) {
       throw new Error('Invalid API response: no plans array found');
@@ -66,21 +66,30 @@ serve(async (req) => {
     console.log(`Processing ${plans.length} plans...`);
 
     // Transform API data to match our esim_plans table structure
-    const transformedPlans = plans.map((plan: any) => {
-      const dataStr = plan.data || plan.dataAmount || plan.flow || plan.dataFlow || plan.size || '';
-      const days = plan.days ?? plan.validityDays ?? plan.validity ?? plan.period ?? null;
-      const priceVal = parseFloat(String(plan.price ?? plan.priceUsd ?? plan.wholesalePrice ?? 0));
-      const currency = plan.currency || plan.currencyCode || 'USD';
+const transformedPlans = plans.map((plan: any) => {
+      // eSIM Access fields: packageCode, slug, name, price (int, 10000 = $1), currencyCode,
+      // volume (bytes), duration, durationUnit (DAY), location (comma-separated country codes)
+      const toGB = (bytes: number) => bytes > 0 ? (bytes / (1024 * 1024 * 1024)) : 0;
+      const dataStr = plan.volume ? `${Math.round(toGB(Number(plan.volume)) * 100) / 100}GB` : '';
+      const durationUnit = plan.durationUnit || plan.validityUnit || 'DAY';
+      const days = durationUnit === 'DAY' ? Number(plan.duration || 0) : Number(plan.unusedValidTime || plan.validityDays || 0);
+      const priceVal = plan.price ? Number(plan.price) / 10000 : Number(plan.priceUsd ?? plan.wholesalePrice ?? 0);
+      const currency = plan.currencyCode || plan.currency || 'USD';
+      const locationStr = plan.location || '';
+      const isMulti = typeof locationStr === 'string' && locationStr.includes(',');
+      const country_code = isMulti ? 'RG' : (locationStr || plan.locationCode || 'GL');
+      const country_name = isMulti ? 'Regional' : (plan.locationNetworkList?.[0]?.locationName || 'Unknown');
+
       return {
-        supplier_plan_id: plan.packageCode || plan.slug || plan.code || `${plan.countryCode}-${dataStr}-${days}`.toLowerCase(),
-        title: plan.title || plan.packageName || `${dataStr} - ${plan.countryName}`,
-        country_name: plan.countryName,
-        country_code: plan.countryCode,
+        supplier_plan_id: plan.packageCode || plan.slug || plan.code || `${country_code}-${dataStr}-${days}`.toLowerCase(),
+        title: plan.name || plan.title || plan.packageName || `${dataStr} - ${country_name}`,
+        country_name,
+        country_code,
         data_amount: dataStr, // e.g., "1GB", "5GB"
         validity_days: days || 0,
         wholesale_price: priceVal,
         currency,
-        description: plan.description || `${dataStr} data plan for ${plan.countryName}`,
+        description: plan.description || plan.name || `${dataStr} data plan for ${country_name}`,
         is_active: true
       };
     });

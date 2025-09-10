@@ -31,6 +31,7 @@ const ESims = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [retryingId, setRetryingId] = useState<string | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -156,6 +157,7 @@ const ESims = () => {
 
   const retryESIMCreation = async (orderId: string, planId: string) => {
     try {
+      setRetryingId(orderId);
       const { data, error } = await supabase.functions.invoke('create-esim', {
         body: {
           plan_id: planId,
@@ -164,16 +166,24 @@ const ESims = () => {
       });
       
       if (error) {
-        toast.error("Failed to retry eSIM creation");
+        const msg = (error as any)?.message || 'Failed to create eSIM';
+        toast.error(msg);
         console.error("Retry eSIM creation error:", error);
+      } else if ((data as any)?.error) {
+        const msg = `${(data as any).error}${(data as any).details ? `: ${(data as any).details}` : ''}`;
+        toast.error(msg);
+        console.error("Retry eSIM creation API error:", data);
       } else {
-        toast.success("eSIM creation retry initiated");
-        // Refresh the orders list
-        fetchOrders();
+        toast.success("eSIM created successfully");
       }
-    } catch (error) {
-      toast.error("Failed to retry eSIM creation");
+      
+      // Refresh the orders list
+      fetchOrders();
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to retry eSIM creation");
       console.error("Retry eSIM creation error:", error);
+    } finally {
+      setRetryingId(null);
     }
   };
 
@@ -290,28 +300,30 @@ const ESims = () => {
                               <Button
                                 variant="outline"
                                 size="sm"
+                                disabled={retryingId === order.id}
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   retryESIMCreation(order.id, order.plan_id);
                                 }}
                                 className="h-8 px-2 text-xs"
                               >
-                                <RefreshCw className="h-3 w-3 mr-1" />
-                                Retry
+                                <RefreshCw className={`h-3 w-3 mr-1 ${retryingId === order.id ? 'animate-spin' : ''}`} />
+                                {retryingId === order.id ? 'Retrying...' : 'Retry'}
                               </Button>
                             )}
                             {order.status === "pending" && (
                               <Button
                                 variant="outline"
                                 size="sm"
+                                disabled={retryingId === order.id}
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   retryESIMCreation(order.id, order.plan_id);
                                 }}
                                 className="h-8 px-2 text-xs"
                               >
-                                <RefreshCw className="h-3 w-3 mr-1" />
-                                Create eSIM
+                                <RefreshCw className={`h-3 w-3 mr-1 ${retryingId === order.id ? 'animate-spin' : ''}`} />
+                                {retryingId === order.id ? 'Creating...' : 'Create eSIM'}
                               </Button>
                             )}
                           </div>

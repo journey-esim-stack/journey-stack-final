@@ -6,15 +6,39 @@ import { Card, CardContent } from '@/components/ui/card';
 import { useCart } from '@/contexts/CartContext';
 import { ShoppingCart, Plus, Minus, Trash2, CreditCard } from 'lucide-react';
 import { getCountryFlag } from '@/utils/countryFlags';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 export default function CartSidebar() {
   const { state, updateQuantity, removeFromCart, clearCart } = useCart();
   const [isOpen, setIsOpen] = useState(false);
+  const { toast } = useToast();
 
-  const handleCheckout = () => {
-    // TODO: Implement checkout functionality
-    console.log('Checkout with items:', state.items);
-    setIsOpen(false);
+  const handleCheckout = async () => {
+    if (state.items.length === 0) return;
+    try {
+      const { error, data } = await supabase.functions.invoke('wallet-debit', {
+        body: {
+          amount: Number(state.total.toFixed(2)),
+          description: 'Cart purchase',
+          reference_id: `cart-${Date.now()}`,
+        },
+      });
+      if (error) {
+        const msg = (error as any)?.message || '';
+        if (msg.includes('INSUFFICIENT_FUNDS')) {
+          toast({ title: 'Insufficient wallet balance', description: 'Please top up your wallet and try again.', variant: 'destructive' });
+        } else {
+          toast({ title: 'Checkout failed', description: 'Something went wrong. Try again.', variant: 'destructive' });
+        }
+        return;
+      }
+      toast({ title: 'Payment successful', description: 'Your order has been charged from wallet.' });
+      clearCart();
+      setIsOpen(false);
+    } catch (e) {
+      toast({ title: 'Checkout error', description: 'Unexpected error occurred.', variant: 'destructive' });
+    }
   };
 
   return (
@@ -123,7 +147,7 @@ export default function CartSidebar() {
                     disabled={state.items.length === 0}
                   >
                     <CreditCard className="h-4 w-4 mr-2" />
-                    Proceed to Checkout
+                    Pay from Wallet
                   </Button>
                   
                   <Button

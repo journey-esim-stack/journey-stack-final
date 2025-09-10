@@ -13,6 +13,8 @@ import Pricing from "./pages/Pricing";
 import Wallet from "./pages/Wallet";
 import Orders from "./pages/Orders";
 import AdminAgents from "./pages/AdminAgents";
+import TopupSuccess from "./pages/TopupSuccess";
+import TopupCanceled from "./pages/TopupCanceled";
 
 const queryClient = new QueryClient();
 
@@ -32,6 +34,8 @@ const App = () => (
             <Route path="/wallet" element={<Wallet />} />
             <Route path="/orders" element={<Orders />} />
             <Route path="/admin/agents" element={<AdminAgents />} />
+            <Route path="/wallet/topup-success" element={<TopupSuccess />} />
+            <Route path="/wallet/topup-canceled" element={<TopupCanceled />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

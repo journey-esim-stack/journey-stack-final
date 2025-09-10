@@ -6,6 +6,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useToast } from "@/hooks/use-toast";
 import Layout from "@/components/Layout";
 import { format } from "date-fns";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 
 interface WalletTransaction {
   id: string;
@@ -27,6 +29,7 @@ export default function Wallet() {
   const [profile, setProfile] = useState<AgentProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const [topUpAmount, setTopUpAmount] = useState<number>(50);
 
   useEffect(() => {
     fetchWalletData();
@@ -68,6 +71,32 @@ export default function Wallet() {
     }
   };
 
+  const handleTopUp = async () => {
+    if (topUpAmount < 50) {
+      toast({
+        title: "Minimum top-up is $50",
+        description: "Please enter $50 or more.",
+        variant: "destructive",
+      });
+      return;
+    }
+    try {
+      const { data, error } = await supabase.functions.invoke('create-topup', {
+        body: { amount_dollars: topUpAmount }
+      });
+      if (error) throw error;
+      if (data?.url) {
+        window.open(data.url, '_blank');
+      }
+    } catch (e) {
+      toast({
+        title: 'Top-up failed',
+        description: 'Could not create top-up session',
+        variant: 'destructive'
+      });
+    }
+  };
+
   const getTransactionTypeColor = (type: string) => {
     switch (type) {
       case "credit":
@@ -96,6 +125,30 @@ export default function Wallet() {
           <h1 className="text-3xl font-bold">Wallet</h1>
           <p className="text-muted-foreground">Manage your wallet balance and view transaction history</p>
         </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Top Up Wallet</CardTitle>
+            <CardDescription>Minimum top-up is USD 50</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="flex-1 space-y-1">
+                <label className="text-sm text-muted-foreground">Amount (USD)</label>
+                <Input
+                  type="number"
+                  min={50}
+                  step="10"
+                  value={topUpAmount}
+                  onChange={(e) => setTopUpAmount(Number(e.target.value))}
+                />
+              </div>
+              <Button onClick={handleTopUp} className="sm:self-end">
+                Top Up
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
 
         <Card>
           <CardHeader>

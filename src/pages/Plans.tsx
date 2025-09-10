@@ -119,16 +119,25 @@ const fetchPlans = async () => {
       console.log("Sample country codes:", allPlans.slice(0, 5)?.map(p => p.country_code) || []);
       console.log("Looking for Singapore plans:", allPlans?.filter(p => p.country_name?.toLowerCase().includes('singapore') || p.country_code?.toLowerCase().includes('sg')) || []);
       
-      // Calculate agent prices for each plan
+      // Calculate agent prices for each plan using the fetched markup
+      const currentMarkup = agentProfile ? {
+        type: agentProfile.markup_type || 'percent',
+        value: Number(agentProfile.markup_value) || 40
+      } : { type: 'percent', value: 40 };
+
+      console.log("Using markup for calculations:", currentMarkup);
+      
       const plansWithAgentPrices = allPlans.map(plan => {
         const basePrice = Number(plan.wholesale_price) || 0;
         let agentPrice = basePrice;
         
-        if (agentMarkup.type === 'percent') {
-          agentPrice = basePrice * (1 + agentMarkup.value / 100);
+        if (currentMarkup.type === 'percent') {
+          agentPrice = basePrice * (1 + currentMarkup.value / 100);
         } else {
-          agentPrice = basePrice + agentMarkup.value;
+          agentPrice = basePrice + currentMarkup.value;
         }
+        
+        console.log(`Plan: ${plan.title}, Base: $${basePrice}, Markup: ${currentMarkup.value}% (${currentMarkup.type}), Agent Price: $${agentPrice.toFixed(2)}`);
         
         return {
           ...plan,

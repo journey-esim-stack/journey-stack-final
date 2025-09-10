@@ -29,7 +29,7 @@ export default function Wallet() {
   const [profile, setProfile] = useState<AgentProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
-  const [topUpAmount, setTopUpAmount] = useState<number>(50);
+  const [topUpAmount, setTopUpAmount] = useState<number>(10);
 
   useEffect(() => {
     fetchWalletData();
@@ -72,10 +72,10 @@ export default function Wallet() {
   };
 
   const handleTopUp = async () => {
-    if (topUpAmount < 50) {
+    if (topUpAmount < 10) {
       toast({
-        title: "Minimum top-up is $50",
-        description: "Please enter $50 or more.",
+        title: "Minimum top-up is $10",
+        description: "Please enter $10 or more.",
         variant: "destructive",
       });
       return;
@@ -129,7 +129,7 @@ export default function Wallet() {
         <Card>
           <CardHeader>
             <CardTitle>Top Up Wallet</CardTitle>
-            <CardDescription>Minimum top-up is USD 50</CardDescription>
+            <CardDescription>Minimum top-up is USD 10</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="flex flex-col sm:flex-row gap-3">
@@ -137,7 +137,7 @@ export default function Wallet() {
                 <label className="text-sm text-muted-foreground">Amount (USD)</label>
                 <Input
                   type="number"
-                  min={50}
+                  min={10}
                   step="10"
                   value={topUpAmount}
                   onChange={(e) => setTopUpAmount(Number(e.target.value))}

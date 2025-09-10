@@ -34,7 +34,7 @@ serve(async (req) => {
     const { amount_dollars } = await req.json();
     if (typeof amount_dollars !== "number") throw new Error("amount_dollars must be a number");
     const amountCents = Math.round(amount_dollars * 100);
-    if (amountCents < 5000) throw new Error("Minimum top-up is $50");
+    if (amountCents < 1000) throw new Error("Minimum top-up is $10");
 
     const origin = req.headers.get("origin") || "http://localhost:5173";
 

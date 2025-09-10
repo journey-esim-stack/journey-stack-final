@@ -113,31 +113,36 @@ export default function Layout({ children }: LayoutProps) {
                 })}
               </div>
             </div>
-            <div className="flex items-center space-x-3">
-              {/* Cart Icon with Badge - We'll use a direct approach since CartSidebar already handles the floating button */}
+            <div className="flex items-center space-x-4">
+              {/* Enhanced Cart Icon */}
               <div className="relative">
                 <Button 
                   variant="ghost" 
                   size="sm"
                   onClick={() => {
-                    // Trigger the cart sidebar by simulating a click on the floating button
-                    const cartButton = document.querySelector('[role="button"]:has([data-testid="shopping-cart"]), button:has(svg[class*="ShoppingCart"])');
+                    // Find and click the cart sidebar trigger
+                    const cartTrigger = document.querySelector('button:has(svg)') as HTMLElement;
+                    const allButtons = document.querySelectorAll('button');
+                    const cartButton = Array.from(allButtons).find(btn => 
+                      btn.querySelector('svg') && btn.classList.contains('fixed')
+                    );
                     if (cartButton) {
                       (cartButton as HTMLElement).click();
                     }
                   }}
-                  className="relative"
+                  className="relative glass-subtle hover:glass-card transition-all duration-200 rounded-xl px-3 py-2"
                 >
-                  <ShoppingCart className="h-5 w-5" />
+                  <ShoppingCart className="h-5 w-5 text-primary" />
                   {state.items.length > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs rounded-full h-5 w-5 flex items-center justify-center font-medium">
+                    <span className="absolute -top-2 -right-2 bg-gradient-to-r from-primary to-primary/80 text-primary-foreground text-xs rounded-full h-5 w-5 flex items-center justify-center font-bold shadow-lg animate-pulse">
                       {state.items.reduce((sum, item) => sum + item.quantity, 0)}
                     </span>
                   )}
+                  <span className="sr-only">Shopping Cart</span>
                 </Button>
               </div>
               
-              <Button variant="ghost" onClick={handleSignOut}>
+              <Button variant="ghost" onClick={handleSignOut} className="hover:glass-subtle transition-all duration-200 rounded-xl">
                 <LogOut className="h-4 w-4 mr-2" />
                 Sign Out
               </Button>

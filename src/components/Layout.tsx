@@ -20,7 +20,6 @@ export default function Layout({ children }: LayoutProps) {
   const [isAdmin, setIsAdmin] = useState(false);
   const location = useLocation();
   const { toast } = useToast();
-  const { state } = useCart();
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(

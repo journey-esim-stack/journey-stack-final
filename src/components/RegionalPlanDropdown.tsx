@@ -13,54 +13,70 @@ interface RegionalPlanDropdownProps {
 const getRegionalCoverage = (planTitle: string, countryCode: string): { name: string; code: string; flag: string }[] => {
   const title = planTitle.toLowerCase();
   
-  // Asia regional plans
-  if (countryCode === 'RG' && (title.includes('asia') || title.includes('20 areas'))) {
-    return [
-      { name: 'Singapore', code: 'SG', flag: '🇸🇬' },
-      { name: 'Thailand', code: 'TH', flag: '🇹🇭' },
-      { name: 'Malaysia', code: 'MY', flag: '🇲🇾' },
-      { name: 'Indonesia', code: 'ID', flag: '🇮🇩' },
-      { name: 'Philippines', code: 'PH', flag: '🇵🇭' },
-      { name: 'Cambodia', code: 'KH', flag: '🇰🇭' },
-      { name: 'Vietnam', code: 'VN', flag: '🇻🇳' },
-      { name: 'Myanmar', code: 'MM', flag: '🇲🇲' },
-      { name: 'Laos', code: 'LA', flag: '🇱🇦' },
-      { name: 'Brunei', code: 'BN', flag: '🇧🇳' },
-      { name: 'Japan', code: 'JP', flag: '🇯🇵' },
-      { name: 'South Korea', code: 'KR', flag: '🇰🇷' },
-      { name: 'Hong Kong', code: 'HK', flag: '🇭🇰' },
-      { name: 'Macau', code: 'MO', flag: '🇲🇴' },
-      { name: 'Taiwan', code: 'TW', flag: '🇹🇼' },
-      { name: 'India', code: 'IN', flag: '🇮🇳' },
-      { name: 'Sri Lanka', code: 'LK', flag: '🇱🇰' },
-      { name: 'Bangladesh', code: 'BD', flag: '🇧🇩' },
-      { name: 'Nepal', code: 'NP', flag: '🇳🇵' },
-      { name: 'Pakistan', code: 'PK', flag: '🇵🇰' }
-    ];
+  // Extract area count from title (e.g., "20 areas", "12 areas", "7 areas")
+  const areaMatch = planTitle.match(/(\d+)\s+areas?/i);
+  const areaCount = areaMatch ? parseInt(areaMatch[1]) : 0;
+  
+  // Full list of Asian countries
+  const asianCountries = [
+    { name: 'Singapore', code: 'SG', flag: '🇸🇬' },
+    { name: 'Thailand', code: 'TH', flag: '🇹🇭' },
+    { name: 'Malaysia', code: 'MY', flag: '🇲🇾' },
+    { name: 'Indonesia', code: 'ID', flag: '🇮🇩' },
+    { name: 'Philippines', code: 'PH', flag: '🇵🇭' },
+    { name: 'Cambodia', code: 'KH', flag: '🇰🇭' },
+    { name: 'Vietnam', code: 'VN', flag: '🇻🇳' },
+    { name: 'Myanmar', code: 'MM', flag: '🇲🇲' },
+    { name: 'Laos', code: 'LA', flag: '🇱🇦' },
+    { name: 'Brunei', code: 'BN', flag: '🇧🇳' },
+    { name: 'Japan', code: 'JP', flag: '🇯🇵' },
+    { name: 'South Korea', code: 'KR', flag: '🇰🇷' },
+    { name: 'Hong Kong', code: 'HK', flag: '🇭🇰' },
+    { name: 'Macau', code: 'MO', flag: '🇲🇴' },
+    { name: 'Taiwan', code: 'TW', flag: '🇹🇼' },
+    { name: 'India', code: 'IN', flag: '🇮🇳' },
+    { name: 'Sri Lanka', code: 'LK', flag: '🇱🇰' },
+    { name: 'Bangladesh', code: 'BD', flag: '🇧🇩' },
+    { name: 'Nepal', code: 'NP', flag: '🇳🇵' },
+    { name: 'Pakistan', code: 'PK', flag: '🇵🇰' }
+  ];
+  
+  // Full list of European countries
+  const europeanCountries = [
+    { name: 'United Kingdom', code: 'GB', flag: '🇬🇧' },
+    { name: 'Germany', code: 'DE', flag: '🇩🇪' },
+    { name: 'France', code: 'FR', flag: '🇫🇷' },
+    { name: 'Italy', code: 'IT', flag: '🇮🇹' },
+    { name: 'Spain', code: 'ES', flag: '🇪🇸' },
+    { name: 'Netherlands', code: 'NL', flag: '🇳🇱' },
+    { name: 'Belgium', code: 'BE', flag: '🇧🇪' },
+    { name: 'Austria', code: 'AT', flag: '🇦🇹' },
+    { name: 'Switzerland', code: 'CH', flag: '🇨🇭' },
+    { name: 'Poland', code: 'PL', flag: '🇵🇱' },
+    { name: 'Czech Republic', code: 'CZ', flag: '🇨🇿' },
+    { name: 'Portugal', code: 'PT', flag: '🇵🇹' },
+    { name: 'Greece', code: 'GR', flag: '🇬🇷' },
+    { name: 'Denmark', code: 'DK', flag: '🇩🇰' },
+    { name: 'Sweden', code: 'SE', flag: '🇸🇪' },
+    { name: 'Norway', code: 'NO', flag: '🇳🇴' },
+    { name: 'Finland', code: 'FI', flag: '🇫🇮' },
+    { name: 'Ireland', code: 'IE', flag: '🇮🇪' }
+  ];
+  
+  // Asia regional plans - return the exact number of countries based on area count
+  if (countryCode === 'RG' && (title.includes('asia') || title.includes('areas'))) {
+    if (areaCount > 0 && areaCount <= asianCountries.length) {
+      return asianCountries.slice(0, areaCount);
+    }
+    return asianCountries;
   }
   
-  // Europe regional plans
+  // Europe regional plans - return the exact number of countries based on area count
   if (countryCode === 'RG' && title.includes('europe')) {
-    return [
-      { name: 'United Kingdom', code: 'GB', flag: '🇬🇧' },
-      { name: 'Germany', code: 'DE', flag: '🇩🇪' },
-      { name: 'France', code: 'FR', flag: '🇫🇷' },
-      { name: 'Italy', code: 'IT', flag: '🇮🇹' },
-      { name: 'Spain', code: 'ES', flag: '🇪🇸' },
-      { name: 'Netherlands', code: 'NL', flag: '🇳🇱' },
-      { name: 'Belgium', code: 'BE', flag: '🇧🇪' },
-      { name: 'Austria', code: 'AT', flag: '🇦🇹' },
-      { name: 'Switzerland', code: 'CH', flag: '🇨🇭' },
-      { name: 'Poland', code: 'PL', flag: '🇵🇱' },
-      { name: 'Czech Republic', code: 'CZ', flag: '🇨🇿' },
-      { name: 'Portugal', code: 'PT', flag: '🇵🇹' },
-      { name: 'Greece', code: 'GR', flag: '🇬🇷' },
-      { name: 'Denmark', code: 'DK', flag: '🇩🇰' },
-      { name: 'Sweden', code: 'SE', flag: '🇸🇪' },
-      { name: 'Norway', code: 'NO', flag: '🇳🇴' },
-      { name: 'Finland', code: 'FI', flag: '🇫🇮' },
-      { name: 'Ireland', code: 'IE', flag: '🇮🇪' }
-    ];
+    if (areaCount > 0 && areaCount <= europeanCountries.length) {
+      return europeanCountries.slice(0, areaCount);
+    }
+    return europeanCountries;
   }
   
   // Default fallback for other regional plans
@@ -85,7 +101,7 @@ export default function RegionalPlanDropdown({ planTitle, countryCode }: Regiona
         <Button
           variant="ghost"
           size="sm"
-          className="h-auto p-0 text-primary hover:text-primary-hover font-normal text-xs"
+          className="h-auto p-1 px-2 text-muted-foreground hover:text-primary font-normal text-xs border border-border/50 rounded-md transition-colors"
         >
           <span>{areaCount} countries</span>
           <ChevronDown className="h-3 w-3 ml-1" />

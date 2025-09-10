@@ -429,8 +429,8 @@ const fetchPlans = async () => {
                   </div>
                 </div>
 
-                {/* 5G Network & Hotspot Features */}
-                <div className="grid grid-cols-2 gap-3">
+                {/* Network Features */}
+                <div className="grid grid-cols-1 gap-2">
                   <div className="flex items-center gap-2 p-2 glass-subtle rounded-lg">
                     <Wifi className="h-4 w-4 text-green-500" />
                     <span className="text-xs font-medium">5G Network</span>
@@ -438,6 +438,10 @@ const fetchPlans = async () => {
                   <div className="flex items-center gap-2 p-2 glass-subtle rounded-lg">
                     <Router className="h-4 w-4 text-blue-500" />
                     <span className="text-xs font-medium">Hotspot Sharing</span>
+                  </div>
+                  <div className="flex items-center gap-2 p-2 glass-subtle rounded-lg">
+                    <Globe className="h-4 w-4 text-purple-500" />
+                    <span className="text-xs font-medium">Premium Network Access</span>
                   </div>
                 </div>
                 
@@ -448,25 +452,32 @@ const fetchPlans = async () => {
                   </p>
                 </div>
 
-                {/* Add to Cart Button */}
-                <Button
-                  onClick={() => handleAddToCart(plan)}
-                  className="w-full"
-                  variant={addedToCart.has(plan.id) ? "outline" : "default"}
-                  disabled={addedToCart.has(plan.id)}
-                >
-                  {addedToCart.has(plan.id) ? (
-                    <>
-                      <Check className="h-4 w-4 mr-2" />
-                      Added to Cart
-                    </>
-                  ) : (
-                    <>
-                      <ShoppingCart className="h-4 w-4 mr-2" />
-                      Add to Cart
-                    </>
-                  )}
-                </Button>
+                {/* Add to Cart Section */}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Button
+                      onClick={() => handleAddToCart(plan)}
+                      className="flex-1 transition-all duration-200 hover:scale-105 active:scale-95"
+                      variant={addedToCart.has(plan.id) ? "outline" : "default"}
+                      disabled={addedToCart.has(plan.id)}
+                    >
+                      {addedToCart.has(plan.id) ? (
+                        <>
+                          <Check className="h-4 w-4 mr-2" />
+                          Added to Cart
+                        </>
+                      ) : (
+                        <>
+                          <ShoppingCart className="h-4 w-4 mr-2" />
+                          Add to Cart
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground text-center">
+                    Quantity can be adjusted in cart
+                  </p>
+                </div>
 
                 <div className="pt-2 border-t border-glass-border">
                   <p className="text-xs text-muted-foreground text-center">

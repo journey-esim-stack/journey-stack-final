@@ -65,6 +65,8 @@ const fetchPlans = async () => {
       }
       
       console.log("Sample countries:", data?.slice(0, 5)?.map(p => p.country_name) || []);
+      console.log("Sample country codes:", data?.slice(0, 5)?.map(p => p.country_code) || []);
+      console.log("Looking for Singapore plans:", data?.filter(p => p.country_name?.toLowerCase().includes('singapore') || p.country_code?.toLowerCase().includes('sg')) || []);
       setPlans(data || []);
     } catch (error) {
       console.error("Fetch error:", error);

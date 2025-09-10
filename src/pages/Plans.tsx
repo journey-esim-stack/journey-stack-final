@@ -82,12 +82,28 @@ const fetchPlans = async () => {
   const filteredPlans = useMemo(() => {
     console.log("Filtering plans. Total plans:", plans.length, "Search:", searchQuery, "Region:", selectedRegion);
     
+    if (plans.length > 0) {
+      console.log("Sample plan structure:", plans[0]);
+    }
+    
     const filtered = plans.filter((plan) => {
+      // Debug each plan's search matching
+      if (searchQuery && searchQuery.toLowerCase() === "singapore") {
+        console.log("Checking plan:", {
+          title: plan.title,
+          country_name: plan.country_name,
+          country_code: plan.country_code,
+          description: plan.description,
+          data_amount: plan.data_amount
+        });
+      }
+      
+      const searchLower = searchQuery?.toLowerCase() || "";
       const matchesSearch = !searchQuery || (
-        plan.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        plan.country_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        plan.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        plan.data_amount?.toLowerCase().includes(searchQuery.toLowerCase())
+        plan.title?.toLowerCase().includes(searchLower) ||
+        plan.country_name?.toLowerCase().includes(searchLower) ||
+        plan.description?.toLowerCase().includes(searchLower) ||
+        plan.data_amount?.toLowerCase().includes(searchLower)
       );
       
       const planRegion = getRegion(plan.country_code);
@@ -95,7 +111,14 @@ const fetchPlans = async () => {
         selectedRegion === "all" || 
         planRegion === selectedRegion;
       
-      return matchesSearch && matchesRegion;
+      const result = matchesSearch && matchesRegion;
+      
+      // Debug specific plans
+      if (searchQuery && searchQuery.toLowerCase() === "singapore") {
+        console.log(`Plan ${plan.country_name}: matchesSearch=${matchesSearch}, matchesRegion=${matchesRegion}, result=${result}`);
+      }
+      
+      return result;
     });
     
     console.log("Filtered results:", filtered.length);

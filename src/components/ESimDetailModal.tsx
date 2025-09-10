@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Copy, Download, QrCode, Smartphone, Calendar, Globe } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Copy, Download, QrCode, Smartphone, Calendar, Globe, Edit, Save, X, Check } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 interface ESimDetailModalProps {
   isOpen: boolean;
@@ -33,6 +35,21 @@ export const ESimDetailModal: React.FC<ESimDetailModalProps> = ({
   order,
 }) => {
   const { toast } = useToast();
+  const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [editData, setEditData] = useState({
+    customer_name: order.customer_name,
+    customer_email: order.customer_email,
+  });
+
+  // Reset edit data when order changes
+  React.useEffect(() => {
+    setEditData({
+      customer_name: order.customer_name,
+      customer_email: order.customer_email,
+    });
+    setIsEditing(false);
+  }, [order.id, order.customer_name, order.customer_email]);
 
   const copyToClipboard = async (text: string, label: string) => {
     try {
@@ -48,6 +65,77 @@ export const ESimDetailModal: React.FC<ESimDetailModalProps> = ({
         variant: "destructive",
       });
     }
+  };
+
+  const saveCustomerInfo = async () => {
+    if (!editData.customer_name.trim() || !editData.customer_email.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Name and email are required",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(editData.customer_email)) {
+      toast({
+        title: "Validation Error",
+        description: "Please enter a valid email address",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({
+          customer_name: editData.customer_name.trim(),
+          customer_email: editData.customer_email.trim(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', order.id);
+
+      if (error) {
+        console.error('Error updating customer info:', error);
+        toast({
+          title: "Update Failed",
+          description: "Failed to update customer information",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Update the order object locally
+      order.customer_name = editData.customer_name.trim();
+      order.customer_email = editData.customer_email.trim();
+
+      toast({
+        title: "Updated!",
+        description: "Customer information updated successfully",
+      });
+      setIsEditing(false);
+    } catch (error) {
+      console.error('Error updating customer info:', error);
+      toast({
+        title: "Update Failed",
+        description: "An unexpected error occurred",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const cancelEdit = () => {
+    setEditData({
+      customer_name: order.customer_name,
+      customer_email: order.customer_email,
+    });
+    setIsEditing(false);
   };
 
   const downloadQR = () => {
@@ -98,16 +186,82 @@ export const ESimDetailModal: React.FC<ESimDetailModalProps> = ({
           {/* Customer Info */}
           <Card>
             <CardContent className="pt-6">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Customer</label>
-                  <p className="text-sm">{order.customer_name}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Email</label>
-                  <p className="text-sm">{order.customer_email}</p>
-                </div>
+              <div className="flex items-center justify-between mb-4">
+                <h4 className="font-medium text-sm text-muted-foreground">Customer Information</h4>
+                {!isEditing ? (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIsEditing(true)}
+                    className="h-8 px-2 text-xs"
+                  >
+                    <Edit className="h-3 w-3 mr-1" />
+                    Edit
+                  </Button>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={cancelEdit}
+                      disabled={isSaving}
+                      className="h-8 px-2 text-xs"
+                    >
+                      <X className="h-3 w-3 mr-1" />
+                      Cancel
+                    </Button>
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={saveCustomerInfo}
+                      disabled={isSaving}
+                      className="h-8 px-2 text-xs"
+                    >
+                      {isSaving ? (
+                        <div className="h-3 w-3 mr-1 animate-spin rounded-full border border-current border-t-transparent" />
+                      ) : (
+                        <Check className="h-3 w-3 mr-1" />
+                      )}
+                      {isSaving ? 'Saving...' : 'Save'}
+                    </Button>
+                  </div>
+                )}
               </div>
+              
+              {!isEditing ? (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">Customer</label>
+                    <p className="text-sm">{order.customer_name}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">Email</label>
+                    <p className="text-sm">{order.customer_email}</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground mb-2 block">Customer Name</label>
+                    <Input
+                      value={editData.customer_name}
+                      onChange={(e) => setEditData(prev => ({ ...prev, customer_name: e.target.value }))}
+                      placeholder="Enter customer name"
+                      className="h-8"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground mb-2 block">Email</label>
+                    <Input
+                      type="email"
+                      value={editData.customer_email}
+                      onChange={(e) => setEditData(prev => ({ ...prev, customer_email: e.target.value }))}
+                      placeholder="Enter email address"
+                      className="h-8"
+                    />
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
 

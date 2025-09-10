@@ -159,31 +159,47 @@ const ESims = () => {
     try {
       setRetryingId(orderId);
       
-      // First test the environment and API
-      console.log('Testing eSIM creation environment...');
-      const testResult = await fetch('https://cccktfactlzxuprpyhgh.supabase.co/functions/v1/test-esim', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
-      });
-      const testData = await testResult.json();
-      console.log('Test result:', testData);
+      // Call create-esim directly with detailed error handling
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
       
-      if (!testResult.ok) {
-        toast.error(`Environment test failed: ${testData.error}`);
+      console.log('Calling create-esim with:', { orderId, planId });
+      
+      const response = await fetch('https://cccktfactlzxuprpyhgh.supabase.co/functions/v1/create-esim', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({ 
+          plan_id: planId, 
+          order_id: orderId 
+        })
+      });
+      
+      console.log('Response status:', response.status);
+      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+      
+      let responseData;
+      try {
+        responseData = await response.json();
+        console.log('Response data:', responseData);
+      } catch (jsonError) {
+        console.error('Failed to parse response as JSON:', jsonError);
+        const textResponse = await response.text();
+        console.log('Response as text:', textResponse);
+        toast.error(`API error: ${response.status} - ${textResponse}`);
         return;
       }
       
-      // If test passed, try actual creation
-      const { data, error } = await supabase.functions.invoke('create-esim', {
-        body: { plan_id: planId, order_id: orderId }
-      });
-
-      if (error || (data as any)?.error) {
-        const msg = (data as any)?.error || error?.message || 'Failed to create eSIM';
-        toast.error(msg);
-        console.error('Create eSIM error:', { error, data });
+      if (!response.ok) {
+        const errorMsg = responseData?.error || responseData?.message || `HTTP ${response.status}`;
+        const details = responseData?.details ? ` - ${responseData.details}` : '';
+        toast.error(`${errorMsg}${details}`);
+        console.error('Create eSIM failed:', { status: response.status, data: responseData });
       } else {
         toast.success('eSIM created successfully');
+        console.log('eSIM creation successful:', responseData);
       }
 
       // Refresh the orders list

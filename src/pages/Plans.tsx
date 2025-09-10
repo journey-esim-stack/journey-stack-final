@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
+// Fixed imports - using Router instead of HotspotIcon
 import { Search, Globe, Clock, Database, Wifi, Router, ShoppingCart, Check } from "lucide-react";
 import Layout from "@/components/Layout";
 import { getCountryFlag, getRegion, getAllRegions } from "@/utils/countryFlags";
@@ -28,6 +29,7 @@ interface EsimPlan {
   agent_price?: number; // Calculated agent price based on markup
 }
 
+// Plans page component - updated to fix import issue
 export default function Plans() {
   const [plans, setPlans] = useState<EsimPlan[]>([]);
   const [loading, setLoading] = useState(true);

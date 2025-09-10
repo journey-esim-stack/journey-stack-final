@@ -38,26 +38,39 @@ export default function Plans() {
 
 const fetchPlans = async () => {
     try {
-      // Add pagination and better error handling
-      const { data, error } = await supabase
-        .from("esim_plans")
-        .select("*")
-        .eq("is_active", true)
-        .order("country_name", { ascending: true })
-        .limit(1000); // Limit to first 1000 for better performance
+      console.log("Starting to fetch plans...");
+      
+      // Check authentication first
+      const { data: { user } } = await supabase.auth.getUser();
+      console.log("Current user:", user?.id || "Not authenticated");
+      
+      if (!user) {
+        throw new Error("User not authenticated");
+      }
 
+      // Try fetching with detailed logging
+      const { data, error, count } = await supabase
+        .from("esim_plans")
+        .select("*", { count: 'exact' })
+        .eq("is_active", true)
+        .order("country_name", { ascending: true });
+
+      console.log("Query executed - Error:", error);
+      console.log("Query executed - Count:", count);
+      console.log("Query executed - Data length:", data?.length || 0);
+      
       if (error) {
-        console.error("Supabase error:", error);
+        console.error("Detailed Supabase error:", JSON.stringify(error, null, 2));
         throw error;
       }
       
-      console.log("Fetched plans:", data?.length || 0);
+      console.log("Sample countries:", data?.slice(0, 5)?.map(p => p.country_name) || []);
       setPlans(data || []);
     } catch (error) {
       console.error("Fetch error:", error);
       toast({
         title: "Error",
-        description: "Failed to fetch eSIM plans. Please check your permissions.",
+        description: `Failed to fetch eSIM plans: ${error.message}`,
         variant: "destructive",
       });
     } finally {

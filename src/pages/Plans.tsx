@@ -53,6 +53,7 @@ const fetchPlans = async () => {
         .from("esim_plans")
         .select("*", { count: 'exact' })
         .eq("is_active", true)
+        .limit(2000)
         .order("country_name", { ascending: true });
 
       console.log("Query executed - Error:", error);

@@ -22,6 +22,12 @@ export default function CartSidebar() {
           amount: Number(state.total.toFixed(2)),
           description: 'Cart purchase',
           reference_id: `cart-${Date.now()}`,
+          cart_items: state.items,
+          customer_info: {
+            name: "Customer Name", // TODO: Get from user profile or form
+            email: "customer@example.com", // TODO: Get from user profile or form
+            phone: null,
+          },
         },
       });
       if (error) {
@@ -33,7 +39,11 @@ export default function CartSidebar() {
         }
         return;
       }
-      toast({ title: 'Payment successful', description: 'Your order has been charged from wallet.' });
+      const orderCount = data?.order_ids?.length || 0;
+      toast({ 
+        title: 'Payment successful', 
+        description: `${orderCount} order(s) created and charged from wallet.` 
+      });
       clearCart();
       setIsOpen(false);
     } catch (e) {

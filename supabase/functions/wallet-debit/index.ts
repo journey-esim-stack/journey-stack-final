@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { amount, description, reference_id } = await req.json();
+    const { amount, description, reference_id, cart_items, customer_info } = await req.json();
     if (typeof amount !== "number" || amount <= 0) {
       throw new Error("amount must be a positive number");
     }
@@ -67,7 +67,33 @@ serve(async (req) => {
     });
     if (insertErr) throw insertErr;
 
-    return new Response(JSON.stringify({ balance: newBalance }), {
+    // Create orders if cart_items provided
+    let orderIds = [];
+    if (cart_items && Array.isArray(cart_items) && cart_items.length > 0) {
+      if (!customer_info?.name || !customer_info?.email) {
+        throw new Error("customer_info with name and email required for cart checkout");
+      }
+      
+      const orders = cart_items.map((item: any) => ({
+        agent_id: profile.id,
+        plan_id: item.planId,
+        retail_price: item.agentPrice * item.quantity,
+        wholesale_price: item.wholesalePrice * item.quantity,
+        customer_name: customer_info.name,
+        customer_email: customer_info.email,
+        customer_phone: customer_info.phone || null,
+        status: "pending",
+      }));
+
+      const { data: orderData, error: orderErr } = await supabase
+        .from("orders")
+        .insert(orders)
+        .select("id");
+      if (orderErr) throw orderErr;
+      orderIds = orderData?.map(o => o.id) || [];
+    }
+
+    return new Response(JSON.stringify({ balance: newBalance, order_ids: orderIds }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
     });

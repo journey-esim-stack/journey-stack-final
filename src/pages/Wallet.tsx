@@ -165,7 +165,7 @@ export default function Wallet() {
         <Card>
           <CardHeader>
             <CardTitle>Transaction History</CardTitle>
-            <CardDescription>Recent wallet transactions</CardDescription>
+            <CardDescription>Recent wallet transactions - Credits (top-ups) and debits (purchases)</CardDescription>
           </CardHeader>
           <CardContent>
             {transactions.length > 0 ? (
@@ -188,7 +188,7 @@ export default function Wallet() {
                       </TableCell>
                       <TableCell>
                         <Badge className={getTransactionTypeColor(transaction.transaction_type)}>
-                          {transaction.transaction_type}
+                          {transaction.transaction_type === "credit" ? "Top-up" : "Purchase"}
                         </Badge>
                       </TableCell>
                       <TableCell>{transaction.description || "-"}</TableCell>

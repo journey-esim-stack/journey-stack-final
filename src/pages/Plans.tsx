@@ -78,21 +78,30 @@ const fetchPlans = async () => {
     }
   };
 
-  // Filter plans based on search and region
+// Filter plans based on search and region
   const filteredPlans = useMemo(() => {
-    return plans.filter((plan) => {
-      const matchesSearch = 
-        plan.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        plan.country_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    console.log("Filtering plans. Total plans:", plans.length, "Search:", searchQuery, "Region:", selectedRegion);
+    
+    const filtered = plans.filter((plan) => {
+      const matchesSearch = !searchQuery || (
+        plan.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        plan.country_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         plan.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        plan.data_amount.toLowerCase().includes(searchQuery.toLowerCase());
+        plan.data_amount?.toLowerCase().includes(searchQuery.toLowerCase())
+      );
       
+      const planRegion = getRegion(plan.country_code);
       const matchesRegion = 
         selectedRegion === "all" || 
-        getRegion(plan.country_code) === selectedRegion;
+        planRegion === selectedRegion;
       
       return matchesSearch && matchesRegion;
     });
+    
+    console.log("Filtered results:", filtered.length);
+    console.log("Sample filtered countries:", filtered.slice(0, 5).map(p => p.country_name));
+    
+    return filtered;
   }, [plans, searchQuery, selectedRegion]);
 
   if (loading) {

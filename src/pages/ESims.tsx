@@ -158,30 +158,40 @@ const ESims = () => {
   const retryESIMCreation = async (orderId: string, planId: string) => {
     try {
       setRetryingId(orderId);
+      // First try via supabase.functions.invoke
       const { data, error } = await supabase.functions.invoke('create-esim', {
-        body: {
-          plan_id: planId,
-          order_id: orderId
-        }
+        body: { plan_id: planId, order_id: orderId }
       });
-      
-      if (error) {
-        const msg = (error as any)?.message || 'Failed to create eSIM';
-        toast.error(msg);
-        console.error("Retry eSIM creation error:", error);
-      } else if ((data as any)?.error) {
-        const msg = `${(data as any).error}${(data as any).details ? `: ${(data as any).details}` : ''}`;
-        toast.error(msg);
-        console.error("Retry eSIM creation API error:", data);
+
+      if (error || (data as any)?.error) {
+        // Fallback: call full URL to capture error body in detail
+        const { data: sessionData } = await supabase.auth.getSession();
+        const token = sessionData.session?.access_token;
+        const res = await fetch('https://cccktfactlzxuprpyhgh.supabase.co/functions/v1/create-esim', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+          },
+          body: JSON.stringify({ plan_id: planId, order_id: orderId })
+        });
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          const msg = body?.error || body?.details || `Create eSIM failed (${res.status})`;
+          toast.error(msg);
+          console.error('Create eSIM failed:', { status: res.status, body });
+        } else {
+          toast.success('eSIM created successfully');
+        }
       } else {
-        toast.success("eSIM created successfully");
+        toast.success('eSIM created successfully');
       }
-      
+
       // Refresh the orders list
       fetchOrders();
     } catch (error: any) {
-      toast.error(error?.message || "Failed to retry eSIM creation");
-      console.error("Retry eSIM creation error:", error);
+      toast.error(error?.message || 'Failed to create eSIM');
+      console.error('Retry eSIM creation error:', error);
     } finally {
       setRetryingId(null);
     }

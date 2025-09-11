@@ -29,6 +29,7 @@ interface Order {
     data_amount: string;
     validity_days: number;
   };
+  real_status?: string; // Real eSIM status from API
 }
 
 const ESims = () => {
@@ -38,28 +39,45 @@ const ESims = () => {
   const [retryingId, setRetryingId] = useState<string | null>(null);
   const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [statusLoading, setStatusLoading] = useState<Set<string>>(new Set());
   const navigate = useNavigate();
 
   useEffect(() => {
     fetchOrders();
   }, []);
 
-  // Auto-refresh effect for pending orders
+  // Auto-refresh effect for pending orders and real-time status updates
   useEffect(() => {
     if (!autoRefreshEnabled) return;
 
     const hasPendingOrders = orders.some(order => order.status === 'pending');
-    if (!hasPendingOrders) {
+    const hasCompletedOrders = orders.some(order => order.status === 'completed' && order.esim_iccid);
+    
+    if (!hasPendingOrders && !hasCompletedOrders) {
       setAutoRefreshEnabled(false);
       return;
     }
 
     const interval = setInterval(() => {
-      fetchOrders();
-    }, 5000); // Refresh every 5 seconds
+      if (hasPendingOrders) {
+        // Full refresh for pending orders
+        fetchOrders();
+      } else if (hasCompletedOrders) {
+        // Just update statuses for completed orders
+        fetchESIMStatuses(orders);
+      }
+    }, 10000); // Refresh every 10 seconds for real-time updates
 
     return () => clearInterval(interval);
   }, [autoRefreshEnabled, orders]);
+
+  // Auto-enable refresh if there are completed eSIMs
+  useEffect(() => {
+    const hasCompletedOrders = orders.some(order => order.status === 'completed' && order.esim_iccid);
+    if (hasCompletedOrders && !autoRefreshEnabled) {
+      setAutoRefreshEnabled(true);
+    }
+  }, [orders]);
 
   const fetchOrders = async () => {
     try {
@@ -131,12 +149,81 @@ const ESims = () => {
       }
 
       setOrders(data || []);
+      
+      // Fetch real eSIM status for completed orders
+      if (data && data.length > 0) {
+        fetchESIMStatuses(data);
+      }
     } catch (error) {
       console.error("Error:", error);
       toast.error("An error occurred while fetching eSIMs");
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchESIMStatuses = async (ordersList: Order[]) => {
+    const completedOrders = ordersList.filter(order => 
+      order.status === "completed" && order.esim_iccid
+    );
+
+    const newStatusLoading = new Set(completedOrders.map(order => order.id));
+    setStatusLoading(newStatusLoading);
+
+    const updatedOrders = [...ordersList];
+
+    for (const order of completedOrders) {
+      try {
+        const { data: eSimDetails, error } = await supabase.functions.invoke('get-esim-details', {
+          body: { iccid: order.esim_iccid }
+        });
+
+        if (!error && eSimDetails?.success && eSimDetails.obj) {
+          const orderIndex = updatedOrders.findIndex(o => o.id === order.id);
+          if (orderIndex !== -1) {
+            // Map API status to our status format
+            const apiStatus = eSimDetails.obj.status || eSimDetails.obj.state;
+            let realStatus = "inactive";
+            
+            if (apiStatus) {
+              switch (apiStatus.toLowerCase()) {
+                case "active":
+                case "activated":
+                case "connected":
+                case "online":
+                  realStatus = "active";
+                  break;
+                case "inactive":
+                case "not_activated":
+                case "not_active":
+                case "offline":
+                  realStatus = "inactive";
+                  break;
+                case "suspended":
+                case "blocked":
+                  realStatus = "suspended";
+                  break;
+                case "expired":
+                  realStatus = "expired";
+                  break;
+                default:
+                  realStatus = "inactive";
+              }
+            }
+            
+            updatedOrders[orderIndex] = {
+              ...updatedOrders[orderIndex],
+              real_status: realStatus
+            };
+          }
+        }
+      } catch (error) {
+        console.error(`Failed to fetch status for eSIM ${order.esim_iccid}:`, error);
+      }
+    }
+
+    setOrders(updatedOrders);
+    setStatusLoading(new Set());
   };
 
   const filteredOrders = orders.filter((order) =>
@@ -146,11 +233,26 @@ const ESims = () => {
     order.esim_plans?.country_name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const getStatusColor = (status: string) => {
-    switch (status.toLowerCase()) {
-      case "completed":
+  const getStatusColor = (status: string, realStatus?: string) => {
+    // Use real status if available, otherwise fall back to order status
+    const currentStatus = realStatus || status;
+    
+    switch (currentStatus.toLowerCase()) {
       case "active":
+      case "activated":
+      case "connected":
+      case "online":
         return "bg-green-100 text-green-800 border-green-200";
+      case "inactive":
+      case "not_activated":
+      case "not_active":
+      case "offline":
+        return "bg-blue-100 text-blue-800 border-blue-200";
+      case "suspended":
+      case "blocked":
+        return "bg-orange-100 text-orange-800 border-orange-200";
+      case "expired":
+        return "bg-red-100 text-red-800 border-red-200";
       case "pending":
         return "bg-yellow-100 text-yellow-800 border-yellow-200";
       case "failed":
@@ -161,16 +263,32 @@ const ESims = () => {
     }
   };
 
-  const getStatusText = (status: string) => {
-    switch (status.toLowerCase()) {
-      case "completed":
+  const getStatusText = (status: string, realStatus?: string) => {
+    // Use real status if available, otherwise fall back to order status
+    const currentStatus = realStatus || status;
+    
+    switch (currentStatus.toLowerCase()) {
+      case "active":
+      case "activated":
+      case "connected":
+      case "online":
         return "Active";
+      case "inactive":
+      case "not_activated":
+      case "not_active":
+      case "offline":
+        return "Inactive";
+      case "suspended":
+      case "blocked":
+        return "Suspended";
+      case "expired":
+        return "Expired";
       case "pending":
         return "Processing";
       case "failed":
         return "Failed";
       default:
-        return status;
+        return currentStatus.charAt(0).toUpperCase() + currentStatus.slice(1);
     }
   };
 
@@ -384,8 +502,15 @@ const ESims = () => {
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
-                            <Badge className={`${getStatusColor(order.status)} inline-flex items-center justify-center px-2.5 py-1 text-xs font-medium rounded-full whitespace-nowrap border`}>
-                              {getStatusText(order.status)}
+                            <Badge className={`${getStatusColor(order.status, order.real_status)} inline-flex items-center justify-center px-2.5 py-1 text-xs font-medium rounded-full whitespace-nowrap border`}>
+                              {statusLoading.has(order.id) ? (
+                                <div className="flex items-center gap-1">
+                                  <div className="animate-spin rounded-full h-3 w-3 border-b border-current"></div>
+                                  Loading...
+                                </div>
+                              ) : (
+                                getStatusText(order.status, order.real_status)
+                              )}
                             </Badge>
                           </div>
                         </TableCell>

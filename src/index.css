@@ -127,6 +127,11 @@ All colors MUST be HSL.
     background: var(--gradient-main);
     min-height: 100vh;
   }
+
+  /* Apply Inter font to all headings */
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Inter', sans-serif;
+  }
 }
 
 @layer utilities {

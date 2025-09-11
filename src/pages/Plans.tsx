@@ -167,16 +167,20 @@ export default function Plans() {
     const title = plan.title?.toLowerCase() || '';
     const description = plan.description?.toLowerCase() || '';
     
-    // Define comprehensive country mappings for regional plans
+  // Define comprehensive country mappings for regional plans
     const regionalMappings = {
-      // Asian countries
-      'SG': ['asia', 'singapore'], 'TH': ['asia', 'thailand'], 'MY': ['asia', 'malaysia'],
+      // Asian countries and Central Asia  
+      'SG': ['asia', 'singapore', 'central'], 'TH': ['asia', 'thailand'], 'MY': ['asia', 'malaysia'],
       'ID': ['asia', 'indonesia'], 'PH': ['asia', 'philippines'], 'KH': ['asia', 'cambodia'],
       'VN': ['asia', 'vietnam'], 'MM': ['asia', 'myanmar'], 'LA': ['asia', 'laos'],
       'BN': ['asia', 'brunei'], 'JP': ['asia', 'japan'], 'KR': ['asia', 'korea'],
       'HK': ['asia', 'hong kong'], 'MO': ['asia', 'macau'], 'TW': ['asia', 'taiwan'],
       'IN': ['asia', 'india'], 'LK': ['asia', 'lanka'], 'BD': ['asia', 'bangladesh'],
-      'NP': ['asia', 'nepal'], 'PK': ['asia', 'pakistan'],
+      'NP': ['asia', 'nepal'], 'PK': ['asia', 'pakistan'], 'AF': ['asia', 'afghanistan', 'central'],
+      'KZ': ['asia', 'kazakhstan', 'central'], 'UZ': ['asia', 'uzbekistan', 'central'],
+      'TM': ['asia', 'turkmenistan', 'central'], 'KG': ['asia', 'kyrgyzstan', 'central'],
+      'TJ': ['asia', 'tajikistan', 'central'], 'MN': ['asia', 'mongolia', 'central'],
+      'CN': ['asia', 'china'],
       
       // European countries
       'GB': ['europe', 'united kingdom', 'britain'], 'DE': ['europe', 'germany'],
@@ -185,21 +189,34 @@ export default function Plans() {
       'CH': ['europe', 'switzerland'], 'PL': ['europe', 'poland'], 'CZ': ['europe', 'czech'],
       'PT': ['europe', 'portugal'], 'GR': ['europe', 'greece'], 'DK': ['europe', 'denmark'],
       'SE': ['europe', 'sweden'], 'NO': ['europe', 'norway'], 'FI': ['europe', 'finland'],
-      'IE': ['europe', 'ireland'], 'RU': ['europe', 'russia'], 'TR': ['europe', 'turkey'],
+      'IE': ['europe', 'ireland'], 'RU': ['europe', 'russia'], 'TR': ['europe', 'turkey', 'middle east'],
       'UA': ['europe', 'ukraine'], 'HU': ['europe', 'hungary'], 'RO': ['europe', 'romania'],
       'BG': ['europe', 'bulgaria'], 'HR': ['europe', 'croatia'], 'SK': ['europe', 'slovakia'],
       'SI': ['europe', 'slovenia'], 'LT': ['europe', 'lithuania'], 'LV': ['europe', 'latvia'],
       'EE': ['europe', 'estonia'], 'LU': ['europe', 'luxembourg'], 'MT': ['europe', 'malta'],
       'CY': ['europe', 'cyprus'], 'IS': ['europe', 'iceland'],
       
-      // American countries
-      'US': ['america', 'united states', 'usa'], 'CA': ['america', 'canada'],
-      'MX': ['america', 'mexico'], 'BR': ['america', 'brazil'], 'AR': ['america', 'argentina'],
-      'CL': ['america', 'chile'], 'PE': ['america', 'peru'], 'CO': ['america', 'colombia'],
+      // North American countries  
+      'US': ['america', 'united states', 'usa', 'north america'], 'CA': ['america', 'canada', 'north america'],
+      'MX': ['america', 'mexico', 'north america'],
       
-      // African countries
-      'ZA': ['africa', 'south africa'], 'NG': ['africa', 'nigeria'], 'EG': ['africa', 'egypt'],
-      'KE': ['africa', 'kenya'], 'MA': ['africa', 'morocco'], 'GH': ['africa', 'ghana'],
+      // South American countries
+      'BR': ['america', 'brazil', 'south america'], 'AR': ['america', 'argentina', 'south america'],
+      'CL': ['america', 'chile', 'south america'], 'PE': ['america', 'peru', 'south america'], 
+      'CO': ['america', 'colombia', 'south america'],
+      
+      // Middle East and Gulf countries
+      'AE': ['middle east', 'emirates', 'gulf', 'arab'], 'SA': ['middle east', 'saudi', 'gulf', 'arab'],
+      'QA': ['middle east', 'qatar', 'gulf', 'arab'], 'KW': ['middle east', 'kuwait', 'gulf', 'arab'],
+      'BH': ['middle east', 'bahrain', 'gulf', 'arab'], 'OM': ['middle east', 'oman', 'gulf', 'arab'],
+      'IL': ['middle east', 'israel'], 'JO': ['middle east', 'jordan'], 'LB': ['middle east', 'lebanon'],
+      'SY': ['middle east', 'syria'], 'IQ': ['middle east', 'iraq'], 'IR': ['middle east', 'iran'],
+      
+      // African countries  
+      'ZA': ['africa', 'south africa'], 'NG': ['africa', 'nigeria'], 'KE': ['africa', 'kenya'], 
+      'MA': ['africa', 'morocco'], 'GH': ['africa', 'ghana'], 'ET': ['africa', 'ethiopia'],
+      'TZ': ['africa', 'tanzania'], 'UG': ['africa', 'uganda'], 'ZW': ['africa', 'zimbabwe'],
+      'EG': ['africa', 'egypt', 'middle east'],
       
       // Oceanian countries
       'AU': ['oceania', 'australia'], 'NZ': ['oceania', 'new zealand'], 'FJ': ['oceania', 'fiji']

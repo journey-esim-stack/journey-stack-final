@@ -91,7 +91,7 @@ serve(async (req) => {
       title: plan.name,
       data_amount: plan.volume ? `${(plan.volume / (1024 * 1024 * 1024)).toFixed(1)}GB` : plan.description,
       validity_days: plan.duration,
-      wholesale_price: plan.price / 100, // Convert from cents to dollars
+      wholesale_price: plan.price / 10000, // Convert from API units to dollars (63000 -> 6.30)
       currency: plan.currencyCode || "USD",
       country_name: plan.location || "",
       country_code: plan.locationCode || "",

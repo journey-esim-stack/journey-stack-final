@@ -268,7 +268,7 @@ export default function Wallet() {
           <p className="text-muted-foreground">Manage your wallet balance and view transaction history</p>
         </div>
 
-        <Card className="glass-card">
+        <Card className="glass-card border-black">
           <CardHeader>
             <CardTitle>Top Up Wallet</CardTitle>
             <CardDescription>Minimum top-up is USD 10</CardDescription>
@@ -292,7 +292,7 @@ export default function Wallet() {
           </CardContent>
         </Card>
 
-        <Card className="glass-card">
+        <Card className="glass-card border-black">
           <CardHeader>
             <CardTitle>Current Balance</CardTitle>
             <CardDescription>Your available wallet balance</CardDescription>
@@ -304,7 +304,7 @@ export default function Wallet() {
           </CardContent>
         </Card>
 
-        <Card className="glass-card">
+        <Card className="glass-card border-black">
           <CardHeader>
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div>

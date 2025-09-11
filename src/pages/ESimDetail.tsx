@@ -90,6 +90,17 @@ const ESimDetail = () => {
     }
   }, [iccid]);
 
+  // Add real-time updates with polling
+  useEffect(() => {
+    if (!iccid) return;
+
+    const interval = setInterval(() => {
+      fetchESIMDetails();
+    }, 10000); // Refresh every 10 seconds for real-time updates
+
+    return () => clearInterval(interval);
+  }, [iccid]);
+
   const fetchESIMDetails = async () => {
     try {
       // Fetch order information and top-up history in parallel
@@ -136,48 +147,70 @@ const ESimDetail = () => {
         body: { iccid }
       });
 
-      if (apiError) {
+      if (apiError || !apiData?.success) {
         console.error("Error fetching eSIM details:", apiError);
-        // Create enhanced mock data based on order info for demo
-        const mockDetails: ESIMDetails = {
+        
+        // Use basic data from order when API fails, but don't use mock active data
+        const basicDetails: ESIMDetails = {
           iccid: iccid || "",
-          status: "New", // Correct status since eSIM hasn't been scanned/activated yet
+          status: orderData.status === 'completed' ? "Ready" : "New",
           data_usage: {
-            used: 0, // Should be 0 since not activated
+            used: 0,
             total: parseFloat(orderData.esim_plans?.data_amount?.replace(/[^\d.]/g, '') || "3"),
             unit: "GB"
           },
           network: {
-            connected: false, // Should be false since not activated
+            connected: false,
             operator: "Not Connected",
-            country: orderData.esim_plans?.country_name || "United Kingdom",
+            country: orderData.esim_plans?.country_name || "Unknown",
             signal_strength: 0
           },
           plan: {
             name: orderData.esim_plans?.title || "Unknown Plan",
-            validity: orderData.esim_plans?.validity_days || 5,
+            validity: orderData.esim_plans?.validity_days || 30,
             data_amount: orderData.esim_plans?.data_amount || "3GB",
-            expires_at: new Date(Date.now() + (orderData.esim_plans?.validity_days || 5) * 24 * 60 * 60 * 1000).toISOString(),
+            expires_at: new Date(Date.now() + (orderData.esim_plans?.validity_days || 30) * 24 * 60 * 60 * 1000).toISOString(),
             plan_id: orderData.esim_plans?.id || ""
           },
           activation: {
             qr_code: orderData.esim_qr_code || "",
-            manual_code: orderData.activation_code || "TN20250820112904SEFCE8F6",
+            manual_code: orderData.activation_code || "",
             sm_dp_address: "consumer.e-sim.global"
           },
-          sessions: [
-            {
-              id: "1SOBWJ3DSUST",
-              start_time: "2025-09-10T10:53:31Z",
-              end_time: "2025-09-16T11:02:21Z",
-              data_used: 1.30,
-              status: "ACTIVE"
-            }
-          ]
+          sessions: []
         };
-        setEsimDetails(mockDetails);
+        setEsimDetails(basicDetails);
       } else {
-        setEsimDetails(apiData);
+        // Transform API response to match our interface
+        const transformedData: ESIMDetails = {
+          iccid: apiData.obj?.iccid || iccid || "",
+          status: apiData.obj?.status || "Unknown",
+          data_usage: {
+            used: parseFloat(apiData.obj?.dataUsage?.used || "0"),
+            total: parseFloat(apiData.obj?.dataUsage?.total || orderData.esim_plans?.data_amount?.replace(/[^\d.]/g, '') || "3"),
+            unit: "GB"
+          },
+          network: {
+            connected: apiData.obj?.network?.connected || false,
+            operator: apiData.obj?.network?.operator || "Not Connected",
+            country: apiData.obj?.network?.country || orderData.esim_plans?.country_name || "Unknown",
+            signal_strength: parseInt(apiData.obj?.network?.signalStrength || "0")
+          },
+          plan: {
+            name: orderData.esim_plans?.title || "Unknown Plan",
+            validity: orderData.esim_plans?.validity_days || 30,
+            data_amount: orderData.esim_plans?.data_amount || "3GB",
+            expires_at: apiData.obj?.plan?.expiresAt || new Date(Date.now() + (orderData.esim_plans?.validity_days || 30) * 24 * 60 * 60 * 1000).toISOString(),
+            plan_id: orderData.esim_plans?.id || ""
+          },
+          activation: {
+            qr_code: orderData.esim_qr_code || "",
+            manual_code: orderData.activation_code || "",
+            sm_dp_address: "consumer.e-sim.global"
+          },
+          sessions: apiData.obj?.sessions || []
+        };
+        setEsimDetails(transformedData);
       }
 
     } catch (error) {

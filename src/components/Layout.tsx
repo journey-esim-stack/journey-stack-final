@@ -98,7 +98,7 @@ export default function Layout({ children }: LayoutProps) {
               <Link to="/dashboard" className="flex items-center">
                 <img src="/lovable-uploads/1e1f433f-d326-4551-ba07-4e6b9e5c259f.png" alt="Journey Stack" className="h-12" />
               </Link>
-              <div className="hidden md:flex space-x-4">
+              <div className="hidden md:flex items-center space-x-1">
                 {navigation.map((item) => {
                   const Icon = item.icon;
                   return (
@@ -122,14 +122,14 @@ export default function Layout({ children }: LayoutProps) {
                     <Link
                       key={item.name}
                       to={item.href}
-                      className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                      className={`flex items-center space-x-2 px-3 py-2 ml-2 rounded-md text-sm font-medium transition-colors ${
                         location.pathname === item.href
-                          ? "bg-orange-500 text-white"
+                          ? "bg-orange-600 text-white"
                           : "bg-orange-500 text-white hover:bg-orange-600"
                       }`}
                     >
                       <Icon className="h-4 w-4" />
-                      <span>{item.name}</span>
+                      <span className="whitespace-nowrap">Admin: Agents</span>
                     </Link>
                   );
                 })}

@@ -126,6 +126,10 @@ const ESimDetail = () => {
       }
 
       setOrderInfo(orderData);
+      
+      if (!topupError && topupData) {
+        setTopupHistory(topupData);
+      }
 
       // Fetch real-time details from eSIM Access API
       const { data: apiData, error: apiError } = await supabase.functions.invoke('get-esim-details', {

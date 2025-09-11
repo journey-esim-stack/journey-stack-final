@@ -108,11 +108,22 @@ serve(async (req) => {
 
     console.log("Found target plan:", targetPlan);
 
-    // Compute wallet deduction based on provider wholesale price
+    // Compute wholesale price in dollars
     const wholesaleDollars = targetPlan.price / 10000;
 
-    // Ensure sufficient balance based on wholesale price
-    if (profile.wallet_balance < wholesaleDollars) {
+    // Calculate retail price using agent's markup
+    let retailPrice = wholesaleDollars;
+    if (profile.markup_type === 'percent') {
+      retailPrice = wholesaleDollars * (1 + profile.markup_value / 100);
+    } else if (profile.markup_type === 'fixed') {
+      retailPrice = wholesaleDollars + profile.markup_value;
+    }
+
+    // The amount parameter from frontend is the retail price we should charge
+    const chargeAmount = amount || retailPrice;
+
+    // Ensure sufficient balance based on retail price
+    if (profile.wallet_balance < chargeAmount) {
       throw new Error("Insufficient wallet balance");
     }
 
@@ -157,8 +168,8 @@ serve(async (req) => {
       throw new Error(`Top-up failed: ${errCode} - ${errMsg}`);
     }
 
-    // Deduct amount from agent's wallet (wholesale only)
-    const newBalance = profile.wallet_balance - wholesaleDollars;
+    // Deduct retail amount from agent's wallet
+    const newBalance = profile.wallet_balance - chargeAmount;
     
     const { error: balanceError } = await supabaseService
       .from("agent_profiles")
@@ -176,9 +187,9 @@ serve(async (req) => {
       .insert({
         agent_id: profile.id,
         transaction_type: "debit",
-        amount: -wholesaleDollars,
+        amount: -chargeAmount,
         balance_after: newBalance,
-        description: `Top-up for eSIM ${iccid}`,
+        description: `eSIM top-up: ${dataAmount} ${targetPlan.duration}Days`,
         reference_id: transactionId,
       });
 
@@ -195,7 +206,7 @@ serve(async (req) => {
         agent_id: profile.id,
         iccid: iccid,
         package_code: packageCode,
-        amount: wholesaleDollars,
+        amount: chargeAmount,
         data_amount: dataAmount,
         validity_days: targetPlan.duration,
         transaction_id: transactionId,

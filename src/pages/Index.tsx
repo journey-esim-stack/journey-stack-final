@@ -12,7 +12,7 @@ const Index = () => {
     <main className="min-h-screen bg-background">
       <section className="container mx-auto max-w-3xl px-4 py-20 text-center relative">
         <img 
-          src="/lovable-uploads/9355fd63-0dfc-4481-94b6-230d9ac84236.png" 
+          src="/illustrations/idea.png" 
           alt="Welcome illustration" 
           className="absolute top-8 right-8 w-16 h-16 opacity-30 hidden md:block"
         />

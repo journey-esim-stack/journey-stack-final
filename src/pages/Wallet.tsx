@@ -273,7 +273,7 @@ export default function Wallet() {
             <CardTitle>Top Up Wallet</CardTitle>
             <CardDescription>Minimum top-up is USD 10</CardDescription>
             <img 
-              src="/lovable-uploads/b53f928d-10dd-48a1-a81f-c4f0f43a1a94.png" 
+              src="/illustrations/success.png" 
               alt="Success illustration" 
               className="absolute top-4 right-4 w-12 h-12 opacity-20"
             />
@@ -302,7 +302,7 @@ export default function Wallet() {
             <CardTitle>Current Balance</CardTitle>
             <CardDescription>Your available wallet balance</CardDescription>
             <img 
-              src="/lovable-uploads/722e133c-b007-4509-9abe-36594f629ba0.png" 
+              src="/illustrations/strength.png" 
               alt="Strength illustration" 
               className="absolute top-4 right-4 w-12 h-12 opacity-20"
             />
@@ -322,7 +322,7 @@ export default function Wallet() {
                 <CardDescription>Recent wallet transactions - Credits (top-ups) and debits (purchases)</CardDescription>
               </div>
               <img 
-                src="/lovable-uploads/12682d31-4d88-455d-91c4-596e2220e904.png" 
+                src="/illustrations/meditation.png" 
                 alt="Meditation illustration" 
                 className="absolute top-4 right-4 w-12 h-12 opacity-20"
               />

@@ -122,7 +122,7 @@ const Auth = () => {
             <CardTitle className="text-2xl">Journey eSIM Agent Portal</CardTitle>
             <CardDescription>Sign in or create your agent account</CardDescription>
             <img 
-              src="/lovable-uploads/422ef0ae-9548-402a-bfb2-fd72edd5442c.png" 
+              src="/illustrations/connection.png" 
               alt="Welcome illustration" 
               className="absolute top-4 right-4 w-12 h-12 opacity-20"
             />

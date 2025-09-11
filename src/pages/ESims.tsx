@@ -392,7 +392,7 @@ const ESims = () => {
         {/* Header Section */}
         <div className="glass-intense p-8 text-left relative">
           <img 
-            src="/lovable-uploads/422ef0ae-9548-402a-bfb2-fd72edd5442c.png" 
+            src="/illustrations/connection.png" 
             alt="Connection illustration" 
             className="absolute top-4 right-4 w-16 h-16 opacity-20 hidden md:block"
           />

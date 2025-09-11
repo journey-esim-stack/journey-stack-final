@@ -231,7 +231,7 @@ export default function Dashboard() {
                 eSIM Orders
               </CardTitle>
               <img 
-                src="/lovable-uploads/1ed9fbe7-61a9-4fdf-8126-a5e7e1a5d720.png" 
+                src="/illustrations/communication.png" 
                 alt="Communication illustration" 
                 className="absolute top-3 right-3 w-8 h-8 opacity-20"
               />
@@ -251,7 +251,7 @@ export default function Dashboard() {
                 Active eSIMs
               </CardTitle>
               <img 
-                src="/lovable-uploads/422ef0ae-9548-402a-bfb2-fd72edd5442c.png" 
+                src="/illustrations/connection.png" 
                 alt="Connection illustration" 
                 className="absolute top-3 right-3 w-8 h-8 opacity-20"
               />
@@ -269,7 +269,7 @@ export default function Dashboard() {
                 Wallet Balance
               </CardTitle>
               <img 
-                src="/lovable-uploads/9355fd63-0dfc-4481-94b6-230d9ac84236.png" 
+                src="/illustrations/idea.png" 
                 alt="Idea illustration" 
                 className="absolute top-3 right-3 w-8 h-8 opacity-20"
               />

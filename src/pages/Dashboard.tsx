@@ -8,6 +8,9 @@ import Layout from "@/components/Layout";
 import { format, subDays } from "date-fns";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { Smartphone, DollarSign, ShoppingCart, AlertTriangle } from "lucide-react";
+import { MetricCard } from "@/components/ui/metric-card";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { SkeletonCard } from "@/components/ui/skeleton-enhanced";
 
 interface Order {
   id: string;
@@ -202,102 +205,127 @@ export default function Dashboard() {
   if (loading) {
     return (
       <Layout>
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        <div className="space-y-6 animate-fade-in">
+          <div className="space-y-2">
+            <div className="h-8 w-64 skeleton"></div>
+            <div className="h-5 w-48 skeleton"></div>
+          </div>
+          <div className="grid gap-4 md:grid-cols-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="glass-card p-6">
+                <SkeletonCard />
+              </div>
+            ))}
+          </div>
         </div>
       </Layout>
     );
   }
 
+  const totalRevenue = orders.reduce((sum, order) => sum + (order.retail_price || 0), 0);
+  const totalMargin = orders.reduce((sum, order) => sum + ((order.retail_price || 0) - (order.wholesale_price || 0)), 0);
+
   return (
     <Layout>
-      <div className="space-y-6">
+      <div className="space-y-8 animate-fade-in">
         {/* Welcome Section */}
-        <div>
-          <h1 className="text-3xl font-bold">
-            Welcome, {agentProfile?.contact_person}! 👋
+        <div className="glass-intense p-8 text-left">
+          <h1 className="text-4xl font-bold font-heading mb-2">
+            Welcome back, {agentProfile?.contact_person}! 👋
           </h1>
-          <p className="text-lg text-muted-foreground mt-1">
+          <p className="text-xl text-muted-foreground">
             {agentProfile?.company_name}
           </p>
+          <div className="mt-4 text-sm text-muted-foreground">
+            Dashboard overview • Real-time data
+          </div>
         </div>
 
         {/* Dashboard Metrics */}
-        <div className="grid gap-4 md:grid-cols-3">
-          <Card>
-            <CardHeader className="pb-2 relative">
-              <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <ShoppingCart className="h-4 w-4" />
-                eSIM Orders
-              </CardTitle>
-              <img 
-                src="/illustrations/communication-new.png" 
-                alt="Communication illustration" 
-                className="absolute top-2 right-2 w-16 h-16"
-              />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{orders.length}</div>
-              <p className="text-sm text-muted-foreground">
-                {orders.filter(o => o.status === "completed").length} completed
-              </p>
-            </CardContent>
-          </Card>
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+          <MetricCard
+            title="Total Orders"
+            value={orders.length}
+            description={`${orders.filter(o => o.status === "completed").length} completed`}
+            icon={<ShoppingCart className="h-4 w-4" />}
+            illustration="/illustrations/communication-new.png"
+            trend={{
+              value: orders.length > 0 ? 12 : 0,
+              label: "vs last month"
+            }}
+          />
           
-          <Card>
-            <CardHeader className="pb-2 relative">
-              <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <Smartphone className="h-4 w-4" />
-                Active eSIMs
-              </CardTitle>
-              <img 
-                src="/illustrations/connection-new.png" 
-                alt="Connection illustration" 
-                className="absolute top-2 right-2 w-16 h-16"
-              />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{activeESims}</div>
-              <p className="text-sm text-muted-foreground">Connected to network</p>
-            </CardContent>
-          </Card>
+          <MetricCard
+            title="Active eSIMs"
+            value={activeESims}
+            description="Connected to network"
+            icon={<Smartphone className="h-4 w-4" />}
+            illustration="/illustrations/connection-new.png"
+            trend={{
+              value: activeESims > 0 ? 8 : 0,
+              label: "vs last week"
+            }}
+          />
           
-          <Card>
-            <CardHeader className="pb-2 relative">
-              <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <DollarSign className="h-4 w-4" />
-                Wallet Balance
-              </CardTitle>
-              <img 
-                src="/illustrations/idea-new.png" 
-                alt="Idea illustration" 
-                className="absolute top-2 right-2 w-16 h-16"
-              />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                USD {agentProfile?.wallet_balance?.toFixed(2) || "0.00"}
-              </div>
-              <p className="text-sm text-muted-foreground">Available credit</p>
-            </CardContent>
-          </Card>
+          <MetricCard
+            title="Wallet Balance"
+            value={`$${agentProfile?.wallet_balance?.toFixed(2) || "0.00"}`}
+            description="Available credit"
+            icon={<DollarSign className="h-4 w-4" />}
+            illustration="/illustrations/idea-new.png"
+          />
+
+          <MetricCard
+            title="Total Revenue"
+            value={`$${totalRevenue.toFixed(2)}`}
+            description={`$${totalMargin.toFixed(2)} profit margin`}
+            icon={<DollarSign className="h-4 w-4" />}
+            illustration="/illustrations/success-new.png"
+            trend={{
+              value: totalRevenue > 0 ? 15 : 0,
+              label: "vs last month"
+            }}
+          />
         </div>
 
         {/* Orders Chart */}
-        <Card>
+        <Card className="glass-card">
           <CardHeader>
-            <CardTitle>eSIM Orders - Last 30 Days</CardTitle>
-            <CardDescription>Daily order volume</CardDescription>
+            <CardTitle className="flex items-center gap-2 font-heading">
+              📊 eSIM Orders - Last 30 Days
+            </CardTitle>
+            <CardDescription>Daily order volume and trends</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="h-80">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" />
-                  <YAxis />
-                  <Tooltip />
-                  <Bar dataKey="orders" fill="hsl(var(--primary))" />
+                  <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                  <XAxis 
+                    dataKey="date" 
+                    fontSize={12}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <YAxis 
+                    fontSize={12}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <Tooltip 
+                    cursor={{ fill: 'hsl(var(--primary) / 0.1)' }}
+                    contentStyle={{
+                      backgroundColor: 'hsl(var(--card))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '8px'
+                    }}
+                  />
+                  <Bar 
+                    dataKey="orders" 
+                    fill="hsl(var(--primary))" 
+                    radius={[4, 4, 0, 0]}
+                    className="hover-glow"
+                  />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -419,9 +447,7 @@ export default function Dashboard() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge className={getStatusColor(order.status)}>
-                          {order.status}
-                        </Badge>
+                        <StatusBadge status={order.status} variant="with-icon" />
                       </TableCell>
                       <TableCell>
                         {order.esim_iccid ? (

@@ -94,7 +94,7 @@ const TopupModal = ({ isOpen, onClose, iccid, packageCode, onTopupComplete }: To
       return;
     }
 
-    if (agentProfile.wallet_balance < plan.wholesale_price) {
+    if (agentProfile.wallet_balance < plan.retail_price) {
       toast.error("Insufficient wallet balance");
       return;
     }
@@ -105,7 +105,7 @@ const TopupModal = ({ isOpen, onClose, iccid, packageCode, onTopupComplete }: To
         body: {
           iccid,
           packageCode: plan.packageCode,
-          amount: plan.wholesale_price, // Use wholesale price for wallet deduction
+          amount: plan.retail_price, // Use retail price for wallet deduction
         },
       });
 
@@ -159,7 +159,7 @@ const TopupModal = ({ isOpen, onClose, iccid, packageCode, onTopupComplete }: To
         ) : (
           <div className="space-y-4">
             {topupPlans.map((plan) => {
-              const canAfford = agentProfile && agentProfile.wallet_balance >= plan.wholesale_price;
+              const canAfford = agentProfile && agentProfile.wallet_balance >= plan.retail_price;
               const isProcessingThis = processing === plan.packageCode;
 
               return (

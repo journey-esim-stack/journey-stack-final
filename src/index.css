@@ -8,110 +8,110 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    /* Orange to mint gradient based on #ff7c01 and #C8FAF5 */
+    /* Orange to mint gradient based on #FF9500 and #C8FAF5 */
     --gradient-main: linear-gradient(135deg, 
-      hsl(29 100% 50%) 0%,      /* #ff7c01 orange */
-      hsl(29 100% 55%) 25%,     /* Lighter orange */
-      hsl(29 100% 60%) 50%,     /* Mid orange */
+      hsl(35 100% 50%) 0%,      /* #FF9500 orange */
+      hsl(35 100% 55%) 25%,     /* Lighter orange */
+      hsl(35 100% 60%) 50%,     /* Mid orange */
       hsl(163 75% 85%) 75%,     /* #C8FAF5 mint */
       hsl(163 75% 90%) 100%     /* Light mint */
     );
     
     --background: 0 0% 100%;
-    --foreground: 29 50% 15%;
+    --foreground: 35 50% 15%;
 
     --card: 0 0% 100%;
-    --card-foreground: 29 50% 15%;
+    --card-foreground: 35 50% 15%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 29 50% 15%;
+    --popover-foreground: 35 50% 15%;
 
-    --primary: 29 100% 50%;
+    --primary: 35 100% 50%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 29 100% 95%;
-    --secondary-foreground: 29 100% 20%;
+    --secondary: 35 100% 95%;
+    --secondary-foreground: 35 100% 20%;
 
-    --muted: 29 20% 96%;
-    --muted-foreground: 29 30% 40%;
+    --muted: 35 20% 96%;
+    --muted-foreground: 35 30% 40%;
 
-    --accent: 29 100% 90%;
-    --accent-foreground: 29 100% 15%;
+    --accent: 35 100% 90%;
+    --accent-foreground: 35 100% 15%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 29 20% 90%;
-    --input: 29 20% 95%;
-    --ring: 29 100% 50%;
+    --border: 35 20% 90%;
+    --input: 35 20% 95%;
+    --ring: 35 100% 50%;
 
     --radius: 1.5rem;
 
     /* Enhanced glassmorphism effects */
     --glass-bg: 0 0% 100%;
-    --glass-border: 29 20% 85%;
-    --glass-shadow: 0 25px 50px -12px hsl(29 100% 45% / 0.15), 0 0 0 1px hsl(0 0% 100% / 0.05) inset;
+    --glass-border: 35 20% 85%;
+    --glass-shadow: 0 25px 50px -12px hsl(35 100% 45% / 0.15), 0 0 0 1px hsl(0 0% 100% / 0.05) inset;
 
     --sidebar-background: 0 0% 98%;
     --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 29 100% 50%;
+    --sidebar-primary: 35 100% 50%;
     --sidebar-primary-foreground: 0 0% 98%;
     --sidebar-accent: 240 4.8% 95.9%;
     --sidebar-accent-foreground: 240 5.9% 10%;
     --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 29 100% 50%;
+    --sidebar-ring: 35 100% 50%;
   }
 
   .dark {
     --gradient-main: linear-gradient(135deg, 
-      hsl(29 90% 25%) 0%,       /* Dark orange */
-      hsl(29 90% 30%) 25%,      /* Dark orange */
-      hsl(29 90% 35%) 50%,      /* Dark orange */
+      hsl(35 90% 25%) 0%,       /* Dark orange */
+      hsl(35 90% 30%) 25%,      /* Dark orange */
+      hsl(35 90% 35%) 50%,      /* Dark orange */
       hsl(163 40% 25%) 75%,     /* Dark mint */
       hsl(163 40% 20%) 100%     /* Dark mint */
     );
     
-    --background: 29 10% 8%;
-    --foreground: 29 20% 90%;
+    --background: 35 10% 8%;
+    --foreground: 35 20% 90%;
 
-    --card: 29 15% 12%;
-    --card-foreground: 29 20% 90%;
+    --card: 35 15% 12%;
+    --card-foreground: 35 20% 90%;
 
-    --popover: 29 15% 12%;
-    --popover-foreground: 29 20% 90%;
+    --popover: 35 15% 12%;
+    --popover-foreground: 35 20% 90%;
 
-    --primary: 29 100% 55%;
+    --primary: 35 100% 55%;
     --primary-foreground: 222.2 47.4% 11.2%;
 
-    --secondary: 29 20% 20%;
-    --secondary-foreground: 29 20% 90%;
+    --secondary: 35 20% 20%;
+    --secondary-foreground: 35 20% 90%;
 
-    --muted: 29 15% 15%;
-    --muted-foreground: 29 15% 65%;
+    --muted: 35 15% 15%;
+    --muted-foreground: 35 15% 65%;
 
-    --accent: 29 20% 25%;
-    --accent-foreground: 29 20% 90%;
+    --accent: 35 20% 25%;
+    --accent-foreground: 35 20% 90%;
 
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 29 15% 25%;
-    --input: 29 15% 15%;
-    --ring: 29 100% 55%;
+    --border: 35 15% 25%;
+    --input: 35 15% 15%;
+    --ring: 35 100% 55%;
 
     /* Dark mode enhanced glassmorphism */
-    --glass-bg: 29 15% 12%;
-    --glass-border: 29 15% 25%;
-    --glass-shadow: 0 25px 50px -12px hsl(29 100% 30% / 0.3), 0 0 0 1px hsl(0 0% 100% / 0.03) inset;
+    --glass-bg: 35 15% 12%;
+    --glass-border: 35 15% 25%;
+    --glass-shadow: 0 25px 50px -12px hsl(35 100% 30% / 0.3), 0 0 0 1px hsl(0 0% 100% / 0.03) inset;
 
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 29 100% 55%;
+    --sidebar-primary: 35 100% 55%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 240 3.7% 15.9%;
     --sidebar-accent-foreground: 240 4.8% 95.9%;
     --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 29 100% 55%;
+    --sidebar-ring: 35 100% 55%;
   }
 }
 
@@ -147,7 +147,7 @@ All colors MUST be HSL.
     -webkit-backdrop-filter: blur(25px) saturate(200%);
     border: 1.5px solid hsl(var(--glass-border));
     box-shadow: var(--glass-shadow),
-                0 0 40px hsl(29 100% 45% / 0.1);
+                0 0 40px hsl(35 100% 45% / 0.1);
   }
   
   .glass-intense {
@@ -156,7 +156,7 @@ All colors MUST be HSL.
     -webkit-backdrop-filter: blur(30px) saturate(220%) brightness(110%);
     border: 1px solid hsl(0 0% 100% / 0.1);
     box-shadow: var(--glass-shadow),
-                0 0 60px hsl(29 100% 45% / 0.15),
+                0 0 60px hsl(35 100% 45% / 0.15),
                 0 0 0 1px hsl(0 0% 100% / 0.05) inset;
   }
   
@@ -165,6 +165,6 @@ All colors MUST be HSL.
     backdrop-filter: blur(15px) saturate(150%);
     -webkit-backdrop-filter: blur(15px) saturate(150%);
     border: none;
-    box-shadow: 0 8px 25px hsl(29 100% 45% / 0.1);
+    box-shadow: 0 8px 25px hsl(35 100% 45% / 0.1);
   }
 }

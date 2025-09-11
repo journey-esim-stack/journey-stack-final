@@ -83,8 +83,11 @@ export default function Layout({ children }: LayoutProps) {
     { name: "Wallet", href: "/wallet", icon: Wallet },
     { name: "eSIMs", href: "/esims", icon: Smartphone },
     { name: "Profile", href: "/profile", icon: User },
-    ...(isAdmin ? [{ name: "Admin: Agents", href: "/admin/agents", icon: ShieldCheck }] : []),
   ];
+
+  const adminNavigation = isAdmin ? [
+    { name: "Admin: Agents", href: "/admin/agents", icon: ShieldCheck },
+  ] : [];
 
   return (
     <div className="min-h-screen bg-background">
@@ -106,6 +109,23 @@ export default function Layout({ children }: LayoutProps) {
                         location.pathname === item.href
                           ? "bg-primary text-primary-foreground"
                           : "text-foreground/80 hover:text-foreground hover:bg-accent"
+                      }`}
+                    >
+                      <Icon className="h-4 w-4" />
+                      <span>{item.name}</span>
+                    </Link>
+                  );
+                })}
+                {adminNavigation.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <Link
+                      key={item.name}
+                      to={item.href}
+                      className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                        location.pathname === item.href
+                          ? "bg-orange-500 text-white"
+                          : "bg-orange-500 text-white hover:bg-orange-600"
                       }`}
                     >
                       <Icon className="h-4 w-4" />

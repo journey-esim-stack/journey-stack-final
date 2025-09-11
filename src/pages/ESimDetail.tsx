@@ -340,79 +340,79 @@ const ESimDetail = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {/* Data Progress Row */}
-                <div className="flex items-center justify-between py-3 border-b border-white/10">
-                  <div className="flex items-center gap-4">
-                    <span className="text-sm text-muted-foreground font-medium">Data Progress</span>
-                    <div className="flex items-center gap-3">
-                      <div className="w-40 bg-gray-200/20 rounded-full h-2 overflow-hidden">
+                {/* Main Data Usage Display - All in one row */}
+                <div className="grid grid-cols-1 md:grid-cols-6 gap-4 items-center">
+                  {/* Status */}
+                  <div className="text-center">
+                    <p className="text-sm text-muted-foreground mb-2">Status</p>
+                    <Badge className="bg-blue-500/10 text-blue-600 border-blue-500/20">
+                      {esimDetails.status}
+                    </Badge>
+                  </div>
+
+                  {/* Data Usage */}
+                  <div className="text-center">
+                    <p className="text-sm text-muted-foreground mb-2">Data Usage</p>
+                    <div className="text-sm font-semibold">
+                      {esimDetails.data_usage.used} {esimDetails.data_usage.unit} Used / {esimDetails.data_usage.total} {esimDetails.data_usage.unit}
+                    </div>
+                  </div>
+
+                  {/* Data Progress */}
+                  <div className="text-center">
+                    <p className="text-sm text-muted-foreground mb-2">Data Progress</p>
+                    <div className="flex flex-col items-center gap-1">
+                      <div className="w-24 bg-gray-200/20 rounded-full h-2 overflow-hidden">
                         <div 
                           className={`h-full bg-gradient-to-r from-orange-500 to-orange-600 rounded-full transition-all duration-500 ease-out ${usagePercentage === 0 ? 'w-0' : ''}`}
                           style={{ width: `${Math.max(usagePercentage, 0)}%` }}
                         />
                       </div>
-                      <span className="text-sm text-muted-foreground whitespace-nowrap">
-                        {remainingData.toFixed(2)} {esimDetails.data_usage.unit} remaining
+                      <span className="text-xs text-muted-foreground">
+                        {remainingData.toFixed(2)} {esimDetails.data_usage.unit} left
                       </span>
                     </div>
                   </div>
+
+                  {/* Validity */}
+                  <div className="text-center">
+                    <p className="text-sm text-muted-foreground mb-2">Validity</p>
+                    <div className="text-sm font-semibold">
+                      {esimDetails.plan.validity} Days
+                    </div>
+                  </div>
+
+                  {/* Created */}
+                  <div className="text-center">
+                    <p className="text-sm text-muted-foreground mb-2">Created</p>
+                    <div className="text-xs">
+                      {format(new Date(orderInfo.created_at), "yyyy-MM-dd")}
+                      <br />
+                      <span className="text-xs text-muted-foreground">
+                        {format(new Date(orderInfo.created_at), "HH:mm:ss")}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Expiration */}
+                  <div className="text-center">
+                    <p className="text-sm text-muted-foreground mb-2">Expiration</p>
+                    <div className="text-xs">
+                      {format(new Date(esimDetails.plan.expires_at), "yyyy-MM-dd")}
+                      <br />
+                      <span className="text-xs text-muted-foreground">
+                        {format(new Date(esimDetails.plan.expires_at), "HH:mm:ss")}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Top-up Button Row */}
+                <div className="flex justify-end pt-4 border-t border-white/10 mt-4">
                   <Button variant="outline" size="sm" className="bg-orange-500 text-white hover:bg-orange-600 border-orange-500 h-8 px-4">
                     <Plus className="h-3 w-3 mr-1" />
                     Top-up
                   </Button>
-                </div>
-
-                {/* Main Data Usage Display */}
-                <div className="pt-2">
-                  <div className="grid grid-cols-1 md:grid-cols-5 gap-6 items-center">
-                    {/* Status */}
-                    <div className="text-center">
-                      <p className="text-sm text-muted-foreground mb-2">Status</p>
-                      <Badge className="bg-blue-500/10 text-blue-600 border-blue-500/20">
-                        {esimDetails.status}
-                      </Badge>
-                    </div>
-
-                    {/* Data Usage */}
-                    <div className="text-center">
-                      <p className="text-sm text-muted-foreground mb-2">Data Usage</p>
-                      <div className="text-lg font-semibold">
-                        {esimDetails.data_usage.used} {esimDetails.data_usage.unit} Used / {esimDetails.data_usage.total} {esimDetails.data_usage.unit}
-                      </div>
-                    </div>
-
-                    {/* Validity */}
-                    <div className="text-center">
-                      <p className="text-sm text-muted-foreground mb-2">Validity</p>
-                      <div className="text-lg font-semibold">
-                        {esimDetails.plan.validity} Days
-                      </div>
-                    </div>
-
-                    {/* Created */}
-                    <div className="text-center">
-                      <p className="text-sm text-muted-foreground mb-2">Created</p>
-                      <div className="text-sm">
-                        {format(new Date(orderInfo.created_at), "yyyy-MM-dd")}
-                        <br />
-                        <span className="text-xs text-muted-foreground">
-                          {format(new Date(orderInfo.created_at), "HH:mm:ss")}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Expiration */}
-                    <div className="text-center">
-                      <p className="text-sm text-muted-foreground mb-2">Expiration</p>
-                      <div className="text-sm">
-                        {format(new Date(esimDetails.plan.expires_at), "yyyy-MM-dd")}
-                        <br />
-                        <span className="text-xs text-muted-foreground">
-                          {format(new Date(esimDetails.plan.expires_at), "HH:mm:ss")}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
                 </div>
               </CardContent>
             </Card>

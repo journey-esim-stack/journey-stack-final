@@ -274,6 +274,18 @@ export default function Dashboard() {
             icon={<DollarSign className="h-4 w-4" />}
             illustration="/illustrations/idea-new.png"
           />
+
+          <MetricCard
+            title="Total Revenue"
+            value={`$${totalRevenue.toFixed(2)}`}
+            description={`$${totalMargin.toFixed(2)} profit margin`}
+            icon={<DollarSign className="h-4 w-4" />}
+            illustration="/illustrations/success-new.png"
+            trend={{
+              value: totalRevenue > 0 ? 15 : 0,
+              label: "vs last month"
+            }}
+          />
         </div>
 
         {/* Orders Chart */}

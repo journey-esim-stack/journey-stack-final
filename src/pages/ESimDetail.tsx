@@ -362,9 +362,70 @@ const ESimDetail = () => {
                   Data Usage
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                {/* Main Data Usage Display - All in one row */}
-                <div className="grid grid-cols-1 md:grid-cols-6 gap-4 items-center">
+              <CardContent className="space-y-4">
+                {/* Top-up History - Show newest first */}
+                {topupHistory.length > 0 && topupHistory.map((topup) => (
+                  <div key={topup.id} className="grid grid-cols-1 md:grid-cols-6 gap-4 items-center p-4 bg-orange-500/10 rounded-lg border border-orange-500/20">
+                    {/* Status */}
+                    <div className="text-center">
+                      <p className="text-sm text-muted-foreground mb-2">Status</p>
+                      <Badge className="bg-green-500/10 text-green-600 border-green-500/20">
+                        {topup.status}
+                      </Badge>
+                    </div>
+
+                    {/* Data Usage */}
+                    <div className="text-center">
+                      <p className="text-sm text-muted-foreground mb-2">Data Usage</p>
+                      <div className="text-sm font-semibold">
+                        0 GB Used / {topup.data_amount}
+                      </div>
+                    </div>
+
+                    {/* Data Progress */}
+                    <div className="text-center">
+                      <p className="text-sm text-muted-foreground mb-2">Data Progress</p>
+                      <div className="flex flex-col items-center gap-1">
+                        <div className="text-xs text-muted-foreground">
+                          {topup.data_amount} left
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Validity */}
+                    <div className="text-center">
+                      <p className="text-sm text-muted-foreground mb-2">Validity</p>
+                      <div className="text-sm font-semibold">
+                        {topup.validity_days} Days
+                      </div>
+                    </div>
+
+                    {/* Created */}
+                    <div className="text-center">
+                      <p className="text-sm text-muted-foreground mb-2">Created</p>
+                      <div className="text-sm">
+                        {format(new Date(topup.created_at), "yyyy-MM-dd")}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {format(new Date(topup.created_at), "HH:mm:ss")}
+                      </div>
+                    </div>
+
+                    {/* Expiration */}
+                    <div className="text-center">
+                      <p className="text-sm text-muted-foreground mb-2">Expiration</p>
+                      <div className="text-sm">
+                        {format(new Date(new Date(topup.created_at).getTime() + topup.validity_days * 24 * 60 * 60 * 1000), "yyyy-MM-dd")}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {format(new Date(new Date(topup.created_at).getTime() + topup.validity_days * 24 * 60 * 60 * 1000), "HH:mm:ss")}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+
+                {/* Original Plan - Always show at bottom */}
+                <div className="grid grid-cols-1 md:grid-cols-6 gap-4 items-center p-4 bg-background/50 rounded-lg border">
                   {/* Status */}
                   <div className="text-center">
                     <p className="text-sm text-muted-foreground mb-2">Status</p>
@@ -408,24 +469,22 @@ const ESimDetail = () => {
                   {/* Created */}
                   <div className="text-center">
                     <p className="text-sm text-muted-foreground mb-2">Created</p>
-                    <div className="text-xs">
+                    <div className="text-sm">
                       {format(new Date(orderInfo.created_at), "yyyy-MM-dd")}
-                      <br />
-                      <span className="text-xs text-muted-foreground">
-                        {format(new Date(orderInfo.created_at), "HH:mm:ss")}
-                      </span>
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {format(new Date(orderInfo.created_at), "HH:mm:ss")}
                     </div>
                   </div>
 
                   {/* Expiration */}
                   <div className="text-center">
                     <p className="text-sm text-muted-foreground mb-2">Expiration</p>
-                    <div className="text-xs">
+                    <div className="text-sm">
                       {format(new Date(esimDetails.plan.expires_at), "yyyy-MM-dd")}
-                      <br />
-                      <span className="text-xs text-muted-foreground">
-                        {format(new Date(esimDetails.plan.expires_at), "HH:mm:ss")}
-                      </span>
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {format(new Date(esimDetails.plan.expires_at), "HH:mm:ss")}
                     </div>
                   </div>
                 </div>

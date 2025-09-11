@@ -117,10 +117,15 @@ const Auth = () => {
   return (
     <main className="min-h-screen bg-background">
       <section className="container mx-auto max-w-lg px-4 py-12">
-        <Card className="border-border/50">
+        <Card className="border-border/50 relative">
           <CardHeader>
             <CardTitle className="text-2xl">Journey eSIM Agent Portal</CardTitle>
             <CardDescription>Sign in or create your agent account</CardDescription>
+            <img 
+              src="/lovable-uploads/422ef0ae-9548-402a-bfb2-fd72edd5442c.png" 
+              alt="Welcome illustration" 
+              className="absolute top-4 right-4 w-12 h-12 opacity-20"
+            />
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="signin" className="w-full">

@@ -225,11 +225,16 @@ export default function Dashboard() {
         {/* Dashboard Metrics */}
         <div className="grid gap-4 md:grid-cols-3">
           <Card>
-            <CardHeader className="pb-2">
+            <CardHeader className="pb-2 relative">
               <CardTitle className="text-sm font-medium flex items-center gap-2">
                 <ShoppingCart className="h-4 w-4" />
                 eSIM Orders
               </CardTitle>
+              <img 
+                src="/lovable-uploads/1ed9fbe7-61a9-4fdf-8126-a5e7e1a5d720.png" 
+                alt="Communication illustration" 
+                className="absolute top-3 right-3 w-8 h-8 opacity-20"
+              />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{orders.length}</div>
@@ -240,11 +245,16 @@ export default function Dashboard() {
           </Card>
           
           <Card>
-            <CardHeader className="pb-2">
+            <CardHeader className="pb-2 relative">
               <CardTitle className="text-sm font-medium flex items-center gap-2">
                 <Smartphone className="h-4 w-4" />
                 Active eSIMs
               </CardTitle>
+              <img 
+                src="/lovable-uploads/422ef0ae-9548-402a-bfb2-fd72edd5442c.png" 
+                alt="Connection illustration" 
+                className="absolute top-3 right-3 w-8 h-8 opacity-20"
+              />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{activeESims}</div>
@@ -253,11 +263,16 @@ export default function Dashboard() {
           </Card>
           
           <Card>
-            <CardHeader className="pb-2">
+            <CardHeader className="pb-2 relative">
               <CardTitle className="text-sm font-medium flex items-center gap-2">
                 <DollarSign className="h-4 w-4" />
                 Wallet Balance
               </CardTitle>
+              <img 
+                src="/lovable-uploads/9355fd63-0dfc-4481-94b6-230d9ac84236.png" 
+                alt="Idea illustration" 
+                className="absolute top-3 right-3 w-8 h-8 opacity-20"
+              />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">

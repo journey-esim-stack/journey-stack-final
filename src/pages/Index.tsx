@@ -10,7 +10,12 @@ const Index = () => {
 
   return (
     <main className="min-h-screen bg-background">
-      <section className="container mx-auto max-w-3xl px-4 py-20 text-center">
+      <section className="container mx-auto max-w-3xl px-4 py-20 text-center relative">
+        <img 
+          src="/lovable-uploads/9355fd63-0dfc-4481-94b6-230d9ac84236.png" 
+          alt="Welcome illustration" 
+          className="absolute top-8 right-8 w-16 h-16 opacity-30 hidden md:block"
+        />
         <h1 className="mb-4 text-4xl font-bold">Journey eSIM Agent Portal</h1>
         <p className="mb-8 text-lg text-muted-foreground">
           Onboard as a travel agent, set your retail prices, manage wallet balance, and create eSIMs for travelers.

@@ -269,9 +269,14 @@ export default function Wallet() {
         </div>
 
         <Card className="glass-card border-black">
-          <CardHeader>
+          <CardHeader className="relative">
             <CardTitle>Top Up Wallet</CardTitle>
             <CardDescription>Minimum top-up is USD 10</CardDescription>
+            <img 
+              src="/lovable-uploads/b53f928d-10dd-48a1-a81f-c4f0f43a1a94.png" 
+              alt="Success illustration" 
+              className="absolute top-4 right-4 w-12 h-12 opacity-20"
+            />
           </CardHeader>
           <CardContent>
             <div className="flex flex-col sm:flex-row gap-3">
@@ -293,9 +298,14 @@ export default function Wallet() {
         </Card>
 
         <Card className="glass-card border-black">
-          <CardHeader>
+          <CardHeader className="relative">
             <CardTitle>Current Balance</CardTitle>
             <CardDescription>Your available wallet balance</CardDescription>
+            <img 
+              src="/lovable-uploads/722e133c-b007-4509-9abe-36594f629ba0.png" 
+              alt="Strength illustration" 
+              className="absolute top-4 right-4 w-12 h-12 opacity-20"
+            />
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-primary">
@@ -305,12 +315,17 @@ export default function Wallet() {
         </Card>
 
         <Card className="glass-card border-black">
-          <CardHeader>
+          <CardHeader className="relative">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div>
                 <CardTitle>Transaction History</CardTitle>
                 <CardDescription>Recent wallet transactions - Credits (top-ups) and debits (purchases)</CardDescription>
               </div>
+              <img 
+                src="/lovable-uploads/12682d31-4d88-455d-91c4-596e2220e904.png" 
+                alt="Meditation illustration" 
+                className="absolute top-4 right-4 w-12 h-12 opacity-20"
+              />
               {allTransactions.length > 0 && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>

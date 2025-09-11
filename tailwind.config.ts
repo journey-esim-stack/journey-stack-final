@@ -18,7 +18,7 @@ export default {
         heading: ['Manrope', 'Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
       },
       letterSpacing: {
-        'heading': '-0.025em',
+        'heading': '-0.05em',
       },
       colors: {
         border: "hsl(var(--border))",

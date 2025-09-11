@@ -109,8 +109,8 @@ export default function Dashboard() {
       // Generate chart data for last 30 days
       generateChartData(ordersData || []);
 
-      // Generate mock high usage eSIMs data (since we don't have real usage data yet)
-      generateMockHighUsageData(ordersData || []);
+      // Fetch real eSIM usage data
+      fetchHighUsageESims(ordersData || []);
 
     } catch (error) {
       toast({
@@ -145,21 +145,45 @@ export default function Dashboard() {
     setChartData(last30Days);
   };
 
-  const generateMockHighUsageData = (ordersData: Order[]) => {
-    // Mock data for eSIMs with high usage (would come from real API in production)
-    const mockHighUsage = ordersData
-      .filter(o => o.status === "completed" && o.esim_iccid)
-      .slice(0, 3)
-      .map((order, index) => ({
-        iccid: order.esim_iccid,
-        plan_name: order.esim_plans?.title || "Unknown Plan",
-        country_name: order.esim_plans?.country_name || "Unknown",
-        data_used_percentage: 80 + Math.random() * 15, // 80-95%
-        customer_name: order.customer_name,
-        customer_email: order.customer_email,
-      }));
+  const fetchHighUsageESims = async (ordersData: Order[]) => {
+    const completedOrdersWithESims = ordersData.filter(o => 
+      o.status === "completed" && o.esim_iccid
+    );
 
-    setHighUsageESims(mockHighUsage);
+    const highUsageESims: HighDataUsageESim[] = [];
+
+    // Check each eSIM for high data usage
+    for (const order of completedOrdersWithESims) {
+      try {
+        const { data: eSimDetails, error } = await supabase.functions.invoke('get-esim-details', {
+          body: { iccid: order.esim_iccid }
+        });
+
+        if (!error && eSimDetails?.success) {
+          const usage = eSimDetails.obj;
+          // Calculate data usage percentage
+          const totalData = usage.dataAmount || 1;
+          const usedData = usage.usedData || 0;
+          const usagePercentage = (usedData / totalData) * 100;
+
+          // Only include eSIMs with 80%+ usage
+          if (usagePercentage >= 80) {
+            highUsageESims.push({
+              iccid: order.esim_iccid,
+              plan_name: order.esim_plans?.title || "Unknown Plan",
+              country_name: order.esim_plans?.country_name || "Unknown",
+              data_used_percentage: usagePercentage,
+              customer_name: order.customer_name || "Customer Name",
+              customer_email: order.customer_email || "customer@example.com",
+            });
+          }
+        }
+      } catch (error) {
+        console.error(`Failed to fetch usage for eSIM ${order.esim_iccid}:`, error);
+      }
+    }
+
+    setHighUsageESims(highUsageESims);
   };
 
   const getStatusColor = (status: string) => {
@@ -266,18 +290,18 @@ export default function Dashboard() {
         </Card>
 
         {/* High Data Usage Alert */}
-        {highUsageESims.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <AlertTriangle className="h-5 w-5 text-orange-500" />
-                eSIMs Requiring Attention
-              </CardTitle>
-              <CardDescription>
-                eSIMs that have consumed 80%+ of their data allocation
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-orange-500" />
+              eSIMs Requiring Attention
+            </CardTitle>
+            <CardDescription>
+              eSIMs that have consumed 80%+ of their data allocation
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {highUsageESims.length > 0 ? (
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -303,7 +327,7 @@ export default function Dashboard() {
                         </div>
                       </TableCell>
                       <TableCell className="font-mono text-sm">
-                        {esim.iccid.slice(0, 10)}...
+                        {esim.iccid}
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
@@ -322,9 +346,15 @@ export default function Dashboard() {
                   ))}
                 </TableBody>
               </Table>
-            </CardContent>
-          </Card>
-        )}
+            ) : (
+              <div className="text-center py-8">
+                <AlertTriangle className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+                <p className="text-lg font-medium text-muted-foreground">No eSIMs require attention</p>
+                <p className="text-sm text-muted-foreground">All eSIMs are operating within normal data usage limits</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Order History */}
         <Card>

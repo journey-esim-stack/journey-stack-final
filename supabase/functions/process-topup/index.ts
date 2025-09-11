@@ -201,7 +201,7 @@ serve(async (req) => {
         transaction_type: "purchase",
         amount: -chargeAmount,
         balance_after: newBalance,
-        description: `eSIM top-up: ${dataAmount} ${targetPlan.duration}Days`,
+        description: `eSIM top-up: ${targetPlan.location} ${dataAmount} ${targetPlan.duration}Days`,
         reference_id: `topup-${packageCode}-${Date.now()}`,
       });
     

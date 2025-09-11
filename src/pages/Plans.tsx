@@ -361,11 +361,11 @@ export default function Plans() {
       <Layout>
         <div className="space-y-8 animate-fade-in">
           <div className="glass-intense p-8 text-center">
-            <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r from-primary via-primary to-accent bg-clip-text text-transparent">
-              Available eSIM Plans
+            <h1 className="text-4xl font-bold mb-4 text-black">
+              Explore premium eSIM Plans
             </h1>
             <p className="text-muted-foreground text-lg mb-6">
-              Loading premium eSIM plans...
+              Loading curated data plans...
             </p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
@@ -382,14 +382,14 @@ export default function Plans() {
     <Layout>
       <div className="space-y-8 animate-fade-in">
         {/* Header Section */}
-        <div className="glass-intense p-8 text-center">
-          <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r from-primary via-primary to-accent bg-clip-text text-transparent">
-            Available eSIM Plans
+        <div className="glass-intense p-8 text-left">
+          <h1 className="text-4xl font-bold mb-4 text-black">
+            Explore premium eSIM Plans
           </h1>
           <p className="text-muted-foreground text-lg mb-6">
-            Browse and manage premium eSIM plans for your customers worldwide
+            Browse curated data plans for your customers. Sell better eSIMs, faster with smart filtering, local pricing, instant downloads.
           </p>
-          <div className="flex items-center justify-center gap-2 mt-4 text-sm text-muted-foreground">
+          <div className="flex items-center justify-start gap-2 mt-4 text-sm text-muted-foreground">
             <Globe className="h-4 w-4" />
             <span>{plans.length} plans available</span>
             <span>•</span>

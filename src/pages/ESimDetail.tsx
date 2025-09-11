@@ -346,7 +346,7 @@ const ESimDetail = () => {
                   <div>
                     <p className="text-sm text-muted-foreground">Network</p>
                     <div className="flex items-center gap-2 mt-1">
-                      <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                      <div className={`w-3 h-3 rounded-full ${esimDetails.network.connected ? 'bg-green-500' : 'bg-gray-500'}`}></div>
                       <span className="text-sm font-medium">{esimDetails.network.operator}</span>
                     </div>
                     <p className="text-xs text-muted-foreground">{esimDetails.network.country}</p>

@@ -119,11 +119,12 @@ serve(async (req) => {
       retailPrice = wholesaleDollars + profile.markup_value;
     }
 
-    // The amount parameter from frontend is the retail price we should charge
-    const chargeAmount = amount || retailPrice;
+    // The amount parameter from frontend is the retail price we should charge (rounded to 2 decimals)
+    const chargeAmount = Math.round(((typeof amount === 'number' ? amount : retailPrice)) * 100) / 100;
 
     // Ensure sufficient balance based on retail price
-    if (profile.wallet_balance < chargeAmount) {
+    const currentBalance = Number(profile.wallet_balance);
+    if (currentBalance < chargeAmount) {
       throw new Error("Insufficient wallet balance");
     }
 
@@ -168,8 +169,11 @@ serve(async (req) => {
       throw new Error(`Top-up failed: ${errCode} - ${errMsg}`);
     }
 
+    // Prepare display values
+    const dataAmount = targetPlan.volume ? `${(targetPlan.volume / (1024 * 1024 * 1024)).toFixed(1)}GB` : targetPlan.description;
+
     // Deduct retail amount from agent's wallet
-    const newBalance = profile.wallet_balance - chargeAmount;
+    const newBalance = Number(profile.wallet_balance) - chargeAmount;
     
     const { error: balanceError } = await supabaseService
       .from("agent_profiles")
@@ -186,7 +190,7 @@ serve(async (req) => {
       .from("wallet_transactions")
       .insert({
         agent_id: profile.id,
-        transaction_type: "debit",
+        transaction_type: "purchase",
         amount: -chargeAmount,
         balance_after: newBalance,
         description: `eSIM top-up: ${dataAmount} ${targetPlan.duration}Days`,
@@ -199,7 +203,6 @@ serve(async (req) => {
     }
 
     // Record the top-up in history
-    const dataAmount = targetPlan.volume ? `${(targetPlan.volume / (1024 * 1024 * 1024)).toFixed(1)}GB` : targetPlan.description;
     const { error: topupError } = await supabaseService
       .from("esim_topups")
       .insert({

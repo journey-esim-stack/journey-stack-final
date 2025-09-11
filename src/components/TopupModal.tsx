@@ -96,14 +96,14 @@ const TopupModal = ({ isOpen, onClose, iccid, packageCode, onTopupComplete }: To
       return;
     }
 
-    if (agentProfile.wallet_balance < plan.retail_price) {
+    if (agentProfile.wallet_balance < Number(calculatePrice(plan.wholesale_price).toFixed(2))) {
       toast.error("Insufficient wallet balance");
       return;
     }
 
     setProcessing(plan.packageCode);
     try {
-      const currentRetailPrice = calculatePrice(plan.wholesale_price);
+      const currentRetailPrice = Number(calculatePrice(plan.wholesale_price).toFixed(2));
       const { data, error } = await supabase.functions.invoke("process-topup", {
         body: {
           iccid,
@@ -163,9 +163,9 @@ const TopupModal = ({ isOpen, onClose, iccid, packageCode, onTopupComplete }: To
           <div className="space-y-4">
             {topupPlans.map((plan) => {
               // Recalculate retail price with current markup in real-time
-              const currentRetailPrice = calculatePrice(plan.wholesale_price);
-              const canAfford = agentProfile && agentProfile.wallet_balance >= plan.wholesale_price;
-              const isProcessingThis = processing === plan.packageCode;
+               const currentRetailPrice = Number(calculatePrice(plan.wholesale_price).toFixed(2));
+               const canAfford = agentProfile && agentProfile.wallet_balance >= currentRetailPrice;
+               const isProcessingThis = processing === plan.packageCode;
 
               return (
                 <div

@@ -114,17 +114,17 @@ const ESimDetail = () => {
         // Create enhanced mock data based on order info for demo
         const mockDetails: ESIMDetails = {
           iccid: iccid || "",
-          status: "Active",
+          status: "New", // Correct status since eSIM hasn't been scanned/activated yet
           data_usage: {
-            used: 1.30,
+            used: 0, // Should be 0 since not activated
             total: parseFloat(orderData.esim_plans?.data_amount?.replace(/[^\d.]/g, '') || "3"),
             unit: "GB"
           },
           network: {
-            connected: true,
-            operator: "Vodafone UK",
+            connected: false, // Should be false since not activated
+            operator: "Not Connected",
             country: orderData.esim_plans?.country_name || "United Kingdom",
-            signal_strength: 85
+            signal_strength: 0
           },
           plan: {
             name: orderData.esim_plans?.title || "Unknown Plan",
@@ -169,9 +169,17 @@ const ESimDetail = () => {
   const getStatusIcon = (status: string) => {
     switch (status.toLowerCase()) {
       case "active":
+      case "activated":
+      case "installed":
         return <CheckCircle className="h-4 w-4 text-green-600" />;
       case "connected":
         return <Signal className="h-4 w-4 text-green-600" />;
+      case "new":
+      case "pending":
+        return <AlertCircle className="h-4 w-4 text-blue-600" />;
+      case "expired":
+      case "cancelled":
+        return <AlertCircle className="h-4 w-4 text-red-600" />;
       default:
         return <AlertCircle className="h-4 w-4 text-yellow-600" />;
     }
@@ -270,9 +278,9 @@ const ESimDetail = () => {
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Network Status</p>
-                    <Badge className="bg-green-500/10 text-green-600 border-green-500/20 inline-flex items-center gap-1 mt-1">
-                      {getStatusIcon("connected")}
-                      Connected
+                    <Badge className={`${esimDetails.network.connected ? 'bg-green-500/10 text-green-600 border-green-500/20' : 'bg-gray-500/10 text-gray-600 border-gray-500/20'} inline-flex items-center gap-1 mt-1`}>
+                      {getStatusIcon(esimDetails.network.connected ? "connected" : "disconnected")}
+                      {esimDetails.network.connected ? "Connected" : "Not Connected"}
                     </Badge>
                   </div>
                   <div>
@@ -296,10 +304,10 @@ const ESimDetail = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="glass-intense p-4 rounded-lg border border-green-500/20">
+                <div className={`glass-intense p-4 rounded-lg border ${esimDetails.network.connected ? 'border-green-500/20' : 'border-gray-500/20'}`}>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+                      <div className={`w-3 h-3 rounded-full ${esimDetails.network.connected ? 'bg-green-500 animate-pulse' : 'bg-gray-500'}`}></div>
                       <div>
                         <div className="flex items-center gap-2">
                           <Globe className="h-4 w-4 text-primary" />
@@ -308,12 +316,15 @@ const ESimDetail = () => {
                           </span>
                         </div>
                         <p className="text-sm text-muted-foreground">
-                          Signal: {esimDetails.network.signal_strength}% • Last seen: {format(new Date(), "MMM dd, HH:mm")}
+                          {esimDetails.network.connected 
+                            ? `Signal: ${esimDetails.network.signal_strength}% • Last seen: ${format(new Date(), "MMM dd, HH:mm")}`
+                            : "Not connected to any network"
+                          }
                         </p>
                       </div>
                     </div>
-                    <Badge className="bg-green-500/10 text-green-600 border-green-500/20">
-                      Connected
+                    <Badge className={`${esimDetails.network.connected ? 'bg-green-500/10 text-green-600 border-green-500/20' : 'bg-gray-500/10 text-gray-600 border-gray-500/20'}`}>
+                      {esimDetails.network.connected ? "Connected" : "Not Connected"}
                     </Badge>
                   </div>
                 </div>
@@ -381,23 +392,24 @@ const ESimDetail = () => {
                     </div>
                   </div>
 
-                  {/* Progress Bar */}
-                  <div className="relative">
-                    <div className="flex items-center justify-between text-sm mb-2">
-                      <span className="text-muted-foreground">Data Progress</span>
-                      <span className="font-medium">{Math.round(usagePercentage)}% used</span>
-                    </div>
-                    <div className="w-full bg-secondary rounded-full h-3 overflow-hidden">
-                      <div 
-                        className="h-full bg-gradient-to-r from-orange-500 to-orange-600 rounded-full transition-all duration-500 ease-out relative"
-                        style={{ width: `${usagePercentage}%` }}
-                      >
-                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-pulse"></div>
+                  {/* Data Progress Bar - Small and Inline */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <span className="text-sm text-muted-foreground">Data Progress</span>
+                        <div className="flex items-center gap-2">
+                          <div className="w-32 bg-gray-200 rounded-full h-2 overflow-hidden">
+                            <div 
+                              className={`h-full bg-gradient-to-r from-orange-500 to-orange-600 rounded-full transition-all duration-500 ease-out ${usagePercentage === 0 ? 'w-0' : ''}`}
+                              style={{ width: `${Math.max(usagePercentage, 0)}%` }}
+                            />
+                          </div>
+                          <span className="text-sm font-medium text-muted-foreground">
+                            {usagePercentage > 100 ? `${Math.round(usagePercentage)}% used` : `${remainingData.toFixed(2)} ${esimDetails.data_usage.unit} remaining`}
+                          </span>
+                        </div>
                       </div>
-                    </div>
-                    <div className="flex items-center justify-between text-xs text-muted-foreground mt-2">
-                      <span>{remainingData.toFixed(2)} {esimDetails.data_usage.unit} remaining</span>
-                      <Button variant="outline" size="sm" className="bg-orange-500 text-white hover:bg-orange-600 border-orange-500">
+                      <Button variant="outline" size="sm" className="bg-orange-500 text-white hover:bg-orange-600 border-orange-500 h-7 px-3 text-xs">
                         <Plus className="h-3 w-3 mr-1" />
                         Top-up
                       </Button>

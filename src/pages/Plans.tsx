@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -7,13 +8,15 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 // Fixed imports - using Router instead of HotspotIcon
-import { Search, Globe, Clock, Database, Wifi, Router, ShoppingCart, Check, ArrowUpDown } from "lucide-react";
+import { Search, Globe, Clock, Database, Wifi, Router, ShoppingCart, Check, ArrowUpDown, ChevronLeft, ChevronRight } from "lucide-react";
 import Layout from "@/components/Layout";
 import { getCountryFlag, getRegion, getAllRegions } from "@/utils/countryFlags";
 import { useCart } from "@/contexts/CartContext";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import RegionalPlanDropdown from "@/components/RegionalPlanDropdown";
+import { SkeletonCard } from "@/components/ui/skeleton-card";
 
 
 interface EsimPlan {
@@ -32,18 +35,21 @@ interface EsimPlan {
 
 // Plans page component - updated to fix import issue
 export default function Plans() {
-  const [plans, setPlans] = useState<EsimPlan[]>([]);
-  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedRegion, setSelectedRegion] = useState<string>("all");
   const [selectedCountry, setSelectedCountry] = useState<string>("all");
-  const [agentMarkup, setAgentMarkup] = useState<{ type: string; value: number }>({ type: 'percent', value: 40 });
   const [addedToCart, setAddedToCart] = useState<Set<string>>(new Set());
   const [dayPassDays, setDayPassDays] = useState<Record<string, number>>({});
   const [sortBy, setSortBy] = useState<string>("default");
+  const [currentPage, setCurrentPage] = useState(1);
+  const plansPerPage = 24;
+  
   const { toast } = useToast();
   const { addToCart } = useCart();
   const { convertPrice, getCurrencySymbol, selectedCurrency } = useCurrency();
+  
+  // Debounce search query for better performance
+  const debouncedSearchQuery = useDebouncedValue(searchQuery, 300);
 
   // Popular countries for quick filtering
   const popularCountries = [
@@ -67,137 +73,97 @@ export default function Plans() {
      return /\/\s*day\b/.test(t) || t.includes('daily') || /\/\s*day\b/.test(d) || d.includes('daily');
    };
 
-  useEffect(() => {
-    fetchPlans();
-  }, []);
-
-const fetchPlans = async () => {
-    try {
-      console.log("Starting to fetch plans...");
-      
-      // Check authentication first
-      const { data: { user } } = await supabase.auth.getUser();
-      console.log("Current user:", user?.id || "Not authenticated");
-      
-      if (!user) {
-        throw new Error("User not authenticated");
-      }
-
-      // Fetch agent markup settings
-      const { data: agentProfile } = await supabase
-        .from("agent_profiles")
-        .select("markup_type, markup_value")
-        .eq("user_id", user.id)
-        .single();
-
-      if (agentProfile) {
-        setAgentMarkup({
-          type: agentProfile.markup_type || 'percent',
-          value: Number(agentProfile.markup_value) || 40
-        });
-      }
-
-      // Fetch all plans in batches to overcome 1000 row limit
-      let allPlans: EsimPlan[] = [];
-      let from = 0;
-      const batchSize = 1000;
-      let hasMore = true;
-
-      while (hasMore) {
-        console.log(`Fetching batch ${from} to ${from + batchSize - 1}`);
-        
-        const { data, error, count } = await supabase
-          .from("esim_plans")
-          .select("*", { count: 'exact' })
-          .eq("is_active", true)
-          .range(from, from + batchSize - 1)
-          .order("country_name", { ascending: true });
-
-        if (error) {
-          console.error("Detailed Supabase error:", JSON.stringify(error, null, 2));
-          throw error;
-        }
-
-        if (data && data.length > 0) {
-          allPlans = [...allPlans, ...data];
-          console.log(`Batch fetched: ${data.length} plans. Total so far: ${allPlans.length}`);
-          
-          // Check if we got fewer than batchSize, meaning we're done
-          if (data.length < batchSize) {
-            hasMore = false;
-          } else {
-            from += batchSize;
-          }
-        } else {
-          hasMore = false;
-        }
-      }
-
-      console.log("Final total plans fetched:", allPlans.length);
-      console.log("Sample countries:", allPlans.slice(0, 5)?.map(p => p.country_name) || []);
-      console.log("Sample country codes:", allPlans.slice(0, 5)?.map(p => p.country_code) || []);
-      console.log("Looking for Singapore plans:", allPlans?.filter(p => p.country_name?.toLowerCase().includes('singapore') || p.country_code?.toLowerCase().includes('sg')) || []);
-      
-      // Calculate agent prices for each plan using the fetched markup
-      const currentMarkup = agentProfile ? {
-        type: agentProfile.markup_type || 'percent',
-        value: Number(agentProfile.markup_value) || 40
-      } : { type: 'percent', value: 40 };
-
-      console.log("Using markup for calculations:", currentMarkup);
-      
-      const plansWithAgentPrices = allPlans.map(plan => {
-        const basePrice = Number(plan.wholesale_price) || 0;
-        let agentPrice = basePrice;
-        
-        if (currentMarkup.type === 'percent') {
-          agentPrice = basePrice * (1 + currentMarkup.value / 100);
-        } else {
-          agentPrice = basePrice + currentMarkup.value;
-        }
-        
-        console.log(`Plan: ${plan.title}, Base: $${basePrice}, Markup: ${currentMarkup.value}% (${currentMarkup.type}), Agent Price: $${agentPrice.toFixed(2)}`);
-        
-        return {
-          ...plan,
-          agent_price: agentPrice
-        };
-      });
-      
-      setPlans(plansWithAgentPrices);
-    } catch (error) {
-      console.error("Fetch error:", error);
-      toast({
-        title: "Error",
-        description: `Failed to fetch eSIM plans: ${error.message}`,
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
+  // Fetch plans with React Query for better caching and performance
+  const fetchPlans = async (): Promise<EsimPlan[]> => {
+    // Check authentication first
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) {
+      throw new Error("User not authenticated");
     }
+
+    // Fetch agent markup settings
+    const { data: agentProfile } = await supabase
+      .from("agent_profiles")
+      .select("markup_type, markup_value")
+      .eq("user_id", user.id)
+      .single();
+
+    // Fetch all plans in batches to overcome 1000 row limit
+    let allPlans: EsimPlan[] = [];
+    let from = 0;
+    const batchSize = 1000;
+    let hasMore = true;
+
+    while (hasMore) {
+      const { data, error } = await supabase
+        .from("esim_plans")
+        .select("*")
+        .eq("is_active", true)
+        .range(from, from + batchSize - 1)
+        .order("country_name", { ascending: true });
+
+      if (error) {
+        throw error;
+      }
+
+      if (data && data.length > 0) {
+        allPlans = [...allPlans, ...data];
+        
+        if (data.length < batchSize) {
+          hasMore = false;
+        } else {
+          from += batchSize;
+        }
+      } else {
+        hasMore = false;
+      }
+    }
+    
+    // Calculate agent prices for each plan using the fetched markup
+    const currentMarkup = agentProfile ? {
+      type: agentProfile.markup_type || 'percent',
+      value: Number(agentProfile.markup_value) || 40
+    } : { type: 'percent', value: 40 };
+    
+    const plansWithAgentPrices = allPlans.map(plan => {
+      const basePrice = Number(plan.wholesale_price) || 0;
+      let agentPrice = basePrice;
+      
+      if (currentMarkup.type === 'percent') {
+        agentPrice = basePrice * (1 + currentMarkup.value / 100);
+      } else {
+        agentPrice = basePrice + currentMarkup.value;
+      }
+      
+      return {
+        ...plan,
+        agent_price: agentPrice
+      };
+    });
+    
+    return plansWithAgentPrices;
   };
 
-// Filter plans based on search, region, and country
+  const { data: plans = [], isLoading, error } = useQuery<EsimPlan[]>({
+    queryKey: ['esim-plans'],
+    queryFn: fetchPlans,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
+  });
+
+  if (error) {
+    toast({
+      title: "Error",
+      description: `Failed to fetch eSIM plans: ${(error as Error).message}`,
+      variant: "destructive",
+    });
+  }
+
+// Filter plans based on search, region, and country using debounced search
   const filteredPlans = useMemo(() => {
-    console.log("Filtering plans. Total plans:", plans.length, "Search:", searchQuery, "Region:", selectedRegion, "Country:", selectedCountry);
-    
-    if (plans.length > 0) {
-      console.log("Sample plan structure:", plans[0]);
-    }
-    
     const filtered = plans.filter((plan) => {
-      // Debug each plan's search matching
-      if (searchQuery && searchQuery.toLowerCase() === "singapore") {
-        console.log("Checking plan:", {
-          title: plan.title,
-          country_name: plan.country_name,
-          country_code: plan.country_code,
-          description: plan.description,
-          data_amount: plan.data_amount
-        });
-      }
-      
-      const searchLower = searchQuery?.toLowerCase() || "";
+      const searchLower = debouncedSearchQuery?.toLowerCase() || "";
       
       // Check if search matches Asian countries and this is an Asian regional plan
       const asianCountryNames = ['singapore', 'thailand', 'malaysia', 'indonesia', 'philippines', 'cambodia', 'vietnam'];
@@ -207,14 +173,12 @@ const fetchPlans = async () => {
         plan.description?.toLowerCase().includes('asia')
       );
       
-      const matchesSearch = !searchQuery || (
+      const matchesSearch = !debouncedSearchQuery || (
         plan.title?.toLowerCase().includes(searchLower) ||
         plan.country_name?.toLowerCase().includes(searchLower) ||
         plan.description?.toLowerCase().includes(searchLower) ||
         plan.data_amount?.toLowerCase().includes(searchLower) ||
-        // Include Asian regional plans when searching for Asian countries
         (isSearchingForAsianCountry && isAsianRegionalPlan) ||
-        // Include regional/multi-country plans that mention the search term in title or description
         (plan.country_code === 'RG' && (
           plan.title?.toLowerCase().includes(searchLower) ||
           plan.description?.toLowerCase().includes(searchLower)
@@ -226,35 +190,22 @@ const fetchPlans = async () => {
         selectedRegion === "all" || 
         planRegion === selectedRegion;
 
-      // Countries covered by Asian regional plans
-      const asianCountries = ['SG', 'TH', 'MY', 'ID', 'PH', 'KH', 'VN']; // Singapore, Thailand, Malaysia, Indonesia, Philippines, Cambodia, Vietnam
+      const asianCountries = ['SG', 'TH', 'MY', 'ID', 'PH', 'KH', 'VN'];
       
       const matchesCountry = 
         selectedCountry === "all" || 
         plan.country_code === selectedCountry ||
-        // Check if this is an Asian regional plan and selected country is in Asia
         (isAsianRegionalPlan && asianCountries.includes(selectedCountry)) ||
-        // Also check regional plans for country mentions in title
         (plan.country_code === 'RG' && (
           plan.title?.toLowerCase().includes(popularCountries.find(c => c.code === selectedCountry)?.name.toLowerCase() || selectedCountry.toLowerCase()) ||
           plan.description?.toLowerCase().includes(popularCountries.find(c => c.code === selectedCountry)?.name.toLowerCase() || selectedCountry.toLowerCase())
         ));
       
-      const result = matchesSearch && matchesRegion && matchesCountry;
-      
-      // Debug specific plans
-      if (searchQuery && searchQuery.toLowerCase() === "singapore") {
-        console.log(`Plan ${plan.country_name}: matchesSearch=${matchesSearch}, matchesRegion=${matchesRegion}, matchesCountry=${matchesCountry}, result=${result}`);
-      }
-      
-      return result;
+      return matchesSearch && matchesRegion && matchesCountry;
     });
     
-    console.log("Filtered results:", filtered.length);
-    console.log("Sample filtered countries:", filtered.slice(0, 5).map(p => p.country_name));
-    
     return filtered;
-  }, [plans, searchQuery, selectedRegion, selectedCountry]);
+  }, [plans, debouncedSearchQuery, selectedRegion, selectedCountry]);
 
   // Sort filtered plans
   const sortedPlans = useMemo(() => {
@@ -285,6 +236,20 @@ const fetchPlans = async () => {
         return sorted;
     }
   }, [filteredPlans, sortBy]);
+
+  // Get paginated plans
+  const paginatedPlans = useMemo(() => {
+    const startIndex = (currentPage - 1) * plansPerPage;
+    const endIndex = startIndex + plansPerPage;
+    return sortedPlans.slice(startIndex, endIndex);
+  }, [sortedPlans, currentPage, plansPerPage]);
+
+  const totalPages = Math.ceil(sortedPlans.length / plansPerPage);
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearchQuery, selectedRegion, selectedCountry, sortBy]);
 
   const handleAddToCart = (plan: EsimPlan) => {
     if (plan.agent_price == null) return;
@@ -326,11 +291,23 @@ const fetchPlans = async () => {
     }, 2000);
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <Layout>
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        <div className="space-y-8 animate-fade-in">
+          <div className="glass-intense p-8 text-center">
+            <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r from-primary via-primary to-accent bg-clip-text text-transparent">
+              Available eSIM Plans
+            </h1>
+            <p className="text-muted-foreground text-lg mb-6">
+              Loading premium eSIM plans...
+            </p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {Array.from({ length: 12 }).map((_, index) => (
+              <SkeletonCard key={index} />
+            ))}
+          </div>
         </div>
       </Layout>
     );
@@ -427,10 +404,10 @@ const fetchPlans = async () => {
             </Tabs>
           </div>
           
-          {(searchQuery || selectedRegion !== "all" || selectedCountry !== "all") ? (
+          {(debouncedSearchQuery || selectedRegion !== "all" || selectedCountry !== "all") ? (
             <div className="mt-4 flex items-center gap-2 text-sm text-muted-foreground flex-wrap">
-              <span>Showing {sortedPlans.length} of {plans.length} plans</span>
-              {searchQuery && (
+              <span>Showing {sortedPlans.length} of {plans?.length || 0} plans</span>
+              {debouncedSearchQuery && (
                 <Badge variant="secondary" className="glass-intense border-0">
                   Search: {searchQuery}
                 </Badge>
@@ -451,7 +428,7 @@ const fetchPlans = async () => {
 
         {/* Plans Grid */}
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {sortedPlans.map((plan, index) => (
+          {paginatedPlans.map((plan, index) => (
             <Card 
               key={plan.id} 
               className="glass-intense hover:scale-105 transition-all duration-300 animate-scale-in border-0"
@@ -567,14 +544,47 @@ const fetchPlans = async () => {
           ))}
         </div>
 
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-center gap-4 mt-8">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+              disabled={currentPage === 1}
+              className="glass-intense border-0"
+            >
+              <ChevronLeft className="h-4 w-4 mr-1" />
+              Previous
+            </Button>
+            
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <span>Page {currentPage} of {totalPages}</span>
+              <span>•</span>
+              <span>{sortedPlans.length} plans</span>
+            </div>
+            
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+              disabled={currentPage === totalPages}
+              className="glass-intense border-0"
+            >
+              Next
+              <ChevronRight className="h-4 w-4 ml-1" />
+            </Button>
+          </div>
+        )}
+
         {/* Empty State */}
-        {filteredPlans.length === 0 && !loading && (
+        {filteredPlans.length === 0 && !isLoading && (
           <Card className="glass-intense border-0 bg-transparent">
             <CardContent className="text-center py-16">
               <Globe className="h-16 w-16 mx-auto mb-4 text-muted-foreground opacity-50" />
               <h3 className="text-xl font-semibold mb-2">No plans found</h3>
               <p className="text-muted-foreground">
-                {searchQuery || selectedRegion !== "all" 
+                {debouncedSearchQuery || selectedRegion !== "all" 
                   ? "Try adjusting your search or filter criteria"
                   : "No eSIM plans are currently available"}
               </p>

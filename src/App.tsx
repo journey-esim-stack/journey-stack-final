@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { Routes, Route } from "react-router-dom";
 import { CartProvider } from "@/contexts/CartContext";
 import { CurrencyProvider } from "@/contexts/CurrencyContext";
+import AgentApprovalGuard from "@/components/AgentApprovalGuard";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Auth from "./pages/Auth";
@@ -26,19 +27,22 @@ const App = () => (
       <Toaster />
       <Sonner />
         <Routes>
-          <Route path="/" element={<Dashboard />} />
+          {/* Public routes */}
           <Route path="/auth" element={<Auth />} />
           <Route path="/test-auth" element={<TestAuth />} />
-          <Route path="/plans" element={<Plans />} />
           
-          <Route path="/wallet" element={<Wallet />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/esims" element={<ESims />} />
-          <Route path="/esims/:iccid" element={<ESimDetail />} />
-          <Route path="/admin/agents" element={<AdminAgents />} />
-          <Route path="/profile" element={<Profile />} />
-          <Route path="/wallet/topup-success" element={<TopupSuccess />} />
-          <Route path="/wallet/topup-canceled" element={<TopupCanceled />} />
+          {/* Protected routes - require agent approval */}
+          <Route path="/" element={<AgentApprovalGuard><Dashboard /></AgentApprovalGuard>} />
+          <Route path="/plans" element={<AgentApprovalGuard><Plans /></AgentApprovalGuard>} />
+          <Route path="/wallet" element={<AgentApprovalGuard><Wallet /></AgentApprovalGuard>} />
+          <Route path="/dashboard" element={<AgentApprovalGuard><Dashboard /></AgentApprovalGuard>} />
+          <Route path="/esims" element={<AgentApprovalGuard><ESims /></AgentApprovalGuard>} />
+          <Route path="/esims/:iccid" element={<AgentApprovalGuard><ESimDetail /></AgentApprovalGuard>} />
+          <Route path="/admin/agents" element={<AgentApprovalGuard><AdminAgents /></AgentApprovalGuard>} />
+          <Route path="/profile" element={<AgentApprovalGuard><Profile /></AgentApprovalGuard>} />
+          <Route path="/wallet/topup-success" element={<AgentApprovalGuard><TopupSuccess /></AgentApprovalGuard>} />
+          <Route path="/wallet/topup-canceled" element={<AgentApprovalGuard><TopupCanceled /></AgentApprovalGuard>} />
+          
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

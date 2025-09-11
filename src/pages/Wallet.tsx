@@ -272,11 +272,6 @@ export default function Wallet() {
           <CardHeader className="relative">
             <CardTitle>Top Up Wallet</CardTitle>
             <CardDescription>Minimum top-up is USD 10</CardDescription>
-            <img 
-              src="/illustrations/success-new.png" 
-              alt="Success illustration" 
-              className="absolute top-3 right-3 w-20 h-20"
-            />
           </CardHeader>
           <CardContent>
             <div className="flex flex-col sm:flex-row gap-3">
@@ -301,11 +296,6 @@ export default function Wallet() {
           <CardHeader className="relative">
             <CardTitle>Current Balance</CardTitle>
             <CardDescription>Your available wallet balance</CardDescription>
-            <img 
-              src="/illustrations/strength-new.png" 
-              alt="Strength illustration" 
-              className="absolute top-3 right-3 w-20 h-20"
-            />
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-primary">
@@ -321,11 +311,6 @@ export default function Wallet() {
                 <CardTitle>Transaction History</CardTitle>
                 <CardDescription>Recent wallet transactions - Credits (top-ups) and debits (purchases)</CardDescription>
               </div>
-              <img 
-                src="/illustrations/meditation-new.png" 
-                alt="Meditation illustration" 
-                className="absolute top-3 right-3 w-20 h-20"
-              />
               {allTransactions.length > 0 && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>

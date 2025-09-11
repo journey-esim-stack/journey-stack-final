@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { Loader2, DollarSign, Calendar, Database, Wifi } from "lucide-react";
+import { useAgentMarkup } from "@/hooks/useAgentMarkup";
 
 interface TopupPlan {
   packageCode: string;
@@ -42,6 +43,7 @@ const TopupModal = ({ isOpen, onClose, iccid, packageCode, onTopupComplete }: To
   const [agentProfile, setAgentProfile] = useState<AgentProfile | null>(null);
   const [loading, setLoading] = useState(false);
   const [processing, setProcessing] = useState<string | null>(null);
+  const { calculatePrice } = useAgentMarkup();
 
   useEffect(() => {
     if (isOpen) {
@@ -101,11 +103,12 @@ const TopupModal = ({ isOpen, onClose, iccid, packageCode, onTopupComplete }: To
 
     setProcessing(plan.packageCode);
     try {
+      const currentRetailPrice = calculatePrice(plan.wholesale_price);
       const { data, error } = await supabase.functions.invoke("process-topup", {
         body: {
           iccid,
           packageCode: plan.packageCode,
-          amount: plan.retail_price, // Use retail price for wallet deduction
+          amount: currentRetailPrice, // Use current retail price for wallet deduction
         },
       });
 
@@ -159,7 +162,9 @@ const TopupModal = ({ isOpen, onClose, iccid, packageCode, onTopupComplete }: To
         ) : (
           <div className="space-y-4">
             {topupPlans.map((plan) => {
-              const canAfford = agentProfile && agentProfile.wallet_balance >= plan.retail_price;
+              // Recalculate retail price with current markup in real-time
+              const currentRetailPrice = calculatePrice(plan.wholesale_price);
+              const canAfford = agentProfile && agentProfile.wallet_balance >= currentRetailPrice;
               const isProcessingThis = processing === plan.packageCode;
 
               return (
@@ -200,7 +205,7 @@ const TopupModal = ({ isOpen, onClose, iccid, packageCode, onTopupComplete }: To
                           <DollarSign className="h-4 w-4 text-primary" />
                           <span className="text-muted-foreground">Price:</span>
                           <span className="font-medium">
-                            ${plan.retail_price.toFixed(2)} {plan.currency}
+                            ${currentRetailPrice.toFixed(2)} {plan.currency}
                           </span>
                         </div>
                       </div>
@@ -227,7 +232,7 @@ const TopupModal = ({ isOpen, onClose, iccid, packageCode, onTopupComplete }: To
                         {isProcessingThis ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
                         ) : (
-                          `Purchase $${plan.retail_price.toFixed(2)}`
+                          `Purchase $${currentRetailPrice.toFixed(2)}`
                         )}
                       </Button>
                     </div>

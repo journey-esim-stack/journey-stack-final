@@ -108,17 +108,11 @@ serve(async (req) => {
 
     console.log("Found target plan:", targetPlan);
 
-    // Compute wallet deduction using agent markup
+    // Compute wallet deduction based on provider wholesale price
     const wholesaleDollars = targetPlan.price / 10000;
-    let retailCharge = wholesaleDollars;
-    if (profile.markup_type === "percent") {
-      retailCharge = wholesaleDollars * (1 + Number(profile.markup_value) / 100);
-    } else if (profile.markup_type === "fixed") {
-      retailCharge = wholesaleDollars + Number(profile.markup_value);
-    }
 
-    // Ensure sufficient balance based on retail charge
-    if (profile.wallet_balance < retailCharge) {
+    // Ensure sufficient balance based on wholesale price
+    if (profile.wallet_balance < wholesaleDollars) {
       throw new Error("Insufficient wallet balance");
     }
 
@@ -129,7 +123,7 @@ serve(async (req) => {
     const topupPayload = {
       iccid: iccid,
       packageCode: packageCode,
-      amount: String(Math.round(targetPlan.price / 100)), // Provider expects current package price in cents
+      amount: String(targetPlan.price), // Send provider's current package price in provider units
       transactionId: transactionId,
     };
 
@@ -163,8 +157,8 @@ serve(async (req) => {
       throw new Error(`Top-up failed: ${errCode} - ${errMsg}`);
     }
 
-    // Deduct amount from agent's wallet
-    const newBalance = profile.wallet_balance - retailCharge;
+    // Deduct amount from agent's wallet (wholesale only)
+    const newBalance = profile.wallet_balance - wholesaleDollars;
     
     const { error: balanceError } = await supabaseService
       .from("agent_profiles")
@@ -182,7 +176,7 @@ serve(async (req) => {
       .insert({
         agent_id: profile.id,
         transaction_type: "debit",
-        amount: -retailCharge,
+        amount: -wholesaleDollars,
         balance_after: newBalance,
         description: `Top-up for eSIM ${iccid}`,
         reference_id: transactionId,
@@ -201,7 +195,7 @@ serve(async (req) => {
         agent_id: profile.id,
         iccid: iccid,
         package_code: packageCode,
-        amount: retailCharge,
+        amount: wholesaleDollars,
         data_amount: dataAmount,
         validity_days: targetPlan.duration,
         transaction_id: transactionId,

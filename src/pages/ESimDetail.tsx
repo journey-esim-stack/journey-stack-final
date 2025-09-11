@@ -24,6 +24,7 @@ import {
   Globe,
   MoreHorizontal
 } from "lucide-react";
+import TopupModal from "@/components/TopupModal";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import Layout from "@/components/Layout";
@@ -70,6 +71,7 @@ const ESimDetail = () => {
   const [orderInfo, setOrderInfo] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("summary");
+  const [showTopupModal, setShowTopupModal] = useState(false);
 
   useEffect(() => {
     if (iccid) {
@@ -362,7 +364,7 @@ const ESimDetail = () => {
                   <div className="text-center">
                     <p className="text-sm text-muted-foreground mb-2">Data Progress</p>
                     <div className="flex flex-col items-center gap-1">
-                      <div className="w-24 bg-gray-200/20 rounded-full h-2 overflow-hidden">
+                      <div className="w-24 bg-secondary/30 rounded-full h-2 overflow-hidden border border-border">
                         <div 
                           className={`h-full bg-gradient-to-r from-orange-500 to-orange-600 rounded-full transition-all duration-500 ease-out ${usagePercentage === 0 ? 'w-0' : ''}`}
                           style={{ width: `${Math.max(usagePercentage, 0)}%` }}
@@ -409,7 +411,12 @@ const ESimDetail = () => {
 
                 {/* Top-up Button Row */}
                 <div className="flex justify-end pt-4 border-t border-white/10 mt-4">
-                  <Button variant="outline" size="sm" className="bg-orange-500 text-white hover:bg-orange-600 border-orange-500 h-8 px-4">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="bg-orange-500 text-white hover:bg-orange-600 border-orange-500 h-8 px-4"
+                    onClick={() => setShowTopupModal(true)}
+                  >
                     <Plus className="h-3 w-3 mr-1" />
                     Top-up
                   </Button>
@@ -589,6 +596,15 @@ const ESimDetail = () => {
             </Card>
           </TabsContent>
         </Tabs>
+
+        {/* Top-up Modal */}
+        <TopupModal
+          isOpen={showTopupModal}
+          onClose={() => setShowTopupModal(false)}
+          iccid={iccid || ""}
+          packageCode={esimDetails?.plan?.plan_id}
+          onTopupComplete={fetchESIMDetails}
+        />
       </div>
     </Layout>
   );

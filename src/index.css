@@ -8,14 +8,7 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    /* Orange to mint gradient based on #ff7c01 and #C8FAF5 */
-    --gradient-main: linear-gradient(135deg, 
-      hsl(29 100% 50%) 0%,      /* #ff7c01 orange */
-      hsl(29 100% 55%) 25%,     /* Lighter orange */
-      hsl(29 100% 60%) 50%,     /* Mid orange */
-      hsl(163 75% 85%) 75%,     /* #C8FAF5 mint */
-      hsl(163 75% 90%) 100%     /* Light mint */
-    );
+    --gradient-main: linear-gradient(135deg, hsl(29 100% 50%) 0%, hsl(29 100% 55%) 25%, hsl(29 100% 60%) 50%, hsl(163 75% 85%) 75%, hsl(163 75% 90%) 100%);
     
     --background: 0 0% 100%;
     --foreground: 29 50% 15%;
@@ -63,13 +56,7 @@ All colors MUST be HSL.
   }
 
   .dark {
-    --gradient-main: linear-gradient(135deg, 
-      hsl(29 90% 25%) 0%,       /* Dark orange */
-      hsl(29 90% 30%) 25%,      /* Dark orange */
-      hsl(29 90% 35%) 50%,      /* Dark orange */
-      hsl(163 40% 25%) 75%,     /* Dark mint */
-      hsl(163 40% 20%) 100%     /* Dark mint */
-    );
+    --gradient-main: linear-gradient(135deg, hsl(29 90% 25%) 0%, hsl(29 90% 30%) 25%, hsl(29 90% 35%) 50%, hsl(163 40% 25%) 75%, hsl(163 40% 20%) 100%);
     
     --background: 29 10% 8%;
     --foreground: 29 20% 90%;
@@ -104,24 +91,22 @@ All colors MUST be HSL.
     --glass-border: 29 15% 25%;
     --glass-shadow: 0 25px 50px -12px hsl(29 100% 30% / 0.3), 0 0 0 1px hsl(0 0% 100% / 0.03) inset;
 
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-background: 240 6% 10%;
+    --sidebar-foreground: 240 5% 96%;
     --sidebar-primary: 29 100% 55%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-accent: 240 4% 16%;
+    --sidebar-accent-foreground: 240 5% 96%;
+    --sidebar-border: 240 4% 16%;
     --sidebar-ring: 29 100% 55%;
   }
-}
-
-@layer base {
   * {
-    @apply border-border;
+    border-color: hsl(var(--border));
+    border-style: solid;
   }
 
   body {
-    @apply text-foreground;
+    color: hsl(var(--foreground));
     background: var(--gradient-main);
     min-height: 100vh;
   }
@@ -142,7 +127,7 @@ All colors MUST be HSL.
   }
   
   .glass-card {
-    @apply glass rounded-3xl;
+    border-radius: 1.5rem;
     background: hsl(var(--glass-bg) / 0.9);
     backdrop-filter: blur(25px) saturate(200%);
     -webkit-backdrop-filter: blur(25px) saturate(200%);

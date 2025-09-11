@@ -41,7 +41,7 @@ const getRegionalCoverage = (planTitle: string, countryCode: string): { name: st
     { name: 'Pakistan', code: 'PK', flag: '🇵🇰' }
   ];
   
-  // Full list of European countries
+  // Full list of European countries (expanded to match EU coverage)
   const europeanCountries = [
     { name: 'United Kingdom', code: 'GB', flag: '🇬🇧' },
     { name: 'Germany', code: 'DE', flag: '🇩🇪' },
@@ -60,7 +60,31 @@ const getRegionalCoverage = (planTitle: string, countryCode: string): { name: st
     { name: 'Sweden', code: 'SE', flag: '🇸🇪' },
     { name: 'Norway', code: 'NO', flag: '🇳🇴' },
     { name: 'Finland', code: 'FI', flag: '🇫🇮' },
-    { name: 'Ireland', code: 'IE', flag: '🇮🇪' }
+    { name: 'Ireland', code: 'IE', flag: '🇮🇪' },
+    { name: 'Hungary', code: 'HU', flag: '🇭🇺' },
+    { name: 'Slovakia', code: 'SK', flag: '🇸🇰' },
+    { name: 'Slovenia', code: 'SI', flag: '🇸🇮' },
+    { name: 'Croatia', code: 'HR', flag: '🇭🇷' },
+    { name: 'Bulgaria', code: 'BG', flag: '🇧🇬' },
+    { name: 'Romania', code: 'RO', flag: '🇷🇴' },
+    { name: 'Lithuania', code: 'LT', flag: '🇱🇹' },
+    { name: 'Latvia', code: 'LV', flag: '🇱🇻' },
+    { name: 'Estonia', code: 'EE', flag: '🇪🇪' },
+    { name: 'Luxembourg', code: 'LU', flag: '🇱🇺' },
+    { name: 'Malta', code: 'MT', flag: '🇲🇹' },
+    { name: 'Cyprus', code: 'CY', flag: '🇨🇾' },
+    { name: 'Iceland', code: 'IS', flag: '🇮🇸' },
+    { name: 'Liechtenstein', code: 'LI', flag: '🇱🇮' },
+    { name: 'Turkey', code: 'TR', flag: '🇹🇷' },
+    { name: 'Ukraine', code: 'UA', flag: '🇺🇦' },
+    { name: 'Serbia', code: 'RS', flag: '🇷🇸' },
+    { name: 'North Macedonia', code: 'MK', flag: '🇲🇰' },
+    { name: 'Guernsey', code: 'GG', flag: '🇬🇬' },
+    { name: 'Jersey', code: 'JE', flag: '🇯🇪' },
+    { name: 'Isle of Man', code: 'IM', flag: '🇮🇲' },
+    { name: 'Gibraltar', code: 'GI', flag: '🇬🇮' },
+    { name: 'Åland Islands', code: 'AX', flag: '🇦🇽' },
+    { name: 'Russia', code: 'RU', flag: '🇷🇺' }
   ];
 
   // North America countries
@@ -132,16 +156,16 @@ const getRegionalCoverage = (planTitle: string, countryCode: string): { name: st
     { name: 'United Arab Emirates', code: 'AE', flag: '🇦🇪' }
   ];
   
-  // Asia regional plans - return the exact number of countries based on area count
-  if (countryCode === 'RG' && (title.includes('asia') || title.includes('areas'))) {
+  // Asia regional plans - only match explicit Asian keywords
+  if (countryCode === 'RG' && (title.includes('asia') || title.includes('asian'))) {
     if (areaCount > 0 && areaCount <= asianCountries.length) {
       return asianCountries.slice(0, areaCount);
     }
     return asianCountries;
   }
   
-  // Europe regional plans - return the exact number of countries based on area count
-  if (countryCode === 'RG' && title.includes('europe')) {
+  // Europe regional plans - handle various European plan formats
+  if (countryCode === 'RG' && (title.includes('europe') || title.includes('eu-') || planTitle.includes('eu-'))) {
     if (areaCount > 0 && areaCount <= europeanCountries.length) {
       return europeanCountries.slice(0, areaCount);
     }

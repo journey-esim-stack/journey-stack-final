@@ -79,7 +79,6 @@ export default function Layout({ children }: LayoutProps) {
   const navigation = [
     { name: "Dashboard", href: "/dashboard", icon: ShoppingCart },
     { name: "Plans", href: "/plans", icon: Package },
-    { name: "Pricing", href: "/pricing", icon: DollarSign },
     { name: "Wallet", href: "/wallet", icon: Wallet },
     { name: "eSIMs", href: "/esims", icon: Smartphone },
     { name: "Profile", href: "/profile", icon: User },

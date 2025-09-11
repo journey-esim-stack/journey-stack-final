@@ -9,7 +9,7 @@ import NotFound from "./pages/NotFound";
 import Auth from "./pages/Auth";
 import TestAuth from "./pages/TestAuth";
 import Plans from "./pages/Plans";
-import Pricing from "./pages/Pricing";
+
 import Wallet from "./pages/Wallet";
 import Dashboard from "./pages/Dashboard";
 import ESims from "./pages/ESims";
@@ -33,7 +33,7 @@ const App = () => (
             <Route path="/auth" element={<Auth />} />
             <Route path="/test-auth" element={<TestAuth />} />
             <Route path="/plans" element={<Plans />} />
-            <Route path="/pricing" element={<Pricing />} />
+            
             <Route path="/wallet" element={<Wallet />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/esims" element={<ESims />} />

@@ -50,8 +50,7 @@ All colors MUST be HSL.
     /* Enhanced glassmorphism effects */
     --glass-bg: 0 0% 100%;
     --glass-border: 29 20% 85%;
-    --glass-shadow: 0 25px 50px -12px hsl(29 100% 45% / 0.15), 
-                   0 0 0 1px hsl(0 0% 100% / 0.05) inset;
+    --glass-shadow: 0 25px 50px -12px hsl(29 100% 45% / 0.15), 0 0 0 1px hsl(0 0% 100% / 0.05) inset;
 
     --sidebar-background: 0 0% 98%;
     --sidebar-foreground: 240 5.3% 26.1%;
@@ -103,8 +102,7 @@ All colors MUST be HSL.
     /* Dark mode enhanced glassmorphism */
     --glass-bg: 29 15% 12%;
     --glass-border: 29 15% 25%;
-    --glass-shadow: 0 25px 50px -12px hsl(29 100% 30% / 0.3), 
-                   0 0 0 1px hsl(0 0% 100% / 0.03) inset;
+    --glass-shadow: 0 25px 50px -12px hsl(29 100% 30% / 0.3), 0 0 0 1px hsl(0 0% 100% / 0.03) inset;
 
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;
@@ -149,8 +147,7 @@ All colors MUST be HSL.
     backdrop-filter: blur(25px) saturate(200%);
     -webkit-backdrop-filter: blur(25px) saturate(200%);
     border: 1.5px solid hsl(var(--glass-border));
-    box-shadow: var(--glass-shadow),
-                0 0 40px hsl(29 100% 45% / 0.1);
+    box-shadow: var(--glass-shadow), 0 0 40px hsl(29 100% 45% / 0.1);
   }
   
   .glass-intense {
@@ -158,9 +155,7 @@ All colors MUST be HSL.
     backdrop-filter: blur(30px) saturate(220%) brightness(110%);
     -webkit-backdrop-filter: blur(30px) saturate(220%) brightness(110%);
     border: 1px solid hsl(0 0% 100% / 0.1);
-    box-shadow: var(--glass-shadow),
-                0 0 60px hsl(29 100% 45% / 0.15),
-                0 0 0 1px hsl(0 0% 100% / 0.05) inset;
+    box-shadow: var(--glass-shadow), 0 0 60px hsl(29 100% 45% / 0.15), 0 0 0 1px hsl(0 0% 100% / 0.05) inset;
   }
   
   .glass-subtle {

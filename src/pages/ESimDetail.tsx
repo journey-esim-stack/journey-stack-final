@@ -340,8 +340,30 @@ const ESimDetail = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
+                {/* Data Progress Row */}
+                <div className="flex items-center justify-between py-3 border-b border-white/10">
+                  <div className="flex items-center gap-4">
+                    <span className="text-sm text-muted-foreground font-medium">Data Progress</span>
+                    <div className="flex items-center gap-3">
+                      <div className="w-40 bg-gray-200/20 rounded-full h-2 overflow-hidden">
+                        <div 
+                          className={`h-full bg-gradient-to-r from-orange-500 to-orange-600 rounded-full transition-all duration-500 ease-out ${usagePercentage === 0 ? 'w-0' : ''}`}
+                          style={{ width: `${Math.max(usagePercentage, 0)}%` }}
+                        />
+                      </div>
+                      <span className="text-sm text-muted-foreground whitespace-nowrap">
+                        {remainingData.toFixed(2)} {esimDetails.data_usage.unit} remaining
+                      </span>
+                    </div>
+                  </div>
+                  <Button variant="outline" size="sm" className="bg-orange-500 text-white hover:bg-orange-600 border-orange-500 h-8 px-4">
+                    <Plus className="h-3 w-3 mr-1" />
+                    Top-up
+                  </Button>
+                </div>
+
                 {/* Main Data Usage Display */}
-                <div className="space-y-4">
+                <div className="pt-2">
                   <div className="grid grid-cols-1 md:grid-cols-5 gap-6 items-center">
                     {/* Status */}
                     <div className="text-center">
@@ -390,28 +412,6 @@ const ESimDetail = () => {
                         </span>
                       </div>
                     </div>
-                  </div>
-
-                  {/* Data Progress Row */}
-                  <div className="flex items-center justify-between py-3 border-t border-white/10">
-                    <div className="flex items-center gap-4">
-                      <span className="text-sm text-muted-foreground font-medium">Data Progress</span>
-                      <div className="flex items-center gap-3">
-                        <div className="w-40 bg-gray-200/20 rounded-full h-2 overflow-hidden">
-                          <div 
-                            className={`h-full bg-gradient-to-r from-orange-500 to-orange-600 rounded-full transition-all duration-500 ease-out ${usagePercentage === 0 ? 'w-0' : ''}`}
-                            style={{ width: `${Math.max(usagePercentage, 0)}%` }}
-                          />
-                        </div>
-                        <span className="text-sm text-muted-foreground whitespace-nowrap">
-                          {remainingData.toFixed(2)} {esimDetails.data_usage.unit} remaining
-                        </span>
-                      </div>
-                    </div>
-                    <Button variant="outline" size="sm" className="bg-orange-500 text-white hover:bg-orange-600 border-orange-500 h-8 px-4">
-                      <Plus className="h-3 w-3 mr-1" />
-                      Top-up
-                    </Button>
                   </div>
                 </div>
               </CardContent>

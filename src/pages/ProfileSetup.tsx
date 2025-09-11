@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
+import { countries } from "@/utils/countries";
 
 interface AgentProfile {
   id: string;
@@ -233,26 +234,24 @@ export default function ProfileSetup() {
                     required
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="country">Country *</Label>
-                  <Select
-                    value={formData.country}
-                    onValueChange={(value) => setFormData(prev => ({ ...prev, country: value }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select country" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Singapore">Singapore</SelectItem>
-                      <SelectItem value="Malaysia">Malaysia</SelectItem>
-                      <SelectItem value="Thailand">Thailand</SelectItem>
-                      <SelectItem value="Indonesia">Indonesia</SelectItem>
-                      <SelectItem value="Philippines">Philippines</SelectItem>
-                      <SelectItem value="Vietnam">Vietnam</SelectItem>
-                      <SelectItem value="Other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="country">Country *</Label>
+                    <Select
+                      value={formData.country}
+                      onValueChange={(value) => setFormData(prev => ({ ...prev, country: value }))}
+                    >
+                      <SelectTrigger className="bg-background">
+                        <SelectValue placeholder="Select country" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-background border shadow-lg max-h-60 overflow-y-auto z-50">
+                        {countries.map((country) => (
+                          <SelectItem key={country} value={country} className="hover:bg-accent">
+                            {country}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
               </div>
 
               <div className="space-y-2">

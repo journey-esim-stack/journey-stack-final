@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, User, Building, Mail, Phone, MapPin } from "lucide-react";
+import { countries } from "@/utils/countries";
 import Layout from "@/components/Layout";
 
 interface AgentProfile {
@@ -99,43 +100,57 @@ export default function Profile() {
       if (!user) throw new Error("No user found");
 
       const updateData = {
-        company_name: formData.company_name,
-        contact_person: formData.contact_person,
-        phone: formData.phone,
+        company_name: formData.company_name.trim(),
+        contact_person: formData.contact_person.trim(),
+        phone: formData.phone.trim(),
         country: formData.country,
-        business_license: formData.business_license,
+        business_license: formData.business_license.trim(),
         updated_at: new Date().toISOString(),
       };
 
+      let result;
+
       if (profile) {
-        const { error } = await supabase
+        result = await supabase
           .from("agent_profiles")
           .update(updateData)
-          .eq("user_id", user.id);
+          .eq("user_id", user.id)
+          .select();
 
-        if (error) throw error;
+        if (result.error) throw result.error;
       } else {
-        const { error } = await supabase
+        result = await supabase
           .from("agent_profiles")
           .insert({
             ...updateData,
             user_id: user.id,
-          });
+          })
+          .select();
 
-        if (error) throw error;
+        if (result.error) throw result.error;
+      }
+
+      // Update local state with the returned data
+      if (result.data && result.data[0]) {
+        setProfile(result.data[0]);
+        setFormData({
+          company_name: result.data[0].company_name || "",
+          contact_person: result.data[0].contact_person || "",
+          phone: result.data[0].phone || "",
+          country: result.data[0].country || "",
+          business_license: result.data[0].business_license || "",
+        });
       }
 
       toast({
         title: "Success",
         description: "Profile updated successfully",
       });
-
-      await loadProfileData();
     } catch (error) {
       console.error("Update error:", error);
       toast({
         title: "Error",
-        description: "Failed to update profile",
+        description: "Failed to update profile. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -246,17 +261,15 @@ export default function Profile() {
                         value={formData.country}
                         onValueChange={(value) => setFormData(prev => ({ ...prev, country: value }))}
                       >
-                        <SelectTrigger>
+                        <SelectTrigger className="bg-background">
                           <SelectValue placeholder="Select country" />
                         </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Singapore">Singapore</SelectItem>
-                          <SelectItem value="Malaysia">Malaysia</SelectItem>
-                          <SelectItem value="Thailand">Thailand</SelectItem>
-                          <SelectItem value="Indonesia">Indonesia</SelectItem>
-                          <SelectItem value="Philippines">Philippines</SelectItem>
-                          <SelectItem value="Vietnam">Vietnam</SelectItem>
-                          <SelectItem value="Other">Other</SelectItem>
+                        <SelectContent className="bg-background border shadow-lg max-h-60 overflow-y-auto z-50">
+                          {countries.map((country) => (
+                            <SelectItem key={country} value={country} className="hover:bg-accent">
+                              {country}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>

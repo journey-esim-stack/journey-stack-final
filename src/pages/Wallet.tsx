@@ -275,7 +275,7 @@ export default function Wallet() {
             <img 
               src="/illustrations/success.png" 
               alt="Success illustration" 
-              className="absolute top-4 right-4 w-12 h-12 opacity-20"
+              className="absolute top-4 right-4 w-16 h-16 opacity-40"
             />
           </CardHeader>
           <CardContent>
@@ -304,7 +304,7 @@ export default function Wallet() {
             <img 
               src="/illustrations/strength.png" 
               alt="Strength illustration" 
-              className="absolute top-4 right-4 w-12 h-12 opacity-20"
+              className="absolute top-4 right-4 w-16 h-16 opacity-40"
             />
           </CardHeader>
           <CardContent>
@@ -324,7 +324,7 @@ export default function Wallet() {
               <img 
                 src="/illustrations/meditation.png" 
                 alt="Meditation illustration" 
-                className="absolute top-4 right-4 w-12 h-12 opacity-20"
+                className="absolute top-4 right-4 w-16 h-16 opacity-40"
               />
               {allTransactions.length > 0 && (
                 <DropdownMenu>

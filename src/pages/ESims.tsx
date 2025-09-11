@@ -394,7 +394,7 @@ const ESims = () => {
           <img 
             src="/illustrations/connection.png" 
             alt="Connection illustration" 
-            className="absolute top-4 right-4 w-16 h-16 opacity-20 hidden md:block"
+            className="absolute top-4 right-4 w-20 h-20 opacity-50 hidden md:block"
           />
           <h1 className="text-4xl font-bold mb-4 text-black">
             My eSIMs

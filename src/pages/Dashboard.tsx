@@ -233,7 +233,7 @@ export default function Dashboard() {
               <img 
                 src="/illustrations/communication.png" 
                 alt="Communication illustration" 
-                className="absolute top-3 right-3 w-8 h-8 opacity-20"
+                className="absolute top-3 right-3 w-12 h-12 opacity-40"
               />
             </CardHeader>
             <CardContent>
@@ -253,7 +253,7 @@ export default function Dashboard() {
               <img 
                 src="/illustrations/connection.png" 
                 alt="Connection illustration" 
-                className="absolute top-3 right-3 w-8 h-8 opacity-20"
+                className="absolute top-3 right-3 w-12 h-12 opacity-40"
               />
             </CardHeader>
             <CardContent>
@@ -271,7 +271,7 @@ export default function Dashboard() {
               <img 
                 src="/illustrations/idea.png" 
                 alt="Idea illustration" 
-                className="absolute top-3 right-3 w-8 h-8 opacity-20"
+                className="absolute top-3 right-3 w-12 h-12 opacity-40"
               />
             </CardHeader>
             <CardContent>

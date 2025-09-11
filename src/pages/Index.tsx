@@ -14,7 +14,7 @@ const Index = () => {
         <img 
           src="/illustrations/idea.png" 
           alt="Welcome illustration" 
-          className="absolute top-8 right-8 w-16 h-16 opacity-30 hidden md:block"
+          className="absolute top-8 right-8 w-20 h-20 opacity-50 hidden md:block"
         />
         <h1 className="mb-4 text-4xl font-bold">Journey eSIM Agent Portal</h1>
         <p className="mb-8 text-lg text-muted-foreground">

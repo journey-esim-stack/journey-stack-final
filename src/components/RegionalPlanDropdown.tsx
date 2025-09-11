@@ -90,6 +90,37 @@ const getRegionalCoverage = (planTitle: string, countryCode: string): { name: st
     { name: 'Puerto Rico', code: 'PR', flag: '🇵🇷' },
     { name: 'Uruguay', code: 'UY', flag: '🇺🇾' }
   ];
+
+  // Middle East & North Africa countries
+  const middleEastNorthAfricaCountries = [
+    { name: 'Bahrain', code: 'BH', flag: '🇧🇭' },
+    { name: 'Egypt', code: 'EG', flag: '🇪🇬' },
+    { name: 'Israel', code: 'IL', flag: '🇮🇱' },
+    { name: 'Jordan', code: 'JO', flag: '🇯🇴' },
+    { name: 'Kuwait', code: 'KW', flag: '🇰🇼' },
+    { name: 'Morocco', code: 'MA', flag: '🇲🇦' },
+    { name: 'Oman', code: 'OM', flag: '🇴🇲' },
+    { name: 'Qatar', code: 'QA', flag: '🇶🇦' },
+    { name: 'Saudi Arabia', code: 'SA', flag: '🇸🇦' },
+    { name: 'Tunisia', code: 'TN', flag: '🇹🇳' },
+    { name: 'Turkey', code: 'TR', flag: '🇹🇷' },
+    { name: 'United Arab Emirates', code: 'AE', flag: '🇦🇪' }
+  ];
+
+  // Middle East countries
+  const middleEastCountries = [
+    { name: 'Armenia', code: 'AM', flag: '🇦🇲' },
+    { name: 'Azerbaijan', code: 'AZ', flag: '🇦🇿' },
+    { name: 'Bahrain', code: 'BH', flag: '🇧🇭' },
+    { name: 'Israel', code: 'IL', flag: '🇮🇱' },
+    { name: 'Jordan', code: 'JO', flag: '🇯🇴' },
+    { name: 'Kuwait', code: 'KW', flag: '🇰🇼' },
+    { name: 'Oman', code: 'OM', flag: '🇴🇲' },
+    { name: 'Qatar', code: 'QA', flag: '🇶🇦' },
+    { name: 'Saudi Arabia', code: 'SA', flag: '🇸🇦' },
+    { name: 'Turkey', code: 'TR', flag: '🇹🇷' },
+    { name: 'United Arab Emirates', code: 'AE', flag: '🇦🇪' }
+  ];
   
   // Asia regional plans - return the exact number of countries based on area count
   if (countryCode === 'RG' && (title.includes('asia') || title.includes('areas'))) {
@@ -105,6 +136,16 @@ const getRegionalCoverage = (planTitle: string, countryCode: string): { name: st
       return europeanCountries.slice(0, areaCount);
     }
     return europeanCountries;
+  }
+
+  // Middle East & North Africa regional plans (check first to avoid conflict with "middle east")
+  if (countryCode === 'RG' && (title.includes('middle east') && title.includes('north africa'))) {
+    return middleEastNorthAfricaCountries;
+  }
+
+  // Middle East regional plans
+  if (countryCode === 'RG' && title.includes('middle east') && !title.includes('north africa')) {
+    return middleEastCountries;
   }
 
   // South America regional plans (check this first to avoid conflict with "america")

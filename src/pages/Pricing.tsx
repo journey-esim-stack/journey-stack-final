@@ -35,7 +35,7 @@ export default function Pricing() {
   const { toast } = useToast();
 
   // Popular countries for quick filtering
-  const popularCountries = [
+  const popularCountries = useMemo(() => [
     { name: "UAE (Dubai)", code: "AE", flag: "🇦🇪" },
     { name: "Singapore", code: "SG", flag: "🇸🇬" },
     { name: "UK", code: "GB", flag: "🇬🇧" },
@@ -44,44 +44,10 @@ export default function Pricing() {
     { name: "Thailand", code: "TH", flag: "🇹🇭" },
     { name: "Indonesia", code: "ID", flag: "🇮🇩" },
     { name: "Spain", code: "ES", flag: "🇪🇸" },
-  ];
+  ], []);
 
   // Get unique regions from plans
-  const regions = getAllRegions();
-
-  useEffect(() => {
-    fetchPlans();
-  }, []);
-
-  const fetchPlans = async () => {
-    try {
-      const { data: plansData, error: plansError } = await supabase
-        .from("esim_plans")
-        .select("*")
-        .eq("is_active", true);
-
-      if (plansError) throw plansError;
-      setAvailablePlans(plansData || []);
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to fetch plans data",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (loading) {
-    return (
-      <Layout>
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-        </div>
-      </Layout>
-    );
-  }
+  const regions = useMemo(() => getAllRegions(), []);
 
   // Calculate plans with pricing
   const plansWithPricing = useMemo(() => {
@@ -145,7 +111,7 @@ export default function Pricing() {
     });
     
     return filtered;
-  }, [plansWithPricing, searchQuery, selectedRegion, selectedCountry]);
+  }, [plansWithPricing, searchQuery, selectedRegion, selectedCountry, popularCountries]);
 
   // Sort filtered plans
   const sortedPlans = useMemo(() => {
@@ -176,6 +142,40 @@ export default function Pricing() {
         return sorted;
     }
   }, [filteredPlans, sortBy]);
+
+  useEffect(() => {
+    fetchPlans();
+  }, []);
+
+  const fetchPlans = async () => {
+    try {
+      const { data: plansData, error: plansError } = await supabase
+        .from("esim_plans")
+        .select("*")
+        .eq("is_active", true);
+
+      if (plansError) throw plansError;
+      setAvailablePlans(plansData || []);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to fetch plans data",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>

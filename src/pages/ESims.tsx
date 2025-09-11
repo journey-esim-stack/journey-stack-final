@@ -392,9 +392,9 @@ const ESims = () => {
         {/* Header Section */}
         <div className="glass-intense p-8 text-left relative">
           <img 
-            src="/illustrations/connection.png" 
+            src="/illustrations/connection-new.png" 
             alt="Connection illustration" 
-            className="absolute top-4 right-4 w-20 h-20 opacity-50 hidden md:block"
+            className="absolute top-3 right-3 w-24 h-24 hidden md:block"
           />
           <h1 className="text-4xl font-bold mb-4 text-black">
             My eSIMs

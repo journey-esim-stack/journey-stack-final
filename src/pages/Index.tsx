@@ -12,9 +12,9 @@ const Index = () => {
     <main className="min-h-screen bg-background">
       <section className="container mx-auto max-w-3xl px-4 py-20 text-center relative">
         <img 
-          src="/illustrations/idea.png" 
+          src="/illustrations/idea-new.png" 
           alt="Welcome illustration" 
-          className="absolute top-8 right-8 w-20 h-20 opacity-50 hidden md:block"
+          className="absolute top-6 right-6 w-24 h-24 hidden md:block"
         />
         <h1 className="mb-4 text-4xl font-bold">Journey eSIM Agent Portal</h1>
         <p className="mb-8 text-lg text-muted-foreground">

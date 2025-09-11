@@ -11,7 +11,7 @@ import TestAuth from "./pages/TestAuth";
 import Plans from "./pages/Plans";
 import Pricing from "./pages/Pricing";
 import Wallet from "./pages/Wallet";
-import Orders from "./pages/Orders";
+import Dashboard from "./pages/Dashboard";
 import ESims from "./pages/ESims";
 import ESimDetail from "./pages/ESimDetail";
 import AdminAgents from "./pages/AdminAgents";
@@ -28,13 +28,13 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <Routes>
-            <Route path="/" element={<Index />} />
+            <Route path="/" element={<Dashboard />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/test-auth" element={<TestAuth />} />
             <Route path="/plans" element={<Plans />} />
             <Route path="/pricing" element={<Pricing />} />
             <Route path="/wallet" element={<Wallet />} />
-            <Route path="/orders" element={<Orders />} />
+            <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/esims" element={<ESims />} />
             <Route path="/esims/:iccid" element={<ESimDetail />} />
             <Route path="/admin/agents" element={<AdminAgents />} />

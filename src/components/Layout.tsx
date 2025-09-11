@@ -77,10 +77,10 @@ export default function Layout({ children }: LayoutProps) {
   }
 
   const navigation = [
+    { name: "Dashboard", href: "/dashboard", icon: ShoppingCart },
     { name: "Plans", href: "/plans", icon: Package },
     { name: "Pricing", href: "/pricing", icon: DollarSign },
     { name: "Wallet", href: "/wallet", icon: Wallet },
-    { name: "Orders", href: "/orders", icon: ShoppingCart },
     { name: "eSIMs", href: "/esims", icon: Smartphone },
     ...(isAdmin ? [{ name: "Admin: Agents", href: "/admin/agents", icon: ShieldCheck }] : []),
   ];
@@ -91,7 +91,7 @@ export default function Layout({ children }: LayoutProps) {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
             <div className="flex items-center space-x-8">
-              <Link to="/plans" className="text-xl font-bold text-primary">
+              <Link to="/dashboard" className="text-xl font-bold text-primary">
                 Journey Stack Agent Portal
               </Link>
               <div className="hidden md:flex space-x-4">

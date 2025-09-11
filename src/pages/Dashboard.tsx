@@ -1,0 +1,407 @@
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useToast } from "@/hooks/use-toast";
+import Layout from "@/components/Layout";
+import { format, subDays } from "date-fns";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { Smartphone, DollarSign, ShoppingCart, AlertTriangle } from "lucide-react";
+
+interface Order {
+  id: string;
+  customer_name: string;
+  customer_email: string;
+  customer_phone: string;
+  retail_price: number;
+  wholesale_price: number;
+  status: string;
+  created_at: string;
+  esim_iccid: string;
+  activation_code: string;
+  supplier_order_id: string;
+  esim_plans: {
+    title: string;
+    country_name: string;
+    data_amount: string;
+    validity_days: number;
+  };
+}
+
+interface AgentProfile {
+  company_name: string;
+  contact_person: string;
+  wallet_balance: number;
+}
+
+interface HighDataUsageESim {
+  iccid: string;
+  plan_name: string;
+  country_name: string;
+  data_used_percentage: number;
+  customer_name: string;
+  customer_email: string;
+}
+
+export default function Dashboard() {
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [agentProfile, setAgentProfile] = useState<AgentProfile | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [activeESims, setActiveESims] = useState(0);
+  const [chartData, setChartData] = useState<any[]>([]);
+  const [highUsageESims, setHighUsageESims] = useState<HighDataUsageESim[]>([]);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
+  const fetchDashboardData = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("No user found");
+
+      // Get agent profile
+      const { data: profile, error: profileError } = await supabase
+        .from("agent_profiles")
+        .select("id, company_name, contact_person, wallet_balance")
+        .eq("user_id", user.id)
+        .single();
+
+      if (profileError) throw profileError;
+      setAgentProfile(profile);
+
+      // Fetch orders
+      const { data: ordersData, error: ordersError } = await supabase
+        .from("orders")
+        .select(`
+          id,
+          customer_name,
+          customer_email,
+          customer_phone,
+          retail_price,
+          wholesale_price,
+          status,
+          created_at,
+          esim_iccid,
+          activation_code,
+          supplier_order_id,
+          esim_plans:plan_id (
+            title,
+            country_name,
+            data_amount,
+            validity_days
+          )
+        `)
+        .eq("agent_id", profile.id)
+        .order("created_at", { ascending: false });
+
+      if (ordersError) throw ordersError;
+      setOrders(ordersData || []);
+
+      // Calculate active eSIMs (completed orders with eSIM data)
+      const activeCount = ordersData?.filter(o => 
+        o.status === "completed" && o.esim_iccid
+      ).length || 0;
+      setActiveESims(activeCount);
+
+      // Generate chart data for last 30 days
+      generateChartData(ordersData || []);
+
+      // Generate mock high usage eSIMs data (since we don't have real usage data yet)
+      generateMockHighUsageData(ordersData || []);
+
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to fetch dashboard data",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const generateChartData = (ordersData: Order[]) => {
+    const last30Days = Array.from({ length: 30 }, (_, i) => {
+      const date = subDays(new Date(), 29 - i);
+      return {
+        date: format(date, "MMM dd"),
+        orders: 0,
+      };
+    });
+
+    ordersData.forEach(order => {
+      const orderDate = new Date(order.created_at);
+      const dayIndex = last30Days.findIndex(day => 
+        format(orderDate, "MMM dd") === day.date
+      );
+      if (dayIndex !== -1) {
+        last30Days[dayIndex].orders++;
+      }
+    });
+
+    setChartData(last30Days);
+  };
+
+  const generateMockHighUsageData = (ordersData: Order[]) => {
+    // Mock data for eSIMs with high usage (would come from real API in production)
+    const mockHighUsage = ordersData
+      .filter(o => o.status === "completed" && o.esim_iccid)
+      .slice(0, 3)
+      .map((order, index) => ({
+        iccid: order.esim_iccid,
+        plan_name: order.esim_plans?.title || "Unknown Plan",
+        country_name: order.esim_plans?.country_name || "Unknown",
+        data_used_percentage: 80 + Math.random() * 15, // 80-95%
+        customer_name: order.customer_name,
+        customer_email: order.customer_email,
+      }));
+
+    setHighUsageESims(mockHighUsage);
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "completed":
+        return "bg-green-100 text-green-800";
+      case "pending":
+        return "bg-yellow-100 text-yellow-800";
+      case "failed":
+        return "bg-red-100 text-red-800";
+      default:
+        return "bg-gray-100 text-gray-800";
+    }
+  };
+
+  if (loading) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        </div>
+      </Layout>
+    );
+  }
+
+  return (
+    <Layout>
+      <div className="space-y-6">
+        {/* Welcome Section */}
+        <div>
+          <h1 className="text-3xl font-bold">
+            Welcome, {agentProfile?.contact_person}! 👋
+          </h1>
+          <p className="text-lg text-muted-foreground mt-1">
+            {agentProfile?.company_name}
+          </p>
+        </div>
+
+        {/* Dashboard Metrics */}
+        <div className="grid gap-4 md:grid-cols-3">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <ShoppingCart className="h-4 w-4" />
+                eSIM Orders
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{orders.length}</div>
+              <p className="text-sm text-muted-foreground">
+                {orders.filter(o => o.status === "completed").length} completed
+              </p>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <Smartphone className="h-4 w-4" />
+                Active eSIMs
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{activeESims}</div>
+              <p className="text-sm text-muted-foreground">Connected to network</p>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <DollarSign className="h-4 w-4" />
+                Wallet Balance
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                USD {agentProfile?.wallet_balance?.toFixed(2) || "0.00"}
+              </div>
+              <p className="text-sm text-muted-foreground">Available credit</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Orders Chart */}
+        <Card>
+          <CardHeader>
+            <CardTitle>eSIM Orders - Last 30 Days</CardTitle>
+            <CardDescription>Daily order volume</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="h-80">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="date" />
+                  <YAxis />
+                  <Tooltip />
+                  <Bar dataKey="orders" fill="hsl(var(--primary))" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* High Data Usage Alert */}
+        {highUsageESims.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-orange-500" />
+                eSIMs Requiring Attention
+              </CardTitle>
+              <CardDescription>
+                eSIMs that have consumed 80%+ of their data allocation
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Customer</TableHead>
+                    <TableHead>Plan</TableHead>
+                    <TableHead>ICCID</TableHead>
+                    <TableHead>Data Usage</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {highUsageESims.map((esim, index) => (
+                    <TableRow key={index}>
+                      <TableCell>
+                        <div>
+                          <p className="font-medium">{esim.customer_name}</p>
+                          <p className="text-sm text-muted-foreground">{esim.customer_email}</p>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div>
+                          <p className="font-medium">{esim.plan_name}</p>
+                          <p className="text-sm text-muted-foreground">{esim.country_name}</p>
+                        </div>
+                      </TableCell>
+                      <TableCell className="font-mono text-sm">
+                        {esim.iccid.slice(0, 10)}...
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1 bg-gray-200 rounded-full h-2">
+                            <div 
+                              className="bg-orange-500 h-2 rounded-full" 
+                              style={{ width: `${esim.data_used_percentage}%` }}
+                            />
+                          </div>
+                          <span className="text-sm font-medium">
+                            {esim.data_used_percentage.toFixed(0)}%
+                          </span>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Order History */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Order History</CardTitle>
+            <CardDescription>Recent eSIM orders</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {orders.length > 0 ? (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Customer</TableHead>
+                    <TableHead>Plan</TableHead>
+                    <TableHead>Price</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>eSIM Details</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {orders.slice(0, 10).map((order) => (
+                    <TableRow key={order.id}>
+                      <TableCell>
+                        {format(new Date(order.created_at), "MMM dd, yyyy")}
+                      </TableCell>
+                      <TableCell>
+                        <div>
+                          <p className="font-medium">{order.customer_name}</p>
+                          <p className="text-sm text-muted-foreground">{order.customer_email}</p>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div>
+                          <p className="font-medium">{order.esim_plans?.title}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {order.esim_plans?.country_name} • {order.esim_plans?.data_amount}
+                          </p>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div>
+                          <p className="font-medium">USD {order.retail_price}</p>
+                          <p className="text-sm text-muted-foreground">
+                            Margin: USD {(order.retail_price - order.wholesale_price).toFixed(2)}
+                          </p>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge className={getStatusColor(order.status)}>
+                          {order.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {order.esim_iccid ? (
+                          <div className="text-sm">
+                            <p>ICCID: {order.esim_iccid.slice(0, 10)}...</p>
+                            {order.activation_code && (
+                              <p>Code: {order.activation_code}</p>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground">Pending</span>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            ) : (
+              <div className="text-center py-8">
+                <p className="text-muted-foreground">No orders found</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </Layout>
+  );
+}

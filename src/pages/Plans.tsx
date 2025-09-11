@@ -160,25 +160,67 @@ export default function Plans() {
     });
   }
 
+// Helper function to check if a regional plan covers a specific country
+  const doesRegionalPlanCoverCountry = (plan: any, countryCode: string): boolean => {
+    if (plan.country_code !== 'RG') return false;
+    
+    const title = plan.title?.toLowerCase() || '';
+    const description = plan.description?.toLowerCase() || '';
+    
+    // Define comprehensive country mappings for regional plans
+    const regionalMappings = {
+      // Asian countries
+      'SG': ['asia', 'singapore'], 'TH': ['asia', 'thailand'], 'MY': ['asia', 'malaysia'],
+      'ID': ['asia', 'indonesia'], 'PH': ['asia', 'philippines'], 'KH': ['asia', 'cambodia'],
+      'VN': ['asia', 'vietnam'], 'MM': ['asia', 'myanmar'], 'LA': ['asia', 'laos'],
+      'BN': ['asia', 'brunei'], 'JP': ['asia', 'japan'], 'KR': ['asia', 'korea'],
+      'HK': ['asia', 'hong kong'], 'MO': ['asia', 'macau'], 'TW': ['asia', 'taiwan'],
+      'IN': ['asia', 'india'], 'LK': ['asia', 'lanka'], 'BD': ['asia', 'bangladesh'],
+      'NP': ['asia', 'nepal'], 'PK': ['asia', 'pakistan'],
+      
+      // European countries
+      'GB': ['europe', 'united kingdom', 'britain'], 'DE': ['europe', 'germany'],
+      'FR': ['europe', 'france'], 'IT': ['europe', 'italy'], 'ES': ['europe', 'spain'],
+      'NL': ['europe', 'netherlands'], 'BE': ['europe', 'belgium'], 'AT': ['europe', 'austria'],
+      'CH': ['europe', 'switzerland'], 'PL': ['europe', 'poland'], 'CZ': ['europe', 'czech'],
+      'PT': ['europe', 'portugal'], 'GR': ['europe', 'greece'], 'DK': ['europe', 'denmark'],
+      'SE': ['europe', 'sweden'], 'NO': ['europe', 'norway'], 'FI': ['europe', 'finland'],
+      'IE': ['europe', 'ireland'], 'RU': ['europe', 'russia'], 'TR': ['europe', 'turkey'],
+      'UA': ['europe', 'ukraine'], 'HU': ['europe', 'hungary'], 'RO': ['europe', 'romania'],
+      'BG': ['europe', 'bulgaria'], 'HR': ['europe', 'croatia'], 'SK': ['europe', 'slovakia'],
+      'SI': ['europe', 'slovenia'], 'LT': ['europe', 'lithuania'], 'LV': ['europe', 'latvia'],
+      'EE': ['europe', 'estonia'], 'LU': ['europe', 'luxembourg'], 'MT': ['europe', 'malta'],
+      'CY': ['europe', 'cyprus'], 'IS': ['europe', 'iceland'],
+      
+      // American countries
+      'US': ['america', 'united states', 'usa'], 'CA': ['america', 'canada'],
+      'MX': ['america', 'mexico'], 'BR': ['america', 'brazil'], 'AR': ['america', 'argentina'],
+      'CL': ['america', 'chile'], 'PE': ['america', 'peru'], 'CO': ['america', 'colombia'],
+      
+      // African countries
+      'ZA': ['africa', 'south africa'], 'NG': ['africa', 'nigeria'], 'EG': ['africa', 'egypt'],
+      'KE': ['africa', 'kenya'], 'MA': ['africa', 'morocco'], 'GH': ['africa', 'ghana'],
+      
+      // Oceanian countries
+      'AU': ['oceania', 'australia'], 'NZ': ['oceania', 'new zealand'], 'FJ': ['oceania', 'fiji']
+    };
+    
+    const keywords = regionalMappings[countryCode as keyof typeof regionalMappings] || [];
+    return keywords.some(keyword => title.includes(keyword) || description.includes(keyword));
+  };
+
 // Filter plans based on search, region, and country using debounced search
   const filteredPlans = useMemo(() => {
     const filtered = plans.filter((plan) => {
       const searchLower = debouncedSearchQuery?.toLowerCase() || "";
       
-      // Check if search matches Asian countries and this is an Asian regional plan
-      const asianCountryNames = ['singapore', 'thailand', 'malaysia', 'indonesia', 'philippines', 'cambodia', 'vietnam'];
-      const isSearchingForAsianCountry = asianCountryNames.some(country => searchLower.includes(country));
-      const isAsianRegionalPlan = plan.country_code === 'RG' && (
-        plan.title?.toLowerCase().includes('asia') || 
-        plan.description?.toLowerCase().includes('asia')
-      );
-      
+      // Enhanced search matching that includes regional plan coverage
       const matchesSearch = !debouncedSearchQuery || (
         plan.title?.toLowerCase().includes(searchLower) ||
         plan.country_name?.toLowerCase().includes(searchLower) ||
         plan.description?.toLowerCase().includes(searchLower) ||
         plan.data_amount?.toLowerCase().includes(searchLower) ||
-        (isSearchingForAsianCountry && isAsianRegionalPlan) ||
+        // Check if this is a regional plan that covers countries mentioned in search
         (plan.country_code === 'RG' && (
           plan.title?.toLowerCase().includes(searchLower) ||
           plan.description?.toLowerCase().includes(searchLower)
@@ -190,16 +232,12 @@ export default function Plans() {
         selectedRegion === "all" || 
         planRegion === selectedRegion;
 
-      const asianCountries = ['SG', 'TH', 'MY', 'ID', 'PH', 'KH', 'VN'];
-      
+      // Enhanced country matching that includes regional plan coverage
       const matchesCountry = 
         selectedCountry === "all" || 
         plan.country_code === selectedCountry ||
-        (isAsianRegionalPlan && asianCountries.includes(selectedCountry)) ||
-        (plan.country_code === 'RG' && (
-          plan.title?.toLowerCase().includes(popularCountries.find(c => c.code === selectedCountry)?.name.toLowerCase() || selectedCountry.toLowerCase()) ||
-          plan.description?.toLowerCase().includes(popularCountries.find(c => c.code === selectedCountry)?.name.toLowerCase() || selectedCountry.toLowerCase())
-        ));
+        // Check if this regional plan covers the selected country
+        doesRegionalPlanCoverCountry(plan, selectedCountry);
       
       return matchesSearch && matchesRegion && matchesCountry;
     });

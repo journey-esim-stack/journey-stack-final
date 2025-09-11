@@ -121,6 +121,14 @@ serve(async (req) => {
 
     // Use the retail price calculated with markup for charging
     const chargeAmount = Number(retailPrice.toFixed(2));
+    
+    console.log("Top-up pricing details:", {
+      wholesaleDollars,
+      retailPrice,
+      chargeAmount,
+      markupType: profile.markup_type,
+      markupValue: profile.markup_value
+    });
 
     // Ensure sufficient balance based on retail price
     const currentBalance = Number(profile.wallet_balance);
@@ -194,8 +202,14 @@ serve(async (req) => {
         amount: -chargeAmount,
         balance_after: newBalance,
         description: `eSIM top-up: ${dataAmount} ${targetPlan.duration}Days`,
-        reference_id: transactionId,
+        reference_id: `topup-${packageCode}-${Date.now()}`,
       });
+    
+    console.log("Recording wallet transaction:", {
+      amount: -chargeAmount,
+      description: `eSIM top-up: ${dataAmount} ${targetPlan.duration}Days`,
+      balance_after: newBalance
+    });
 
     if (transactionError) {
       console.error("Transaction record error:", transactionError);

@@ -382,23 +382,21 @@ export default function Plans() {
     <Layout>
       <div className="space-y-8 animate-fade-in">
         {/* Header Section */}
-        <Card className="glass-card">
-          <CardHeader className="text-left">
-            <CardTitle className="text-4xl font-bold text-black">
-              Explore premium eSIM Plans
-            </CardTitle>
-            <CardDescription className="text-lg">
-              Browse curated data plans for your customers. Sell better eSIMs, faster with smart filtering, local pricing, instant downloads.
-            </CardDescription>
-            <div className="flex items-center justify-start gap-2 mt-4 text-sm text-muted-foreground">
-              <Globe className="h-4 w-4" />
-              <span>{plans.length} plans available</span>
-              <span>•</span>
-              <Database className="h-4 w-4" />
-              <span>{regions.length} regions covered</span>
-            </div>
-          </CardHeader>
-        </Card>
+        <div className="glass-intense p-8 text-left">
+          <h1 className="text-4xl font-bold mb-4 text-black">
+            Explore premium eSIM Plans
+          </h1>
+          <p className="text-muted-foreground text-lg mb-6">
+            Browse curated data plans for your customers. Sell better eSIMs, faster with smart filtering, local pricing, instant downloads.
+          </p>
+          <div className="flex items-center justify-start gap-2 mt-4 text-sm text-muted-foreground">
+            <Globe className="h-4 w-4" />
+            <span>{plans.length} plans available</span>
+            <span>•</span>
+            <Database className="h-4 w-4" />
+            <span>{regions.length} regions covered</span>
+          </div>
+        </div>
 
         {/* Search and Filter Section */}
         <Card className="glass-card">

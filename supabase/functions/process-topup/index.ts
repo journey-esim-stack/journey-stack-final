@@ -119,8 +119,8 @@ serve(async (req) => {
       retailPrice = wholesaleDollars + profile.markup_value;
     }
 
-    // The amount parameter from frontend is the retail price we should charge (rounded to 2 decimals)
-    const chargeAmount = Math.round(((typeof amount === 'number' ? amount : retailPrice)) * 100) / 100;
+    // Use the retail price calculated with markup for charging
+    const chargeAmount = Number(retailPrice.toFixed(2));
 
     // Ensure sufficient balance based on retail price
     const currentBalance = Number(profile.wallet_balance);

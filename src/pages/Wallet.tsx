@@ -8,6 +8,11 @@ import Layout from "@/components/Layout";
 import { format } from "date-fns";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Download, FileText, FileSpreadsheet, ChevronLeft, ChevronRight } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import * as XLSX from 'xlsx';
 
 interface WalletTransaction {
   id: string;
@@ -26,10 +31,14 @@ interface AgentProfile {
 
 export default function Wallet() {
   const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
+  const [allTransactions, setAllTransactions] = useState<WalletTransaction[]>([]);
   const [profile, setProfile] = useState<AgentProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
   const [topUpAmount, setTopUpAmount] = useState<number>(10);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const itemsPerPage = 20;
 
   useEffect(() => {
     const run = async () => {
@@ -69,24 +78,34 @@ export default function Wallet() {
       if (profileError) throw profileError;
       setProfile(profileData);
 
-      // Fetch transactions
-      const { data: transactionsData, error: transactionsError } = await supabase
+      // Fetch all transactions for export functionality
+      const { data: allTransactionsData, error: allTransactionsError } = await supabase
         .from("wallet_transactions")
         .select("*")
         .eq("agent_id", profileData.id)
-        .order("created_at", { ascending: false })
-        .limit(50);
+        .order("created_at", { ascending: false });
 
       console.log("Agent ID:", profileData.id);
-      console.log("Transactions query result:", { transactionsData, transactionsError });
+      console.log("All transactions query result:", { allTransactionsData, allTransactionsError });
 
-      if (transactionsError) {
-        console.error("Transaction fetch error:", transactionsError);
-        // Don't throw error for transactions - just log it
+      if (allTransactionsError) {
+        console.error("Transaction fetch error:", allTransactionsError);
         setTransactions([]);
+        setAllTransactions([]);
       } else {
-        console.log("Setting transactions:", transactionsData);
-        setTransactions(transactionsData || []);
+        console.log("Setting all transactions:", allTransactionsData);
+        const allData = allTransactionsData || [];
+        setAllTransactions(allData);
+        
+        // Calculate pagination
+        const totalItems = allData.length;
+        const pages = Math.ceil(totalItems / itemsPerPage);
+        setTotalPages(pages);
+        
+        // Get current page transactions
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        const endIndex = startIndex + itemsPerPage;
+        setTransactions(allData.slice(startIndex, endIndex));
       }
     } catch (error) {
       console.error("Wallet data fetch error:", error);
@@ -132,6 +151,15 @@ export default function Wallet() {
     }
   };
 
+  // Update displayed transactions when page changes
+  useEffect(() => {
+    if (allTransactions.length > 0) {
+      const startIndex = (currentPage - 1) * itemsPerPage;
+      const endIndex = startIndex + itemsPerPage;
+      setTransactions(allTransactions.slice(startIndex, endIndex));
+    }
+  }, [currentPage, allTransactions]);
+
   const getTransactionTypeColor = (type: string) => {
     switch (type) {
       case "deposit":
@@ -142,6 +170,83 @@ export default function Wallet() {
         return "bg-blue-100 text-blue-800 border-blue-200";
       default:
         return "bg-gray-100 text-gray-800 border-gray-200";
+    }
+  };
+
+  const downloadPDF = () => {
+    const doc = new jsPDF();
+    
+    // Add title
+    doc.setFontSize(20);
+    doc.text('Transaction History', 20, 20);
+    
+    // Add current balance
+    doc.setFontSize(12);
+    doc.text(`Current Balance: USD ${profile?.wallet_balance?.toFixed(2) || "0.00"}`, 20, 35);
+    doc.text(`Generated on: ${format(new Date(), "MMM dd, yyyy HH:mm")}`, 20, 45);
+    
+    // Prepare table data
+    const tableData = allTransactions.map(transaction => [
+      format(new Date(transaction.created_at), "MMM dd, yyyy HH:mm"),
+      transaction.transaction_type === "deposit" ? "Top-up" : transaction.transaction_type === "purchase" ? "Purchase" : "Refund",
+      transaction.description || "-",
+      `${transaction.transaction_type === "deposit" ? "+" : "-"}USD ${Math.abs(transaction.amount).toFixed(2)}`,
+      `USD ${transaction.balance_after.toFixed(2)}`,
+      transaction.reference_id || "-"
+    ]);
+    
+    // Add table
+    autoTable(doc, {
+      head: [['Date', 'Type', 'Description', 'Amount', 'Balance After', 'Reference']],
+      body: tableData,
+      startY: 55,
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [59, 130, 246] }
+    });
+    
+    doc.save('transaction-history.pdf');
+    
+    toast({
+      title: "PDF Downloaded",
+      description: "Transaction history has been downloaded as PDF",
+    });
+  };
+
+  const downloadExcel = () => {
+    const ws = XLSX.utils.json_to_sheet(
+      allTransactions.map(transaction => ({
+        Date: format(new Date(transaction.created_at), "MMM dd, yyyy HH:mm"),
+        Type: transaction.transaction_type === "deposit" ? "Top-up" : transaction.transaction_type === "purchase" ? "Purchase" : "Refund",
+        Description: transaction.description || "-",
+        Amount: transaction.amount,
+        'Balance After': transaction.balance_after,
+        Reference: transaction.reference_id || "-"
+      }))
+    );
+    
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Transactions");
+    
+    // Add current balance as a separate sheet
+    const balanceSheet = XLSX.utils.json_to_sheet([
+      { 
+        'Current Balance': profile?.wallet_balance?.toFixed(2) || "0.00",
+        'Generated On': format(new Date(), "MMM dd, yyyy HH:mm")
+      }
+    ]);
+    XLSX.utils.book_append_sheet(wb, balanceSheet, "Summary");
+    
+    XLSX.writeFile(wb, 'transaction-history.xlsx');
+    
+    toast({
+      title: "Excel Downloaded",
+      description: "Transaction history has been downloaded as Excel file",
+    });
+  };
+
+  const goToPage = (page: number) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
     }
   };
 
@@ -201,8 +306,32 @@ export default function Wallet() {
 
         <Card className="glass-card">
           <CardHeader>
-            <CardTitle>Transaction History</CardTitle>
-            <CardDescription>Recent wallet transactions - Credits (top-ups) and debits (purchases)</CardDescription>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <CardTitle>Transaction History</CardTitle>
+                <CardDescription>Recent wallet transactions - Credits (top-ups) and debits (purchases)</CardDescription>
+              </div>
+              {allTransactions.length > 0 && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm">
+                      <Download className="h-4 w-4 mr-2" />
+                      Export
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent>
+                    <DropdownMenuItem onClick={downloadPDF}>
+                      <FileText className="h-4 w-4 mr-2" />
+                      Download PDF
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={downloadExcel}>
+                      <FileSpreadsheet className="h-4 w-4 mr-2" />
+                      Download Excel
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+            </div>
           </CardHeader>
           <CardContent>
             {transactions.length > 0 ? (
@@ -248,6 +377,63 @@ export default function Wallet() {
             ) : (
               <div className="text-center py-8">
                 <p className="text-muted-foreground">No transactions found</p>
+              </div>
+            )}
+            
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between mt-6 pt-4 border-t">
+                <div className="text-sm text-muted-foreground">
+                  Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, allTransactions.length)} of {allTransactions.length} transactions
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => goToPage(currentPage - 1)}
+                    disabled={currentPage === 1}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                    Previous
+                  </Button>
+                  
+                  <div className="flex items-center space-x-1">
+                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                      let pageNum;
+                      if (totalPages <= 5) {
+                        pageNum = i + 1;
+                      } else if (currentPage <= 3) {
+                        pageNum = i + 1;
+                      } else if (currentPage >= totalPages - 2) {
+                        pageNum = totalPages - 4 + i;
+                      } else {
+                        pageNum = currentPage - 2 + i;
+                      }
+                      
+                      return (
+                        <Button
+                          key={pageNum}
+                          variant={currentPage === pageNum ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => goToPage(pageNum)}
+                          className="w-8 h-8 p-0"
+                        >
+                          {pageNum}
+                        </Button>
+                      );
+                    })}
+                  </div>
+                  
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => goToPage(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                  >
+                    Next
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             )}
           </CardContent>

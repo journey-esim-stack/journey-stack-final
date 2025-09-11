@@ -197,13 +197,19 @@ export default function Plans() {
       'CY': ['europe', 'cyprus'], 'IS': ['europe', 'iceland'],
       
       // North American countries  
-      'US': ['america', 'united states', 'usa', 'north america'], 'CA': ['america', 'canada', 'north america'],
-      'MX': ['america', 'mexico', 'north america'],
+      'US': ['north america', 'united states', 'usa'], 'CA': ['north america', 'canada'],
+      'MX': ['north america', 'mexico'],
       
       // South American countries
-      'BR': ['america', 'brazil', 'south america'], 'AR': ['america', 'argentina', 'south america'],
-      'CL': ['america', 'chile', 'south america'], 'PE': ['america', 'peru', 'south america'], 
-      'CO': ['america', 'colombia', 'south america'],
+      'AR': ['south america', 'argentina'], 'BO': ['south america', 'bolivia'], 
+      'BR': ['south america', 'brazil'], 'CL': ['south america', 'chile'], 
+      'CO': ['south america', 'colombia'], 'CR': ['south america', 'costa rica'],
+      'EC': ['south america', 'ecuador'], 'SV': ['south america', 'el salvador'],
+      'GP': ['south america', 'french west indies'], 'GT': ['south america', 'guatemala'],
+      'HN': ['south america', 'honduras'], 'NI': ['south america', 'nicaragua'],
+      'PA': ['south america', 'panama'], 'PY': ['south america', 'paraguay'],
+      'PE': ['south america', 'peru'], 'PR': ['south america', 'puerto rico'],
+      'UY': ['south america', 'uruguay'],
       
       // Middle East and Gulf countries
       'AE': ['middle east', 'emirates', 'gulf', 'arab'], 'SA': ['middle east', 'saudi', 'gulf', 'arab'],

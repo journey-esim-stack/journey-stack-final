@@ -62,6 +62,34 @@ const getRegionalCoverage = (planTitle: string, countryCode: string): { name: st
     { name: 'Finland', code: 'FI', flag: '🇫🇮' },
     { name: 'Ireland', code: 'IE', flag: '🇮🇪' }
   ];
+
+  // North America countries
+  const northAmericaCountries = [
+    { name: 'Canada', code: 'CA', flag: '🇨🇦' },
+    { name: 'Mexico', code: 'MX', flag: '🇲🇽' },
+    { name: 'United States', code: 'US', flag: '🇺🇸' }
+  ];
+
+  // South America countries
+  const southAmericaCountries = [
+    { name: 'Argentina', code: 'AR', flag: '🇦🇷' },
+    { name: 'Bolivia', code: 'BO', flag: '🇧🇴' },
+    { name: 'Brazil', code: 'BR', flag: '🇧🇷' },
+    { name: 'Chile', code: 'CL', flag: '🇨🇱' },
+    { name: 'Colombia', code: 'CO', flag: '🇨🇴' },
+    { name: 'Costa Rica', code: 'CR', flag: '🇨🇷' },
+    { name: 'Ecuador', code: 'EC', flag: '🇪🇨' },
+    { name: 'El Salvador', code: 'SV', flag: '🇸🇻' },
+    { name: 'French West Indies', code: 'GP', flag: '🇬🇵' },
+    { name: 'Guatemala', code: 'GT', flag: '🇬🇹' },
+    { name: 'Honduras', code: 'HN', flag: '🇭🇳' },
+    { name: 'Nicaragua', code: 'NI', flag: '🇳🇮' },
+    { name: 'Panama', code: 'PA', flag: '🇵🇦' },
+    { name: 'Paraguay', code: 'PY', flag: '🇵🇾' },
+    { name: 'Peru', code: 'PE', flag: '🇵🇪' },
+    { name: 'Puerto Rico', code: 'PR', flag: '🇵🇷' },
+    { name: 'Uruguay', code: 'UY', flag: '🇺🇾' }
+  ];
   
   // Asia regional plans - return the exact number of countries based on area count
   if (countryCode === 'RG' && (title.includes('asia') || title.includes('areas'))) {
@@ -77,6 +105,16 @@ const getRegionalCoverage = (planTitle: string, countryCode: string): { name: st
       return europeanCountries.slice(0, areaCount);
     }
     return europeanCountries;
+  }
+
+  // North America regional plans
+  if (countryCode === 'RG' && (title.includes('north america') || title.includes('america'))) {
+    return northAmericaCountries;
+  }
+
+  // South America regional plans
+  if (countryCode === 'RG' && title.includes('south america')) {
+    return southAmericaCountries;
   }
   
   // Default fallback for other regional plans

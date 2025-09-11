@@ -382,21 +382,23 @@ export default function Plans() {
     <Layout>
       <div className="space-y-8 animate-fade-in">
         {/* Header Section */}
-        <div className="glass-intense p-8 text-left">
-          <h1 className="text-4xl font-bold mb-4 text-black">
-            Explore premium eSIM Plans
-          </h1>
-          <p className="text-muted-foreground text-lg mb-6">
-            Browse curated data plans for your customers. Sell better eSIMs, faster with smart filtering, local pricing, instant downloads.
-          </p>
-          <div className="flex items-center justify-start gap-2 mt-4 text-sm text-muted-foreground">
-            <Globe className="h-4 w-4" />
-            <span>{plans.length} plans available</span>
-            <span>•</span>
-            <Database className="h-4 w-4" />
-            <span>{regions.length} regions covered</span>
-          </div>
-        </div>
+        <Card className="glass-card">
+          <CardHeader className="text-left">
+            <CardTitle className="text-4xl font-bold text-black">
+              Explore premium eSIM Plans
+            </CardTitle>
+            <CardDescription className="text-lg">
+              Browse curated data plans for your customers. Sell better eSIMs, faster with smart filtering, local pricing, instant downloads.
+            </CardDescription>
+            <div className="flex items-center justify-start gap-2 mt-4 text-sm text-muted-foreground">
+              <Globe className="h-4 w-4" />
+              <span>{plans.length} plans available</span>
+              <span>•</span>
+              <Database className="h-4 w-4" />
+              <span>{regions.length} regions covered</span>
+            </div>
+          </CardHeader>
+        </Card>
 
         {/* Search and Filter Section */}
         <div className="glass-intense p-6">
@@ -444,52 +446,53 @@ export default function Plans() {
             </Select>
           </div>
 
-          {/* Popular Countries Tabs */}
-          <div className="mt-6">
-            <h3 className="text-sm font-medium text-muted-foreground mb-3">Popular Countries</h3>
-            <Tabs value={selectedCountry} onValueChange={setSelectedCountry} className="w-full">
-              <TabsList className="h-auto p-1 glass-intense border-0 flex-wrap justify-start">
-                <TabsTrigger 
-                  value="all" 
-                  className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-full px-4 py-2 text-sm"
-                >
-                  All Countries
-                </TabsTrigger>
-                {popularCountries.map((country) => (
+            {/* Popular Countries Tabs */}
+            <div className="mt-6">
+              <h3 className="text-sm font-medium text-muted-foreground mb-3">Popular Countries</h3>
+              <Tabs value={selectedCountry} onValueChange={setSelectedCountry} className="w-full">
+                <TabsList className="h-auto p-1 glass-intense border-0 flex-wrap justify-start">
                   <TabsTrigger 
-                    key={country.code} 
-                    value={country.code}
-                    className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-full px-4 py-2 text-sm flex items-center gap-2"
+                    value="all" 
+                    className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-full px-4 py-2 text-sm"
                   >
-                    <span>{country.flag}</span>
-                    <span>{country.name}</span>
+                    All Countries
                   </TabsTrigger>
-                ))}
-              </TabsList>
-            </Tabs>
-          </div>
-          
-          {(debouncedSearchQuery || selectedRegion !== "all" || selectedCountry !== "all") ? (
-            <div className="mt-4 flex items-center gap-2 text-sm text-muted-foreground flex-wrap">
-              <span>Showing {sortedPlans.length} of {plans?.length || 0} plans</span>
-              {debouncedSearchQuery && (
-                <Badge variant="secondary" className="glass-intense border-0">
-                  Search: {searchQuery}
-                </Badge>
-              )}
-              {selectedRegion !== "all" && (
-                <Badge variant="secondary" className="glass-intense border-0">
-                  Region: {selectedRegion}
-                </Badge>
-              )}
-              {selectedCountry !== "all" && (
-                <Badge variant="secondary" className="glass-intense border-0">
-                  Country: {popularCountries.find(c => c.code === selectedCountry)?.name || selectedCountry}
-                </Badge>
-              )}
+                  {popularCountries.map((country) => (
+                    <TabsTrigger 
+                      key={country.code} 
+                      value={country.code}
+                      className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-full px-4 py-2 text-sm flex items-center gap-2"
+                    >
+                      <span>{country.flag}</span>
+                      <span>{country.name}</span>
+                    </TabsTrigger>
+                  ))}
+                </TabsList>
+              </Tabs>
             </div>
-          ) : null}
-        </div>
+            
+            {(debouncedSearchQuery || selectedRegion !== "all" || selectedCountry !== "all") ? (
+              <div className="mt-4 flex items-center gap-2 text-sm text-muted-foreground flex-wrap">
+                <span>Showing {sortedPlans.length} of {plans?.length || 0} plans</span>
+                {debouncedSearchQuery && (
+                  <Badge variant="secondary" className="glass-intense border-0">
+                    Search: {searchQuery}
+                  </Badge>
+                )}
+                {selectedRegion !== "all" && (
+                  <Badge variant="secondary" className="glass-intense border-0">
+                    Region: {selectedRegion}
+                  </Badge>
+                )}
+                {selectedCountry !== "all" && (
+                  <Badge variant="secondary" className="glass-intense border-0">
+                    Country: {popularCountries.find(c => c.code === selectedCountry)?.name || selectedCountry}
+                  </Badge>
+                )}
+              </div>
+            ) : null}
+          </CardContent>
+        </Card>
 
         {/* Plans Grid */}
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -500,23 +503,23 @@ export default function Plans() {
               style={{ animationDelay: `${index * 100}ms` }}
             >
               <CardHeader className="pb-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                      <span className="text-3xl">{getCountryFlag(plan.country_code)}</span>
-                      <div className="flex-1">
-                        <CardTitle className="text-lg leading-tight">{plan.title}</CardTitle>
-                        <CardDescription className="text-sm font-medium flex flex-col gap-1">
-                          <span>{plan.country_name}</span>
-                          {plan.country_code === 'RG' && (
-                            <RegionalPlanDropdown planTitle={plan.title} countryCode={plan.country_code} />
-                          )}
-                        </CardDescription>
-                      </div>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <span className="text-3xl">{getCountryFlag(plan.country_code)}</span>
+                    <div className="flex-1">
+                      <CardTitle className="text-lg leading-tight">{plan.title}</CardTitle>
+                      <CardDescription className="text-sm font-medium flex flex-col gap-1">
+                        <span>{plan.country_name}</span>
+                        {plan.country_code === 'RG' && (
+                          <RegionalPlanDropdown planTitle={plan.title} countryCode={plan.country_code} />
+                        )}
+                      </CardDescription>
                     </div>
-                    <Badge variant="secondary" className="glass-intense text-xs border-2 border-primary/60">
-                      {plan.country_code}
-                    </Badge>
                   </div>
+                  <Badge variant="secondary" className="glass-intense text-xs border-2 border-primary/60">
+                    {plan.country_code}
+                  </Badge>
+                </div>
               </CardHeader>
               
                <CardContent className="space-y-6">

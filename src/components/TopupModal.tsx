@@ -18,6 +18,7 @@ interface TopupPlan {
   data_amount: string;
   validity_days: number;
   wholesale_price: number;
+  retail_price: number;
   currency: string;
   country_name: string;
   country_code: string;
@@ -104,7 +105,7 @@ const TopupModal = ({ isOpen, onClose, iccid, packageCode, onTopupComplete }: To
         body: {
           iccid,
           packageCode: plan.packageCode,
-          amount: plan.wholesale_price,
+          amount: plan.wholesale_price, // Use wholesale price for wallet deduction
         },
       });
 
@@ -197,9 +198,9 @@ const TopupModal = ({ isOpen, onClose, iccid, packageCode, onTopupComplete }: To
                         </div>
                         <div className="flex items-center gap-2">
                           <DollarSign className="h-4 w-4 text-primary" />
-                          <span className="text-muted-foreground">Cost:</span>
+                          <span className="text-muted-foreground">Price:</span>
                           <span className="font-medium">
-                            ${plan.wholesale_price.toFixed(2)} {plan.currency}
+                            ${plan.retail_price.toFixed(2)} {plan.currency}
                           </span>
                         </div>
                       </div>
@@ -226,7 +227,7 @@ const TopupModal = ({ isOpen, onClose, iccid, packageCode, onTopupComplete }: To
                         {isProcessingThis ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
                         ) : (
-                          `Top-up $${plan.wholesale_price.toFixed(2)}`
+                          `Purchase $${plan.retail_price.toFixed(2)}`
                         )}
                       </Button>
                     </div>

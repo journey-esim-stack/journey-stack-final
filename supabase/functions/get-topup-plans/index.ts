@@ -33,6 +33,25 @@ serve(async (req) => {
       throw new Error("Either iccid or packageCode is required");
     }
 
+    // Use service role client for database operations
+    const supabaseService = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+      { auth: { persistSession: false } }
+    );
+
+    // Get agent profile to fetch markup settings
+    const { data: profile, error: profileError } = await supabaseService
+      .from("agent_profiles")
+      .select("markup_type, markup_value")
+      .eq("user_id", user.id)
+      .single();
+
+    if (profileError) {
+      console.error("Profile fetch error:", profileError);
+      throw new Error("Agent profile not found");
+    }
+
     // Get eSIM Access API credentials
     const accessCode = Deno.env.get("ESIMACCESS_ACCESS_CODE");
     const secretKey = Deno.env.get("ESIMACCESS_SECRET_KEY");
@@ -85,18 +104,31 @@ serve(async (req) => {
 
     const topupPlans = apiData.obj?.packageList || [];
 
-    // Transform the plans to match our format
-    const formattedPlans = topupPlans.map((plan: any) => ({
-      packageCode: plan.packageCode,
-      title: plan.name,
-      data_amount: plan.volume ? `${(plan.volume / (1024 * 1024 * 1024)).toFixed(1)}GB` : plan.description,
-      validity_days: plan.duration,
-      wholesale_price: plan.price / 10000, // Convert from API units to dollars (63000 -> 6.30)
-      currency: plan.currencyCode || "USD",
-      country_name: plan.location || "",
-      country_code: plan.locationCode || "",
-      description: plan.description || "",
-    }));
+    // Transform the plans to match our format and apply agent markup
+    const formattedPlans = topupPlans.map((plan: any) => {
+      const wholesalePrice = plan.price / 10000; // Convert from API units to dollars
+      
+      // Apply agent markup
+      let retailPrice = wholesalePrice;
+      if (profile.markup_type === 'percent') {
+        retailPrice = wholesalePrice * (1 + profile.markup_value / 100);
+      } else if (profile.markup_type === 'fixed') {
+        retailPrice = wholesalePrice + profile.markup_value;
+      }
+
+      return {
+        packageCode: plan.packageCode,
+        title: plan.name,
+        data_amount: plan.volume ? `${(plan.volume / (1024 * 1024 * 1024)).toFixed(1)}GB` : plan.description,
+        validity_days: plan.duration,
+        wholesale_price: wholesalePrice, // Keep original wholesale price for wallet deduction
+        retail_price: retailPrice, // Price shown to agent
+        currency: plan.currencyCode || "USD",
+        country_name: plan.location || "",
+        country_code: plan.locationCode || "",
+        description: plan.description || "",
+      };
+    });
 
     return new Response(JSON.stringify({ success: true, plans: formattedPlans }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

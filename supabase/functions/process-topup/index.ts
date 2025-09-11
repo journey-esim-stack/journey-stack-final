@@ -67,6 +67,50 @@ serve(async (req) => {
 
     console.log("Processing top-up with eSIM Access API...");
 
+    // First, refresh the latest plans to get current pricing
+    console.log("Refreshing top-up plans...");
+    const refreshPlansResponse = await fetch("https://api.esimaccess.com/api/v1/open/package/list", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "RT-AccessCode": accessCode,
+        "RT-SecretKey": secretKey,
+      },
+      body: JSON.stringify({
+        type: "TOPUP",
+        iccid: iccid,
+        packageCode: packageCode,
+      }),
+    });
+
+    if (!refreshPlansResponse.ok) {
+      const errorText = await refreshPlansResponse.text();
+      console.error("Failed to refresh plans:", refreshPlansResponse.status, errorText);
+      throw new Error(`Failed to refresh plans: ${refreshPlansResponse.status} - ${errorText}`);
+    }
+
+    const refreshPlansData = await refreshPlansResponse.json();
+    console.log("Refreshed plans response:", refreshPlansData);
+
+    // Check if refresh was successful
+    const refreshSuccess = refreshPlansData?.success === true || refreshPlansData?.success === "true";
+    if (!refreshSuccess) {
+      const errCode = refreshPlansData?.errorCode ?? "unknown";
+      const errMsg = refreshPlansData?.errorMessage ?? refreshPlansData?.errorMsg ?? "Failed to refresh plans";
+      console.error("Plans refresh failed:", { errCode, errMsg, refreshPlansData });
+      throw new Error(`Plans refresh failed: ${errCode} - ${errMsg}`);
+    }
+
+    // Find the specific package from refreshed plans
+    const availablePlans = refreshPlansData.obj?.packageList || [];
+    const targetPlan = availablePlans.find((plan: any) => plan.packageCode === packageCode);
+    
+    if (!targetPlan) {
+      throw new Error(`Package ${packageCode} not found in refreshed plans`);
+    }
+
+    console.log("Found target plan:", targetPlan);
+
     // Generate unique transaction ID
     const transactionId = `TOPUP_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
@@ -138,12 +182,36 @@ serve(async (req) => {
       // Don't throw here as the top-up was successful
     }
 
+    // Record the top-up in history
+    const dataAmount = targetPlan.volume ? `${(targetPlan.volume / (1024 * 1024 * 1024)).toFixed(1)}GB` : targetPlan.description;
+    const { error: topupError } = await supabaseService
+      .from("esim_topups")
+      .insert({
+        agent_id: profile.id,
+        iccid: iccid,
+        package_code: packageCode,
+        amount: amount,
+        data_amount: dataAmount,
+        validity_days: targetPlan.duration,
+        transaction_id: transactionId,
+        status: 'completed',
+      });
+
+    if (topupError) {
+      console.error("Top-up history record error:", topupError);
+      // Don't throw here as the top-up was successful
+    }
+
     return new Response(
       JSON.stringify({
         success: true,
         transactionId: transactionId,
         newBalance: newBalance,
         topupDetails: apiResult.obj,
+        planDetails: {
+          data_amount: dataAmount,
+          validity_days: targetPlan.duration,
+        },
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },

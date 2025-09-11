@@ -64,11 +64,22 @@ interface ESIMDetails {
   }>;
 }
 
+interface TopupHistory {
+  id: string;
+  package_code: string;
+  amount: number;
+  data_amount: string;
+  validity_days: number;
+  status: string;
+  created_at: string;
+}
+
 const ESimDetail = () => {
   const { iccid } = useParams();
   const navigate = useNavigate();
   const [esimDetails, setEsimDetails] = useState<ESIMDetails | null>(null);
   const [orderInfo, setOrderInfo] = useState<any>(null);
+  const [topupHistory, setTopupHistory] = useState<TopupHistory[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("summary");
   const [showTopupModal, setShowTopupModal] = useState(false);
@@ -81,22 +92,32 @@ const ESimDetail = () => {
 
   const fetchESIMDetails = async () => {
     try {
-      // First get order information from database
-      const { data: orderData, error: orderError } = await supabase
-        .from("orders")
-        .select(`
-          *,
-          esim_plans (
-            id,
-            title,
-            country_name,
-            country_code,
-            data_amount,
-            validity_days
-          )
-        `)
-        .eq("esim_iccid", iccid)
-        .single();
+      // Fetch order information and top-up history in parallel
+      const [orderResponse, topupResponse] = await Promise.all([
+        supabase
+          .from("orders")
+          .select(`
+            *,
+            esim_plans (
+              id,
+              title,
+              country_name,
+              country_code,
+              data_amount,
+              validity_days
+            )
+          `)
+          .eq("esim_iccid", iccid)
+          .single(),
+        supabase
+          .from("esim_topups")
+          .select("*")
+          .eq("iccid", iccid)
+          .order("created_at", { ascending: false })
+      ]);
+
+      const { data: orderData, error: orderError } = orderResponse;
+      const { data: topupData, error: topupError } = topupResponse;
 
       if (orderError) {
         console.error("Error fetching order:", orderError);
@@ -603,7 +624,10 @@ const ESimDetail = () => {
           onClose={() => setShowTopupModal(false)}
           iccid={iccid || ""}
           packageCode={esimDetails?.plan?.plan_id}
-          onTopupComplete={fetchESIMDetails}
+          onTopupComplete={() => {
+            setShowTopupModal(false);
+            fetchESIMDetails(); // Refresh to show new top-up
+          }}
         />
       </div>
     </Layout>

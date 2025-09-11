@@ -152,6 +152,48 @@ export type Database = {
         }
         Relationships: []
       }
+      esim_topups: {
+        Row: {
+          agent_id: string
+          amount: number
+          created_at: string
+          data_amount: string | null
+          iccid: string
+          id: string
+          package_code: string
+          status: string
+          transaction_id: string
+          updated_at: string
+          validity_days: number | null
+        }
+        Insert: {
+          agent_id: string
+          amount: number
+          created_at?: string
+          data_amount?: string | null
+          iccid: string
+          id?: string
+          package_code: string
+          status?: string
+          transaction_id: string
+          updated_at?: string
+          validity_days?: number | null
+        }
+        Update: {
+          agent_id?: string
+          amount?: number
+          created_at?: string
+          data_amount?: string | null
+          iccid?: string
+          id?: string
+          package_code?: string
+          status?: string
+          transaction_id?: string
+          updated_at?: string
+          validity_days?: number | null
+        }
+        Relationships: []
+      }
       orders: {
         Row: {
           activation_code: string | null

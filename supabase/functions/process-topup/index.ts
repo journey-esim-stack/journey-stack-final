@@ -29,8 +29,8 @@ serve(async (req) => {
     if (!user) throw new Error("User not authenticated");
 
     const { iccid, packageCode, amount } = await req.json();
-    if (!iccid || !packageCode || !amount) {
-      throw new Error("iccid, packageCode, and amount are required");
+    if (!iccid || !packageCode) {
+      throw new Error("iccid and packageCode are required");
     }
 
     // Use service role client for database operations
@@ -52,10 +52,7 @@ serve(async (req) => {
       throw new Error("Agent profile not found");
     }
 
-    // Check if agent has enough balance
-    if (profile.wallet_balance < amount) {
-      throw new Error("Insufficient wallet balance");
-    }
+    // Wallet balance check will occur after fetching latest provider price and applying markup
 
     // Get eSIM Access API credentials
     const accessCode = Deno.env.get("ESIMACCESS_ACCESS_CODE");
@@ -111,6 +108,20 @@ serve(async (req) => {
 
     console.log("Found target plan:", targetPlan);
 
+    // Compute wallet deduction using agent markup
+    const wholesaleDollars = targetPlan.price / 10000;
+    let retailCharge = wholesaleDollars;
+    if (profile.markup_type === "percent") {
+      retailCharge = wholesaleDollars * (1 + Number(profile.markup_value) / 100);
+    } else if (profile.markup_type === "fixed") {
+      retailCharge = wholesaleDollars + Number(profile.markup_value);
+    }
+
+    // Ensure sufficient balance based on retail charge
+    if (profile.wallet_balance < retailCharge) {
+      throw new Error("Insufficient wallet balance");
+    }
+
     // Generate unique transaction ID
     const transactionId = `TOPUP_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
@@ -118,7 +129,7 @@ serve(async (req) => {
     const topupPayload = {
       iccid: iccid,
       packageCode: packageCode,
-      amount: (amount * 100).toString(), // Convert to cents
+      amount: String(Math.round(targetPlan.price / 100)), // Provider expects current package price in cents
       transactionId: transactionId,
     };
 
@@ -153,7 +164,7 @@ serve(async (req) => {
     }
 
     // Deduct amount from agent's wallet
-    const newBalance = profile.wallet_balance - amount;
+    const newBalance = profile.wallet_balance - retailCharge;
     
     const { error: balanceError } = await supabaseService
       .from("agent_profiles")
@@ -171,7 +182,7 @@ serve(async (req) => {
       .insert({
         agent_id: profile.id,
         transaction_type: "debit",
-        amount: -amount,
+        amount: -retailCharge,
         balance_after: newBalance,
         description: `Top-up for eSIM ${iccid}`,
         reference_id: transactionId,
@@ -190,7 +201,7 @@ serve(async (req) => {
         agent_id: profile.id,
         iccid: iccid,
         package_code: packageCode,
-        amount: amount,
+        amount: retailCharge,
         data_amount: dataAmount,
         validity_days: targetPlan.duration,
         transaction_id: transactionId,

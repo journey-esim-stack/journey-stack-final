@@ -135,6 +135,23 @@ export default function Layout({ children }: LayoutProps) {
         {children}
       </main>
       
+      {/* Footer */}
+      <footer className="border-t bg-card mt-auto">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div className="flex items-center space-x-4">
+              <img src="/lovable-uploads/1e1f433f-d326-4551-ba07-4e6b9e5c259f.png" alt="Journey Stack" className="h-10" />
+              <p className="text-foreground/80 text-sm max-w-xs">
+                Journey Stack is designed to revolutionize how eSim operate.
+              </p>
+            </div>
+            <div className="text-sm text-foreground/60">
+              © 2025 Journey Stack, Inc. All rights reserved
+            </div>
+          </div>
+        </div>
+      </footer>
+      
       {/* Global Cart Sidebar */}
       <CartSidebar />
     </div>

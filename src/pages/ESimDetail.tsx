@@ -320,78 +320,90 @@ const ESimDetail = () => {
               </CardContent>
             </Card>
 
-            {/* Data Plans Table */}
+            {/* Data Usage Component - Enhanced with Progress Bar */}
             <Card className="glass-card">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Activity className="h-5 w-5 text-primary" />
-                  Data Plans
+                  Data Usage
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow className="hover:bg-white/5 border-white/10">
-                      <TableHead className="text-muted-foreground">ID</TableHead>
-                      <TableHead className="text-muted-foreground">Name</TableHead>
-                      <TableHead className="text-muted-foreground">Status</TableHead>
-                      <TableHead className="text-muted-foreground">Data Usage</TableHead>
-                      <TableHead className="text-muted-foreground">Validity</TableHead>
-                      <TableHead className="text-muted-foreground">Created</TableHead>
-                      <TableHead className="text-muted-foreground">Expiration</TableHead>
-                      <TableHead className="text-muted-foreground"></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {esimDetails.sessions.map((session) => (
-                      <TableRow key={session.id} className="hover:bg-white/5 border-white/10">
-                        <TableCell className="font-mono text-sm">{session.id}</TableCell>
-                        <TableCell className="flex items-center gap-2">
-                          <span className="text-2xl">🇬🇧</span>
-                          <span className="font-medium">{esimDetails.plan.name}</span>
-                        </TableCell>
-                        <TableCell>
-                          <Badge className="bg-blue-500/10 text-blue-600 border-blue-500/20">
-                            {session.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="space-y-2">
-                            <div className="flex items-center justify-between text-sm">
-                              <span>{esimDetails.data_usage.used} GB Used / {esimDetails.data_usage.total} GB</span>
-                            </div>
-                            <div className="w-full bg-secondary rounded-full h-2">
-                              <div 
-                                className="h-2 bg-primary rounded-full transition-all duration-300" 
-                                style={{ width: `${usagePercentage}%` }}
-                              ></div>
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <span className="font-medium">{esimDetails.plan.validity} Days</span>
-                        </TableCell>
-                        <TableCell>
-                          <span className="text-sm">{format(new Date(session.start_time), "yyyy-MM-dd HH:mm:ss")}</span>
-                        </TableCell>
-                        <TableCell>
-                          <span className="text-sm">{format(new Date(session.end_time), "yyyy-MM-dd HH:mm:ss")}</span>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Button variant="outline" size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90">
-                              <Plus className="h-4 w-4 mr-2" />
-                              Top-up
-                            </Button>
-                            <Button variant="ghost" size="sm" className="hover:bg-white/10">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                {/* Main Data Usage Display */}
+                <div className="space-y-6">
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-6 items-center">
+                    {/* Status */}
+                    <div className="text-center">
+                      <p className="text-sm text-muted-foreground mb-2">Status</p>
+                      <Badge className="bg-blue-500/10 text-blue-600 border-blue-500/20">
+                        {esimDetails.status}
+                      </Badge>
+                    </div>
+
+                    {/* Data Usage */}
+                    <div className="text-center">
+                      <p className="text-sm text-muted-foreground mb-2">Data Usage</p>
+                      <div className="text-lg font-semibold">
+                        {esimDetails.data_usage.used} {esimDetails.data_usage.unit} Used / {esimDetails.data_usage.total} {esimDetails.data_usage.unit}
+                      </div>
+                    </div>
+
+                    {/* Validity */}
+                    <div className="text-center">
+                      <p className="text-sm text-muted-foreground mb-2">Validity</p>
+                      <div className="text-lg font-semibold">
+                        {esimDetails.plan.validity} Days
+                      </div>
+                    </div>
+
+                    {/* Created */}
+                    <div className="text-center">
+                      <p className="text-sm text-muted-foreground mb-2">Created</p>
+                      <div className="text-sm">
+                        {format(new Date(orderInfo.created_at), "yyyy-MM-dd")}
+                        <br />
+                        <span className="text-xs text-muted-foreground">
+                          {format(new Date(orderInfo.created_at), "HH:mm:ss")}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Expiration */}
+                    <div className="text-center">
+                      <p className="text-sm text-muted-foreground mb-2">Expiration</p>
+                      <div className="text-sm">
+                        {format(new Date(esimDetails.plan.expires_at), "yyyy-MM-dd")}
+                        <br />
+                        <span className="text-xs text-muted-foreground">
+                          {format(new Date(esimDetails.plan.expires_at), "HH:mm:ss")}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Progress Bar */}
+                  <div className="relative">
+                    <div className="flex items-center justify-between text-sm mb-2">
+                      <span className="text-muted-foreground">Data Progress</span>
+                      <span className="font-medium">{Math.round(usagePercentage)}% used</span>
+                    </div>
+                    <div className="w-full bg-secondary rounded-full h-3 overflow-hidden">
+                      <div 
+                        className="h-full bg-gradient-to-r from-orange-500 to-orange-600 rounded-full transition-all duration-500 ease-out relative"
+                        style={{ width: `${usagePercentage}%` }}
+                      >
+                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-pulse"></div>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between text-xs text-muted-foreground mt-2">
+                      <span>{remainingData.toFixed(2)} {esimDetails.data_usage.unit} remaining</span>
+                      <Button variant="outline" size="sm" className="bg-orange-500 text-white hover:bg-orange-600 border-orange-500">
+                        <Plus className="h-3 w-3 mr-1" />
+                        Top-up
+                      </Button>
+                    </div>
+                  </div>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>

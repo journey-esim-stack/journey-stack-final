@@ -38,7 +38,7 @@ serve(async (req) => {
     }
 
     // Fetch eSIM details from eSIM Access API
-    const response = await fetch('https://api.esimaccess.com/api/v1/esim/details', {
+    const response = await fetch('https://api.esimaccess.com/api/v1/esim/info', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

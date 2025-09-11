@@ -222,8 +222,6 @@ export default function Dashboard() {
     );
   }
 
-  const totalRevenue = orders.reduce((sum, order) => sum + (order.retail_price || 0), 0);
-  const totalMargin = orders.reduce((sum, order) => sum + ((order.retail_price || 0) - (order.wholesale_price || 0)), 0);
 
   return (
     <Layout>
@@ -242,7 +240,7 @@ export default function Dashboard() {
         </div>
 
         {/* Dashboard Metrics */}
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-6 md:grid-cols-3">
           <MetricCard
             title="Total Orders"
             value={orders.length}
@@ -273,18 +271,6 @@ export default function Dashboard() {
             description="Available credit"
             icon={<DollarSign className="h-4 w-4" />}
             illustration="/illustrations/idea-new.png"
-          />
-
-          <MetricCard
-            title="Total Revenue"
-            value={`$${totalRevenue.toFixed(2)}`}
-            description={`$${totalMargin.toFixed(2)} profit margin`}
-            icon={<DollarSign className="h-4 w-4" />}
-            illustration="/illustrations/success-new.png"
-            trend={{
-              value: totalRevenue > 0 ? 15 : 0,
-              label: "vs last month"
-            }}
           />
         </div>
 

@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -47,6 +47,14 @@ export default function Plans() {
   const { toast } = useToast();
   const { addToCart } = useCart();
   const { convertPrice, getCurrencySymbol, selectedCurrency } = useCurrency();
+  const [userId, setUserId] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+  useEffect(() => {
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setUserId(user?.id ?? null);
+    })();
+  }, []);
   
   // Debounce search query for better performance
   const debouncedSearchQuery = useDebouncedValue(searchQuery, 300);
@@ -146,11 +154,34 @@ export default function Plans() {
   };
 
   const { data: plans = [], isLoading, error } = useQuery<EsimPlan[]>({
-    queryKey: ['esim-plans'],
+    queryKey: ['esim-plans', userId],
     queryFn: fetchPlans,
+    enabled: !!userId,
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes
   });
+
+  // Realtime: refetch when my agent profile markup updates
+  useEffect(() => {
+    if (!userId) return;
+    const channel = supabase
+      .channel('agent_markup_changes_plans')
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'agent_profiles' },
+        (payload) => {
+          if (payload.new?.user_id === userId) {
+            queryClient.invalidateQueries({ queryKey: ['esim-plans', userId] });
+            toast({ title: 'Pricing updated', description: 'Your plan prices have been recalculated.' });
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [userId, queryClient]);
 
   if (error) {
     toast({

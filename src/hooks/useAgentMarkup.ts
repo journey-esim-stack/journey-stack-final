@@ -15,9 +15,10 @@ export const useAgentMarkup = () => {
     const currentMarkup = markupData || markup;
     if (!currentMarkup) return wholesalePrice;
 
-    if (currentMarkup.markup_type === 'percent') {
+    const type = currentMarkup.markup_type?.toLowerCase();
+    if (type === 'percent') {
       return wholesalePrice * (1 + currentMarkup.markup_value / 100);
-    } else if (currentMarkup.markup_type === 'fixed') {
+    } else if (type === 'fixed' || type === 'flat') {
       return wholesalePrice + currentMarkup.markup_value;
     }
     return wholesalePrice;

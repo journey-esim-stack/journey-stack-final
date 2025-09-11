@@ -107,7 +107,7 @@ export default function AdminAgents() {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="percent">Percent</SelectItem>
-                          <SelectItem value="flat">Flat</SelectItem>
+                          <SelectItem value="flat">Flat (Fixed amount)</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>

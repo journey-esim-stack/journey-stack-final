@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { User as SupabaseUser } from "@supabase/supabase-js";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { LogOut, Package, Wallet, ShoppingCart, ShieldCheck, Smartphone, User } from "lucide-react";
+import { LogOut, Package, Wallet, ShoppingCart, ShieldCheck, Smartphone, User, BarChart3 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import CartSidebar from "@/components/CartSidebar";
 import CartIcon from "@/components/CartIcon";
@@ -78,7 +78,7 @@ export default function Layout({ children }: LayoutProps) {
   }
 
   const navigation = [
-    { name: "Dashboard", href: "/dashboard", icon: ShoppingCart },
+    { name: "Dashboard", href: "/dashboard", icon: BarChart3 },
     { name: "Plans", href: "/plans", icon: Package },
     { name: "Wallet", href: "/wallet", icon: Wallet },
     { name: "eSIMs", href: "/esims", icon: Smartphone },
@@ -105,7 +105,7 @@ export default function Layout({ children }: LayoutProps) {
                       className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                         location.pathname === item.href
                           ? "bg-primary text-primary-foreground"
-                          : "text-muted-foreground hover:text-foreground hover:bg-accent"
+                          : "text-muted-foreground/80 hover:text-foreground hover:bg-accent"
                       }`}
                     >
                       <Icon className="h-4 w-4" />

@@ -390,14 +390,14 @@ const ESims = () => {
     <Layout>
       <div className="space-y-8 animate-fade-in">
         {/* Header Section */}
-        <div className="glass-intense p-8 text-center">
-          <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r from-primary via-primary to-accent bg-clip-text text-transparent">
+        <div className="glass-intense p-8 text-left">
+          <h1 className="text-4xl font-bold mb-4 text-black">
             My eSIMs
           </h1>
           <p className="text-muted-foreground text-lg mb-6">
-            Manage and monitor your purchased eSIMs
+            Manage and monitor your purchased eSIMs. View activation status, data usage, and download QR codes.
           </p>
-          <div className="flex items-center justify-center gap-2 mt-4 text-sm text-muted-foreground">
+          <div className="flex items-center justify-start gap-2 mt-4 text-sm text-muted-foreground">
             <Wifi className="h-4 w-4" />
             <span>{orders.length} eSIMs purchased</span>
             <span>•</span>

@@ -107,14 +107,14 @@ const getRegionalCoverage = (planTitle: string, countryCode: string): { name: st
     return europeanCountries;
   }
 
-  // North America regional plans
-  if (countryCode === 'RG' && (title.includes('north america') || title.includes('america'))) {
-    return northAmericaCountries;
-  }
-
-  // South America regional plans
+  // South America regional plans (check this first to avoid conflict with "america")
   if (countryCode === 'RG' && title.includes('south america')) {
     return southAmericaCountries;
+  }
+
+  // North America regional plans
+  if (countryCode === 'RG' && title.includes('north america')) {
+    return northAmericaCountries;
   }
   
   // Default fallback for other regional plans

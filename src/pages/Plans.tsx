@@ -211,12 +211,12 @@ export default function Plans() {
       'PE': ['south america', 'peru'], 'PR': ['south america', 'puerto rico'],
       'UY': ['south america', 'uruguay'],
       
-      // Middle East and Gulf countries
+      // Gulf and Middle East countries
       'AE': ['middle east', 'emirates', 'gulf', 'arab', 'north africa'], 'SA': ['middle east', 'saudi', 'gulf', 'arab'],
       'QA': ['middle east', 'qatar', 'gulf', 'arab'], 'KW': ['middle east', 'kuwait', 'gulf', 'arab'],
       'BH': ['middle east', 'bahrain', 'gulf', 'arab'], 'OM': ['middle east', 'oman', 'gulf', 'arab'],
-      'IL': ['middle east', 'israel'], 'JO': ['middle east', 'jordan'], 'LB': ['middle east', 'lebanon'],
-      'SY': ['middle east', 'syria'], 'IQ': ['middle east', 'iraq'], 'IR': ['middle east', 'iran'],
+      'IQ': ['middle east', 'iraq', 'gulf'], 'IL': ['middle east', 'israel'], 'JO': ['middle east', 'jordan'], 
+      'LB': ['middle east', 'lebanon'], 'SY': ['middle east', 'syria'], 'IR': ['middle east', 'iran'],
       'AM': ['middle east', 'armenia'], 'AZ': ['middle east', 'azerbaijan'],
       
       // North Africa countries (also part of Middle East & North Africa region)

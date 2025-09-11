@@ -107,6 +107,16 @@ const getRegionalCoverage = (planTitle: string, countryCode: string): { name: st
     { name: 'United Arab Emirates', code: 'AE', flag: '🇦🇪' }
   ];
 
+  // Gulf region countries
+  const gulfCountries = [
+    { name: 'Bahrain', code: 'BH', flag: '🇧🇭' },
+    { name: 'Iraq', code: 'IQ', flag: '🇮🇶' },
+    { name: 'Kuwait', code: 'KW', flag: '🇰🇼' },
+    { name: 'Qatar', code: 'QA', flag: '🇶🇦' },
+    { name: 'Saudi Arabia', code: 'SA', flag: '🇸🇦' },
+    { name: 'United Arab Emirates', code: 'AE', flag: '🇦🇪' }
+  ];
+
   // Middle East countries
   const middleEastCountries = [
     { name: 'Armenia', code: 'AM', flag: '🇦🇲' },
@@ -136,6 +146,11 @@ const getRegionalCoverage = (planTitle: string, countryCode: string): { name: st
       return europeanCountries.slice(0, areaCount);
     }
     return europeanCountries;
+  }
+
+  // Gulf regional plans
+  if (countryCode === 'RG' && title.includes('gulf')) {
+    return gulfCountries;
   }
 
   // Middle East & North Africa regional plans (check first to avoid conflict with "middle east")

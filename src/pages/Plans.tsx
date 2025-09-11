@@ -133,8 +133,8 @@ export default function Plans() {
       type: agentProfile.markup_type || 'percent',
       value: agentProfile.markup_value !== null && agentProfile.markup_value !== undefined 
         ? Number(agentProfile.markup_value) 
-        : 40
-    } : { type: 'percent', value: 40 };
+        : 300
+    } : { type: 'percent', value: 300 };
     
     const plansWithAgentPrices = allPlans.map(plan => {
       const basePrice = Number(plan.wholesale_price) || 0;

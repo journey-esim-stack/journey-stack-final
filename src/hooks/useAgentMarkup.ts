@@ -13,7 +13,7 @@ export const useAgentMarkup = () => {
 
   const calculatePrice = (wholesalePrice: number, markupData?: AgentMarkup) => {
     const currentMarkup = markupData || markup;
-    if (!currentMarkup) return wholesalePrice;
+    if (!currentMarkup) return wholesalePrice * 4; // 300% markup = 4x price
 
     const type = currentMarkup.markup_type?.toLowerCase();
     if (type === 'percent') {
@@ -21,7 +21,7 @@ export const useAgentMarkup = () => {
     } else if (type === 'fixed' || type === 'flat') {
       return wholesalePrice + currentMarkup.markup_value;
     }
-    return wholesalePrice;
+    return wholesalePrice * 4; // 300% markup = 4x price
   };
 
   const fetchMarkup = async () => {

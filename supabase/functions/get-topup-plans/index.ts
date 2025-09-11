@@ -83,18 +83,18 @@ serve(async (req) => {
       throw new Error(`Provider error: ${errCode} - ${errMsg}`);
     }
 
-    const topupPlans = apiData.obj || [];
+    const topupPlans = apiData.obj?.packageList || [];
 
     // Transform the plans to match our format
     const formattedPlans = topupPlans.map((plan: any) => ({
       packageCode: plan.packageCode,
-      title: plan.title,
-      data_amount: plan.dataVolume ? `${(plan.dataVolume / (1024 * 1024 * 1024)).toFixed(1)}GB` : plan.dataDescription,
+      title: plan.name,
+      data_amount: plan.volume ? `${(plan.volume / (1024 * 1024 * 1024)).toFixed(1)}GB` : plan.description,
       validity_days: plan.duration,
       wholesale_price: plan.price / 100, // Convert from cents to dollars
-      currency: plan.currency || "USD",
-      country_name: plan.locationList?.[0]?.name || "",
-      country_code: plan.locationList?.[0]?.code || "",
+      currency: plan.currencyCode || "USD",
+      country_name: plan.location || "",
+      country_code: plan.locationCode || "",
       description: plan.description || "",
     }));
 

@@ -131,7 +131,9 @@ export default function Plans() {
     // Calculate agent prices for each plan using the fetched markup
     const currentMarkup = agentProfile ? {
       type: agentProfile.markup_type || 'percent',
-      value: Number(agentProfile.markup_value) || 40
+      value: agentProfile.markup_value !== null && agentProfile.markup_value !== undefined 
+        ? Number(agentProfile.markup_value) 
+        : 40
     } : { type: 'percent', value: 40 };
     
     const plansWithAgentPrices = allPlans.map(plan => {

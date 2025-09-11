@@ -341,8 +341,8 @@ const ESimDetail = () => {
               </CardHeader>
               <CardContent>
                 {/* Main Data Usage Display */}
-                <div className="space-y-6">
-                  <div className="grid grid-cols-2 md:grid-cols-5 gap-6 items-center">
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-5 gap-6 items-center">
                     {/* Status */}
                     <div className="text-center">
                       <p className="text-sm text-muted-foreground mb-2">Status</p>
@@ -392,28 +392,26 @@ const ESimDetail = () => {
                     </div>
                   </div>
 
-                  {/* Data Progress Bar - Small and Inline */}
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
+                  {/* Data Progress Row */}
+                  <div className="flex items-center justify-between py-3 border-t border-white/10">
+                    <div className="flex items-center gap-4">
+                      <span className="text-sm text-muted-foreground font-medium">Data Progress</span>
                       <div className="flex items-center gap-3">
-                        <span className="text-sm text-muted-foreground">Data Progress</span>
-                        <div className="flex items-center gap-2">
-                          <div className="w-32 bg-gray-200 rounded-full h-2 overflow-hidden">
-                            <div 
-                              className={`h-full bg-gradient-to-r from-orange-500 to-orange-600 rounded-full transition-all duration-500 ease-out ${usagePercentage === 0 ? 'w-0' : ''}`}
-                              style={{ width: `${Math.max(usagePercentage, 0)}%` }}
-                            />
-                          </div>
-                          <span className="text-sm font-medium text-muted-foreground">
-                            {usagePercentage > 100 ? `${Math.round(usagePercentage)}% used` : `${remainingData.toFixed(2)} ${esimDetails.data_usage.unit} remaining`}
-                          </span>
+                        <div className="w-40 bg-gray-200/20 rounded-full h-2 overflow-hidden">
+                          <div 
+                            className={`h-full bg-gradient-to-r from-orange-500 to-orange-600 rounded-full transition-all duration-500 ease-out ${usagePercentage === 0 ? 'w-0' : ''}`}
+                            style={{ width: `${Math.max(usagePercentage, 0)}%` }}
+                          />
                         </div>
+                        <span className="text-sm text-muted-foreground whitespace-nowrap">
+                          {remainingData.toFixed(2)} {esimDetails.data_usage.unit} remaining
+                        </span>
                       </div>
-                      <Button variant="outline" size="sm" className="bg-orange-500 text-white hover:bg-orange-600 border-orange-500 h-7 px-3 text-xs">
-                        <Plus className="h-3 w-3 mr-1" />
-                        Top-up
-                      </Button>
                     </div>
+                    <Button variant="outline" size="sm" className="bg-orange-500 text-white hover:bg-orange-600 border-orange-500 h-8 px-4">
+                      <Plus className="h-3 w-3 mr-1" />
+                      Top-up
+                    </Button>
                   </div>
                 </div>
               </CardContent>

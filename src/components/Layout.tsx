@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { Navigate, Link, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { User } from "@supabase/supabase-js";
+import { User as SupabaseUser } from "@supabase/supabase-js";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { LogOut, Package, DollarSign, Wallet, ShoppingCart, ShieldCheck, Smartphone } from "lucide-react";
+import { LogOut, Package, DollarSign, Wallet, ShoppingCart, ShieldCheck, Smartphone, User } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import CartSidebar from "@/components/CartSidebar";
 import CartIcon from "@/components/CartIcon";
@@ -15,7 +15,7 @@ interface LayoutProps {
 }
 
 export default function Layout({ children }: LayoutProps) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<SupabaseUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const location = useLocation();
@@ -82,6 +82,7 @@ export default function Layout({ children }: LayoutProps) {
     { name: "Pricing", href: "/pricing", icon: DollarSign },
     { name: "Wallet", href: "/wallet", icon: Wallet },
     { name: "eSIMs", href: "/esims", icon: Smartphone },
+    { name: "Profile", href: "/profile", icon: User },
     ...(isAdmin ? [{ name: "Admin: Agents", href: "/admin/agents", icon: ShieldCheck }] : []),
   ];
 

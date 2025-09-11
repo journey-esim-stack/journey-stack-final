@@ -17,6 +17,7 @@ import ESimDetail from "./pages/ESimDetail";
 import AdminAgents from "./pages/AdminAgents";
 import TopupSuccess from "./pages/TopupSuccess";
 import TopupCanceled from "./pages/TopupCanceled";
+import Profile from "./pages/Profile";
 
 const queryClient = new QueryClient();
 
@@ -38,6 +39,7 @@ const App = () => (
             <Route path="/esims" element={<ESims />} />
             <Route path="/esims/:iccid" element={<ESimDetail />} />
             <Route path="/admin/agents" element={<AdminAgents />} />
+            <Route path="/profile" element={<Profile />} />
             <Route path="/wallet/topup-success" element={<TopupSuccess />} />
             <Route path="/wallet/topup-canceled" element={<TopupCanceled />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

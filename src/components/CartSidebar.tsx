@@ -4,6 +4,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/co
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { useCart } from '@/contexts/CartContext';
+import { useCurrency } from '@/contexts/CurrencyContext';
 import { ShoppingCart, Plus, Minus, Trash2, CreditCard } from 'lucide-react';
 import { getCountryFlag } from '@/utils/countryFlags';
 import { supabase } from '@/integrations/supabase/client';
@@ -16,6 +17,7 @@ interface CartSidebarProps {
 
 export default function CartSidebar({ isOpen: externalIsOpen, onOpenChange }: CartSidebarProps = {}) {
   const { state, updateQuantity, removeFromCart, clearCart } = useCart();
+  const { getCurrencySymbol, selectedCurrency } = useCurrency();
   const [internalIsOpen, setInternalIsOpen] = useState(false);
   const { toast } = useToast();
 
@@ -126,7 +128,7 @@ export default function CartSidebar({ isOpen: externalIsOpen, onOpenChange }: Ca
                           </div>
                           <div className="flex items-center justify-between mt-2">
                             <span className="font-bold text-primary">
-                              {item.currency} {item.agentPrice.toFixed(2)}
+                              {getCurrencySymbol()}{item.agentPrice.toFixed(2)} {selectedCurrency}
                             </span>
                             <div className="flex items-center gap-2">
                               <Button
@@ -169,7 +171,7 @@ export default function CartSidebar({ isOpen: externalIsOpen, onOpenChange }: Ca
                 <div className="flex justify-between items-center">
                   <span className="font-semibold">Total:</span>
                   <span className="font-bold text-lg text-primary">
-                    USD {state.total.toFixed(2)}
+                    {getCurrencySymbol()}{state.total.toFixed(2)} {selectedCurrency}
                   </span>
                 </div>
 

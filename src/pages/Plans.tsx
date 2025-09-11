@@ -12,6 +12,7 @@ import { Search, Globe, Clock, Database, Wifi, Router, ShoppingCart, Check, Arro
 import Layout from "@/components/Layout";
 import { getCountryFlag, getRegion, getAllRegions } from "@/utils/countryFlags";
 import { useCart } from "@/contexts/CartContext";
+import { useCurrency } from "@/contexts/CurrencyContext";
 import RegionalPlanDropdown from "@/components/RegionalPlanDropdown";
 
 
@@ -42,6 +43,7 @@ export default function Plans() {
   const [sortBy, setSortBy] = useState<string>("default");
   const { toast } = useToast();
   const { addToCart } = useCart();
+  const { convertPrice, getCurrencySymbol, selectedCurrency } = useCurrency();
 
   // Popular countries for quick filtering
   const popularCountries = [
@@ -292,8 +294,8 @@ const fetchPlans = async () => {
       : plan.validity_days;
 
     const price = isDayPass(plan)
-      ? Number(plan.agent_price) * days
-      : Number(plan.agent_price);
+      ? convertPrice(Number(plan.agent_price)) * days
+      : convertPrice(Number(plan.agent_price));
     
     addToCart({
       id: plan.id,
@@ -304,7 +306,7 @@ const fetchPlans = async () => {
       dataAmount: plan.data_amount,
       validityDays: days,
       agentPrice: price,
-      currency: plan.currency
+      currency: selectedCurrency
     });
 
     setAddedToCart(prev => new Set(prev).add(plan.id));
@@ -521,15 +523,15 @@ const fetchPlans = async () => {
                   )}
                   <p className="text-xs text-muted-foreground mb-1">Agent Price</p>
                   <p className="text-2xl font-bold text-primary">
-                    {plan.currency} {(
+                    {getCurrencySymbol()}{(
                       isDayPass(plan)
-                        ? Number(plan.agent_price ?? 0) * (dayPassDays[plan.id] ?? Math.max(plan.validity_days || 1, 1))
-                        : Number(plan.agent_price ?? plan.wholesale_price ?? 0)
-                    ).toFixed(2)}
+                        ? convertPrice(Number(plan.agent_price ?? 0)) * (dayPassDays[plan.id] ?? Math.max(plan.validity_days || 1, 1))
+                        : convertPrice(Number(plan.agent_price ?? plan.wholesale_price ?? 0))
+                    ).toFixed(2)} {selectedCurrency}
                   </p>
                   {isDayPass(plan) && (
                     <p className="text-xs text-muted-foreground">
-                      {plan.currency} {Number(plan.agent_price ?? 0).toFixed(2)} per day × {(dayPassDays[plan.id] ?? Math.max(plan.validity_days || 1, 1))} days
+                      {getCurrencySymbol()}{convertPrice(Number(plan.agent_price ?? 0)).toFixed(2)} {selectedCurrency} per day × {(dayPassDays[plan.id] ?? Math.max(plan.validity_days || 1, 1))} days
                     </p>
                   )}
                 </div>

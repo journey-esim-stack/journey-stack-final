@@ -4,10 +4,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { User as SupabaseUser } from "@supabase/supabase-js";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { LogOut, Package, DollarSign, Wallet, ShoppingCart, ShieldCheck, Smartphone, User } from "lucide-react";
+import { LogOut, Package, Wallet, ShoppingCart, ShieldCheck, Smartphone, User } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import CartSidebar from "@/components/CartSidebar";
 import CartIcon from "@/components/CartIcon";
+import CurrencySelector from "@/components/CurrencySelector";
 import { useCart } from "@/contexts/CartContext";
 
 interface LayoutProps {
@@ -115,6 +116,9 @@ export default function Layout({ children }: LayoutProps) {
               </div>
             </div>
             <div className="flex items-center space-x-4">
+              {/* Currency Selector */}
+              <CurrencySelector />
+              
               {/* Enhanced Cart Icon */}
               <CartIcon />
               

@@ -83,14 +83,17 @@ export default function Pricing() {
     );
   }
 
-  const plansWithPricing = availablePlans.map(plan => {
-    const retailPrice = calculatePrice(plan.wholesale_price);
-    
-    return {
-      ...plan,
-      retail_price: Number(retailPrice.toFixed(2)),
-    };
-  });
+  // Calculate plans with pricing
+  const plansWithPricing = useMemo(() => {
+    return availablePlans.map(plan => {
+      const retailPrice = calculatePrice(plan.wholesale_price);
+      
+      return {
+        ...plan,
+        retail_price: Number(retailPrice.toFixed(2)),
+      };
+    });
+  }, [availablePlans, calculatePrice]);
 
   // Filter plans based on search and filters
   const filteredPlans = useMemo(() => {
@@ -142,7 +145,7 @@ export default function Pricing() {
     });
     
     return filtered;
-  }, [plansWithPricing, searchQuery, selectedRegion, selectedCountry, popularCountries]);
+  }, [plansWithPricing, searchQuery, selectedRegion, selectedCountry]);
 
   // Sort filtered plans
   const sortedPlans = useMemo(() => {

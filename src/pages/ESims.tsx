@@ -390,7 +390,12 @@ const ESims = () => {
     <Layout>
       <div className="space-y-8 animate-fade-in">
         {/* Header Section */}
-        <div className="glass-intense p-8 text-left">
+        <div className="glass-intense p-8 text-left relative">
+          <img 
+            src="/lovable-uploads/422ef0ae-9548-402a-bfb2-fd72edd5442c.png" 
+            alt="Connection illustration" 
+            className="absolute top-4 right-4 w-16 h-16 opacity-20 hidden md:block"
+          />
           <h1 className="text-4xl font-bold mb-4 text-black">
             My eSIMs
           </h1>

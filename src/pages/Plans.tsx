@@ -401,50 +401,51 @@ export default function Plans() {
         </Card>
 
         {/* Search and Filter Section */}
-        <div className="glass-intense p-6">
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-primary" />
-              <Input
-                placeholder="Search by country, plan name, or data amount..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 glass-intense border-0"
-              />
-            </div>
-            <Select value={selectedRegion} onValueChange={setSelectedRegion}>
-              <SelectTrigger className="w-full md:w-[200px] glass-intense border-0">
-                <SelectValue placeholder="Filter by region" />
-              </SelectTrigger>
-              <SelectContent className="glass-intense border-0">
-                <SelectItem value="all">All Regions</SelectItem>
-                {regions.map((region) => (
-                  <SelectItem key={region} value={region}>
-                    {region}
+        <Card className="glass-card">
+          <CardContent className="p-6">
+            <div className="flex flex-col md:flex-row gap-4">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-primary" />
+                <Input
+                  placeholder="Search by country, plan name, or data amount..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+              <Select value={selectedRegion} onValueChange={setSelectedRegion}>
+                <SelectTrigger className="w-full md:w-[200px]">
+                  <SelectValue placeholder="Filter by region" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Regions</SelectItem>
+                  {regions.map((region) => (
+                    <SelectItem key={region} value={region}>
+                      {region}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={sortBy} onValueChange={setSortBy}>
+                <SelectTrigger className="w-full md:w-[200px]">
+                  <SelectValue placeholder="Sort By" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="default">
+                    <div className="flex items-center gap-2">
+                      <ArrowUpDown className="h-4 w-4" />
+                      Default
+                    </div>
                   </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={sortBy} onValueChange={setSortBy}>
-              <SelectTrigger className="w-full md:w-[200px] glass-intense border-0">
-                <SelectValue placeholder="Sort By" />
-              </SelectTrigger>
-              <SelectContent className="glass-intense border-0">
-                <SelectItem value="default">
-                  <div className="flex items-center gap-2">
-                    <ArrowUpDown className="h-4 w-4" />
-                    Default
-                  </div>
-                </SelectItem>
-                <SelectItem value="price-asc">Price: Low to High</SelectItem>
-                <SelectItem value="price-desc">Price: High to Low</SelectItem>
-                <SelectItem value="duration-asc">Duration: Short to Long</SelectItem>
-                <SelectItem value="duration-desc">Duration: Long to Short</SelectItem>
-                <SelectItem value="data-asc">Data: Low to High</SelectItem>
-                <SelectItem value="data-desc">Data: High to Low</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+                  <SelectItem value="price-asc">Price: Low to High</SelectItem>
+                  <SelectItem value="price-desc">Price: High to Low</SelectItem>
+                  <SelectItem value="duration-asc">Duration: Short to Long</SelectItem>
+                  <SelectItem value="duration-desc">Duration: Long to Short</SelectItem>
+                  <SelectItem value="data-asc">Data: Low to High</SelectItem>
+                  <SelectItem value="data-desc">Data: High to Low</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
             {/* Popular Countries Tabs */}
             <div className="mt-6">

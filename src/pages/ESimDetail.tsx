@@ -36,6 +36,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import QRCode from "qrcode";
 
 interface ESIMDetails {
   iccid: string;
@@ -674,55 +675,26 @@ Instructions:
                     size="sm"
                     onClick={async () => {
                       try {
-                        if (!esimDetails?.activation?.qr_code) {
-                          toast.error('No QR code available to copy');
-                          return;
-                        }
-
-                        // For data URLs, we can directly convert to blob
-                        if (esimDetails.activation.qr_code.startsWith('data:')) {
-                          const response = await fetch(esimDetails.activation.qr_code);
-                          const blob = await response.blob();
-                          
-                          await navigator.clipboard.write([
-                            new ClipboardItem({ [blob.type]: blob })
-                          ]);
-                          toast.success('QR Code image copied to clipboard');
-                        } else {
-                          // For external URLs, create canvas
-                          const canvas = document.createElement('canvas');
-                          const ctx = canvas.getContext('2d');
-                          const img = new Image();
-                          
-                          img.onload = () => {
-                            canvas.width = img.width;
-                            canvas.height = img.height;
-                            ctx?.drawImage(img, 0, 0);
-                            canvas.toBlob(async (blob) => {
-                              if (blob) {
-                                try {
-                                  await navigator.clipboard.write([
-                                    new ClipboardItem({ 'image/png': blob })
-                                  ]);
-                                  toast.success('QR Code image copied to clipboard');
-                                } catch (error) {
-                                  console.error('Failed to copy QR code:', error);
-                                  toast.error('Failed to copy QR code image');
-                                }
-                              }
-                            });
-                          };
-                          
-                          img.onerror = () => {
-                            toast.error('Failed to load QR code image');
-                          };
-                          
-                          img.crossOrigin = 'anonymous';
-                          img.src = esimDetails.activation.qr_code;
-                        }
+                        const qrText = `LPA:1$${esimDetails.activation.sm_dp_address}$${esimDetails.activation.manual_code}`;
+                        const dataUrl = await QRCode.toDataURL(qrText, {
+                          margin: 1,
+                          scale: 6,
+                          color: { dark: '#000000', light: '#FFFFFF' }
+                        });
+                        const res = await fetch(dataUrl);
+                        const blob = await res.blob();
+                        await navigator.clipboard.write([
+                          new ClipboardItem({ [blob.type]: blob })
+                        ]);
+                        toast.success('QR Code image copied to clipboard');
                       } catch (error) {
-                        console.error('Error copying QR code:', error);
-                        toast.error('Failed to copy QR code image');
+                        try {
+                          const fallbackText = `LPA:1$${esimDetails.activation.sm_dp_address}$${esimDetails.activation.manual_code}`;
+                          await navigator.clipboard.writeText(fallbackText);
+                          toast.success('Manual activation string copied');
+                        } catch {
+                          toast.error('Failed to copy QR code');
+                        }
                       }
                     }}
                     className="glass-intense border-0 hover:bg-white/10"

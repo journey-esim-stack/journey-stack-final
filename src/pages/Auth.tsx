@@ -403,6 +403,8 @@ const Auth = () => {
             }}
           >
             <source src="/auth-background-new.mp4" type="video/mp4" />
+            <source src="/auth-video-new.mp4" type="video/mp4" />
+            <source src="/videos/auth-background.mp4" type="video/mp4" />
             Your browser does not support the video tag.
           </video>
           

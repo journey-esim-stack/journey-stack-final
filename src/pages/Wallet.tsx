@@ -316,8 +316,8 @@ export default function Wallet() {
             <div className="mt-6 pt-4 border-t border-border text-center">
               <div className="flex justify-center">
                 <img 
-                  src="/payment-methods-updated.png" 
-                  alt="Accepted payment methods" 
+                  src="/payment-methods.png" 
+                  alt="Payment methods" 
                   className="h-8 opacity-80 hover:opacity-100 transition-opacity max-w-full"
                 />
               </div>

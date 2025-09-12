@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/components/ui/use-toast";
-import { Eye, EyeOff, Shield, Users, Globe, CheckCircle, Smartphone } from "lucide-react";
+import { Eye, EyeOff, Shield, Users, Globe, CheckCircle, Smartphone, ArrowLeft } from "lucide-react";
 
 const setSEO = (title: string, description: string, canonical?: string) => {
   document.title = title;
@@ -48,6 +48,11 @@ const Auth = () => {
   const [phone, setPhone] = useState("");
   const [country, setCountry] = useState("");
   const [loadingUp, setLoadingUp] = useState(false);
+
+  // Forgot password state
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
+  const [loadingReset, setLoadingReset] = useState(false);
 
   useEffect(() => {
     setSEO(
@@ -117,18 +122,40 @@ const Auth = () => {
     }
   };
 
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoadingReset(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(resetEmail.trim(), {
+      redirectTo: `${window.location.origin}/auth`
+    });
+    setLoadingReset(false);
+    if (error) {
+      toast({ title: "Reset failed", description: error.message, variant: "destructive" as any });
+    } else {
+      toast({
+        title: "Check your email",
+        description: "We sent you a password reset link.",
+      });
+      setShowForgotPassword(false);
+      setResetEmail("");
+    }
+  };
+
   return (
     <main className="min-h-screen flex">
-      {/* Left Panel - Branding & Value Proposition */}
+      {/* Left Panel - Agent Portal & Logo */}
       <section className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-primary via-primary/90 to-primary/80 relative overflow-hidden">
         <div className="absolute inset-0 bg-black/10"></div>
         <div className="relative z-10 flex flex-col justify-between p-12 text-primary-foreground">
           <div>
+            {/* Journey Stack Logo */}
             <div className="flex items-center gap-3 mb-8">
-              <div className="w-10 h-10 bg-primary-foreground/20 rounded-lg flex items-center justify-center">
-                <Smartphone className="w-6 h-6" />
-              </div>
-              <h1 className="text-2xl font-bold">Journey eSIM</h1>
+              <img 
+                src="/lovable-uploads/9355fd63-0dfc-4481-94b6-230d9ac84236.png" 
+                alt="Journey Stack Logo" 
+                className="w-10 h-10 object-contain"
+              />
+              <h1 className="text-2xl font-bold">Journey Stack</h1>
             </div>
             
             <div className="space-y-6">
@@ -165,24 +192,42 @@ const Auth = () => {
         </div>
       </section>
 
-      {/* Right Panel - Authentication Forms */}
-      <section className="flex-1 flex items-center justify-center p-4 lg:p-8 bg-background">
-        <div className="w-full max-w-md space-y-6">
-          {/* Mobile Logo */}
-          <div className="lg:hidden flex items-center justify-center gap-3 mb-8">
-            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-              <Smartphone className="w-5 h-5 text-primary-foreground" />
+      {/* Right Panel - Video Background & Authentication Forms */}
+      <section className="flex-1 relative flex items-center justify-center">
+        {/* Video Background */}
+        <video 
+          autoPlay 
+          muted 
+          loop 
+          playsInline 
+          className="absolute inset-0 w-full h-full object-cover"
+        >
+          <source src="/videos/auth-background.mp4" type="video/mp4" />
+        </video>
+        
+        {/* Overlay */}
+        <div className="absolute inset-0 bg-black/50"></div>
+        
+        {/* Content */}
+        <div className="relative z-10 w-full max-w-md mx-auto p-4 lg:p-8">
+          <div className="space-y-6">
+            {/* Mobile Logo */}
+            <div className="lg:hidden flex items-center justify-center gap-3 mb-8">
+              <img 
+                src="/lovable-uploads/9355fd63-0dfc-4481-94b6-230d9ac84236.png" 
+                alt="Journey Stack Logo" 
+                className="w-8 h-8 object-contain"
+              />
+              <h1 className="text-xl font-bold text-white">Journey Stack</h1>
             </div>
-            <h1 className="text-xl font-bold text-foreground">Journey eSIM</h1>
-          </div>
 
-          <Card className="border-border/50 shadow-lg">
-            <CardHeader className="space-y-2 pb-6">
-              <CardTitle className="text-2xl font-bold text-center">Agent Portal</CardTitle>
-              <CardDescription className="text-center">
-                Sign in to your account or create a new agent profile
-              </CardDescription>
-            </CardHeader>
+            <Card className="border-border/50 shadow-2xl bg-white/95 backdrop-blur-sm">
+              <CardHeader className="space-y-2 pb-6">
+                <CardTitle className="text-2xl font-bold text-center">Welcome to Journey Stack!</CardTitle>
+                <CardDescription className="text-center">
+                  Sign in or create your account
+                </CardDescription>
+              </CardHeader>
             
             <CardContent className="space-y-6">
               <Tabs defaultValue="signin" className="w-full">
@@ -192,52 +237,100 @@ const Auth = () => {
                 </TabsList>
 
                 <TabsContent value="signin" className="mt-6">
-                  <form onSubmit={handleSignIn} className="space-y-5">
-                    <div className="space-y-2">
-                      <Label htmlFor="emailIn" className="text-sm font-medium">Email Address</Label>
-                      <Input 
-                        id="emailIn" 
-                        type="email" 
-                        autoComplete="email" 
-                        value={emailIn} 
-                        onChange={(e) => setEmailIn(e.target.value)} 
-                        placeholder="your@company.com"
-                        className="h-11"
-                        required 
-                      />
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="passwordIn" className="text-sm font-medium">Password</Label>
-                      <div className="relative">
+                  {!showForgotPassword ? (
+                    <form onSubmit={handleSignIn} className="space-y-5">
+                      <div className="space-y-2">
+                        <Label htmlFor="emailIn" className="text-sm font-medium">Email Address</Label>
                         <Input 
-                          id="passwordIn" 
-                          type={showPasswordIn ? "text" : "password"} 
-                          autoComplete="current-password" 
-                          value={passwordIn} 
-                          onChange={(e) => setPasswordIn(e.target.value)} 
-                          placeholder="Enter your password"
-                          className="h-11 pr-10"
+                          id="emailIn" 
+                          type="email" 
+                          autoComplete="email" 
+                          value={emailIn} 
+                          onChange={(e) => setEmailIn(e.target.value)} 
+                          placeholder="your@company.com"
+                          className="h-11"
                           required 
                         />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <Label htmlFor="passwordIn" className="text-sm font-medium">Password</Label>
+                          <button
+                            type="button"
+                            onClick={() => setShowForgotPassword(true)}
+                            className="text-xs text-primary hover:underline"
+                          >
+                            Forgot password?
+                          </button>
+                        </div>
+                        <div className="relative">
+                          <Input 
+                            id="passwordIn" 
+                            type={showPasswordIn ? "text" : "password"} 
+                            autoComplete="current-password" 
+                            value={passwordIn} 
+                            onChange={(e) => setPasswordIn(e.target.value)} 
+                            placeholder="Enter your password"
+                            className="h-11 pr-10"
+                            required 
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowPasswordIn(!showPasswordIn)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                          >
+                            {showPasswordIn ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          </button>
+                        </div>
+                      </div>
+                      
+                      <Button 
+                        type="submit" 
+                        className="w-full h-11 text-sm font-medium" 
+                        disabled={loadingIn}
+                      >
+                        {loadingIn ? "Signing in..." : "Sign In"}
+                      </Button>
+                    </form>
+                  ) : (
+                    <form onSubmit={handleForgotPassword} className="space-y-5">
+                      <div className="flex items-center gap-2 mb-4">
                         <button
                           type="button"
-                          onClick={() => setShowPasswordIn(!showPasswordIn)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                          onClick={() => setShowForgotPassword(false)}
+                          className="text-muted-foreground hover:text-foreground"
                         >
-                          {showPasswordIn ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          <ArrowLeft className="h-4 w-4" />
                         </button>
+                        <h3 className="text-lg font-semibold">Reset Password</h3>
                       </div>
-                    </div>
-                    
-                    <Button 
-                      type="submit" 
-                      className="w-full h-11 text-sm font-medium" 
-                      disabled={loadingIn}
-                    >
-                      {loadingIn ? "Signing in..." : "Sign In"}
-                    </Button>
-                  </form>
+                      
+                      <div className="space-y-2">
+                        <Label htmlFor="resetEmail" className="text-sm font-medium">Email Address</Label>
+                        <Input 
+                          id="resetEmail" 
+                          type="email" 
+                          value={resetEmail} 
+                          onChange={(e) => setResetEmail(e.target.value)} 
+                          placeholder="your@company.com"
+                          className="h-11"
+                          required 
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          We'll send you a link to reset your password
+                        </p>
+                      </div>
+                      
+                      <Button 
+                        type="submit" 
+                        className="w-full h-11 text-sm font-medium" 
+                        disabled={loadingReset}
+                      >
+                        {loadingReset ? "Sending..." : "Send Reset Link"}
+                      </Button>
+                    </form>
+                  )}
                 </TabsContent>
 
                 <TabsContent value="signup" className="mt-6">
@@ -356,7 +449,8 @@ const Auth = () => {
                 </div>
               </div>
             </CardContent>
-          </Card>
+            </Card>
+          </div>
         </div>
       </section>
     </main>

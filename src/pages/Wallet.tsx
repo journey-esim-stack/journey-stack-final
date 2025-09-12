@@ -313,7 +313,7 @@ export default function Wallet() {
             </div>
             
             {/* Payment Methods Image */}
-            <div className="mt-6 pt-4 border-t border-border text-center">
+              <div className="mt-6 text-center">
               <div className="flex justify-center">
                 <img 
                   src="/payment-methods.png" 

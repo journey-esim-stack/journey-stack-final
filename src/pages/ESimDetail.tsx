@@ -603,11 +603,11 @@ Instructions:
               {/* QR Code Card */}
               <Card className="glass-card">
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <QrCode className="h-5 w-5 text-primary" />
-                    QR Code
-                  </CardTitle>
-                  <div className="flex gap-2">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="flex items-center gap-2">
+                      <QrCode className="h-5 w-5 text-primary" />
+                      QR Code
+                    </CardTitle>
                     <Popover>
                       <PopoverTrigger asChild>
                         <Button variant="outline" size="sm" className="glass-intense border-0 hover:bg-white/10">
@@ -647,10 +647,10 @@ Instructions:
                                <Mail className="h-4 w-4 mr-2" />
                                Email
                              </Button>
-                          </div>
-                        </div>
-                      </PopoverContent>
-                    </Popover>
+                           </div>
+                         </div>
+                       </PopoverContent>
+                     </Popover>
                   </div>
                 </CardHeader>
                 <CardContent className="text-center">

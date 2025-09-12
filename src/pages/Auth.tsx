@@ -389,8 +389,6 @@ const Auth = () => {
 
         {/* Right Panel - Video Background */}
         <section className="hidden lg:block lg:w-1/2 relative">
-          {/* Fallback gradient background in case video doesn't load */}
-          <div className="w-full h-screen bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600"></div>
           
           {/* Video Background */}
           <video 

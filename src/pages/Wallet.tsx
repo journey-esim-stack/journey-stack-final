@@ -8,7 +8,7 @@ import Layout from "@/components/Layout";
 import { format } from "date-fns";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Download, FileText, FileSpreadsheet, ChevronLeft, ChevronRight } from "lucide-react";
+import { Download, FileText, FileSpreadsheet, ChevronLeft, ChevronRight, Shield, Lock, CheckCircle } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -291,6 +291,39 @@ export default function Wallet() {
               <Button onClick={handleTopUp} className="sm:self-end">
                 Top Up
               </Button>
+            </div>
+            
+            {/* Security & Trust Badges */}
+            <div className="mt-6 pt-4 border-t border-border">
+              <div className="flex flex-col gap-4">
+                <div className="flex items-center justify-center gap-6 text-muted-foreground">
+                  <div className="flex items-center gap-2">
+                    <Shield className="h-4 w-4 text-green-600" />
+                    <span className="text-sm">Secure Payments</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Lock className="h-4 w-4 text-green-600" />
+                    <span className="text-sm">SSL Encrypted</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4 text-green-600" />
+                    <span className="text-sm">PCI Compliant</span>
+                  </div>
+                </div>
+                
+                {/* Payment Method Logos */}
+                <div className="text-center">
+                  <p className="text-xs text-muted-foreground mb-3">Accepted payment methods</p>
+                  <div className="flex items-center justify-center gap-3 flex-wrap">
+                    <img src="/payment-logos/visa.svg" alt="Visa" className="h-6 opacity-70 hover:opacity-100 transition-opacity" />
+                    <img src="/payment-logos/mastercard.svg" alt="Mastercard" className="h-6 opacity-70 hover:opacity-100 transition-opacity" />
+                    <img src="/payment-logos/amex.svg" alt="American Express" className="h-6 opacity-70 hover:opacity-100 transition-opacity" />
+                    <img src="/payment-logos/paypal.svg" alt="PayPal" className="h-6 opacity-70 hover:opacity-100 transition-opacity" />
+                    <img src="/payment-logos/google-pay.svg" alt="Google Pay" className="h-8 opacity-70 hover:opacity-100 transition-opacity" />
+                    <img src="/payment-logos/apple-pay.svg" alt="Apple Pay" className="h-6 opacity-70 hover:opacity-100 transition-opacity" />
+                  </div>
+                </div>
+              </div>
             </div>
           </CardContent>
         </Card>

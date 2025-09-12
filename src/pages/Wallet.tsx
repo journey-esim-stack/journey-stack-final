@@ -314,10 +314,9 @@ export default function Wallet() {
             
             {/* Payment Methods Image */}
             <div className="mt-6 pt-4 border-t border-border text-center">
-              <p className="text-xs text-muted-foreground mb-3">Accepted payment methods</p>
               <div className="flex justify-center">
                 <img 
-                  src="/lovable-uploads/f6fc28a6-cf0f-4269-98da-7ea55c492acd.png" 
+                  src="/payment-methods-updated.png" 
                   alt="Accepted payment methods" 
                   className="h-8 opacity-80 hover:opacity-100 transition-opacity max-w-full"
                 />

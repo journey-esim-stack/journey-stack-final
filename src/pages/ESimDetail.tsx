@@ -630,22 +630,22 @@ Instructions:
                               <Copy className="h-4 w-4 mr-2" />
                               Copy to Clipboard
                             </Button>
-                            <Button 
-                              variant="outline" 
-                              className="w-full justify-start glass-intense border-0 hover:bg-white/10"
-                              onClick={() => setShowShareModal(true)}
-                            >
-                              <MessageSquare className="h-4 w-4 mr-2" />
-                              Share via WhatsApp
-                            </Button>
-                            <Button 
-                              variant="outline" 
-                              className="w-full justify-start glass-intense border-0 hover:bg-white/10"
-                              onClick={() => setShowShareModal(true)}
-                            >
-                              <Mail className="h-4 w-4 mr-2" />
-                              Share via Email
-                            </Button>
+                             <Button 
+                               variant="outline" 
+                               className="w-full justify-start glass-intense border-0 hover:bg-white/10"
+                               onClick={() => setShowShareModal(true)}
+                             >
+                               <MessageSquare className="h-4 w-4 mr-2" />
+                               WhatsApp
+                             </Button>
+                             <Button 
+                               variant="outline" 
+                               className="w-full justify-start glass-intense border-0 hover:bg-white/10"
+                               onClick={() => setShowShareModal(true)}
+                             >
+                               <Mail className="h-4 w-4 mr-2" />
+                               Email
+                             </Button>
                           </div>
                         </div>
                       </PopoverContent>

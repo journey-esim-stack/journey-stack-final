@@ -397,12 +397,8 @@ const Auth = () => {
             loop 
             playsInline 
             className="absolute inset-0 w-full h-full object-cover"
-            onError={(e) => {
-              console.log('Video failed to load:', e);
-              e.currentTarget.style.display = 'none';
-            }}
           >
-            <source src="/auth-background-new.mp4" type="video/mp4" />
+            <source src="/videos/auth-user.mp4" type="video/mp4" />
             <source src="/auth-video-new.mp4" type="video/mp4" />
             <source src="/videos/auth-background.mp4" type="video/mp4" />
             Your browser does not support the video tag.

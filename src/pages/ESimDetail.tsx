@@ -250,7 +250,7 @@ const ESimDetail = () => {
 
 Plan: ${planName}
 QR Code: ${esimDetails?.activation?.qr_code || ""}
-Activation Code: ${esimDetails?.activation?.manual_code || ""}
+Manual Activation Code: ${esimDetails?.activation?.manual_code || ""}
 
 Instructions:
 • Scan the QR code with your Camera app
@@ -666,6 +666,40 @@ Instructions:
                       </div>
                     )}
                   </div>
+                  
+                  {/* Copy QR Code Image Button */}
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => {
+                      // Create a canvas to copy the QR code image
+                      const canvas = document.createElement('canvas');
+                      const ctx = canvas.getContext('2d');
+                      const img = new Image();
+                      img.crossOrigin = 'anonymous';
+                      img.onload = () => {
+                        canvas.width = img.width;
+                        canvas.height = img.height;
+                        ctx?.drawImage(img, 0, 0);
+                        canvas.toBlob((blob) => {
+                          if (blob) {
+                            navigator.clipboard.write([
+                              new ClipboardItem({ 'image/png': blob })
+                            ]).then(() => {
+                              toast.success('QR Code image copied to clipboard');
+                            }).catch(() => {
+                              toast.error('Failed to copy QR code image');
+                            });
+                          }
+                        });
+                      };
+                      img.src = esimDetails.activation.qr_code;
+                    }}
+                    className="glass-intense border-0 hover:bg-white/10"
+                  >
+                    <Copy className="h-4 w-4 mr-2" />
+                    Copy QR Code
+                  </Button>
                 </CardContent>
               </Card>
 
@@ -676,9 +710,6 @@ Instructions:
                     <Smartphone className="h-5 w-5 text-primary" />
                     Activation Instructions
                   </CardTitle>
-                  <Button variant="outline" size="sm" className="ml-auto glass-intense border-0 hover:bg-white/10">
-                    Email to User
-                  </Button>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div>
@@ -880,7 +911,7 @@ Instructions:
                     onClick={() => handleShare('whatsapp')}
                   >
                     <MessageSquare className="h-4 w-4 mr-2" />
-                    Share via WhatsApp
+                    WhatsApp
                   </Button>
                   <Button 
                     variant="outline" 
@@ -888,7 +919,7 @@ Instructions:
                     onClick={() => handleShare('email')}
                   >
                     <Mail className="h-4 w-4 mr-2" />
-                    Share via Email
+                    Email
                   </Button>
                 </div>
               </div>

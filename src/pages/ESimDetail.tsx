@@ -607,14 +607,15 @@ Instructions:
                     QR Code
                   </CardTitle>
                   <div className="flex gap-2">
-                    <Button variant="outline" size="sm" className="glass-intense border-0 hover:bg-white/10">
-                      Email to User
-                    </Button>
                     <Popover>
                       <PopoverTrigger asChild>
                         <Button variant="outline" size="sm" className="glass-intense border-0 hover:bg-white/10">
                           <Share2 className="h-4 w-4 mr-2" />
                           Share
+                          <span className="ml-2 flex items-center gap-1 opacity-80">
+                            <MessageSquare className="h-3.5 w-3.5" />
+                            <Mail className="h-3.5 w-3.5" />
+                          </span>
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-80 glass-intense border-white/10">

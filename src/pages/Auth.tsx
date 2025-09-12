@@ -143,91 +143,25 @@ const Auth = () => {
 
   return (
     <main className="min-h-screen flex">
-      {/* Left Panel - Agent Portal & Logo */}
-      <section className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-primary via-primary/90 to-primary/80 relative overflow-hidden">
-        <div className="absolute inset-0 bg-black/10"></div>
-        <div className="relative z-10 flex flex-col justify-between p-12 text-primary-foreground">
-          <div>
-            {/* Journey Stack Logo */}
-            <div className="flex items-center gap-3 mb-8">
-              <img 
-                src="/lovable-uploads/9355fd63-0dfc-4481-94b6-230d9ac84236.png" 
-                alt="Journey Stack Logo" 
-                className="w-10 h-10 object-contain"
-              />
-              <h1 className="text-2xl font-bold">Journey Stack</h1>
-            </div>
-            
-            <div className="space-y-6">
-              <h2 className="text-4xl font-bold leading-tight">
-                Your Gateway to
-                <br />
-                Global Connectivity
-              </h2>
-              <p className="text-xl text-primary-foreground/90 leading-relaxed">
-                Join our partner network and provide seamless eSIM solutions to travelers worldwide. 
-                Manage plans, track orders, and grow your business with our comprehensive agent portal.
-              </p>
-            </div>
+      {/* Left Panel - Authentication Forms */}
+      <section className="flex-1 flex items-center justify-center p-4 lg:p-8 bg-background">
+        <div className="w-full max-w-md space-y-6">
+          {/* Logo */}
+          <div className="flex items-center justify-center lg:justify-start gap-3 mb-8">
+            <img 
+              src="/lovable-uploads/2b7a0f76-4c0f-4c77-a157-7ac3b6ad5a06.png" 
+              alt="Journey Stack Logo" 
+              className="h-12 object-contain"
+            />
           </div>
 
-          <div className="space-y-4">
-            <div className="flex items-center gap-3">
-              <CheckCircle className="w-5 h-5 text-primary-foreground/80" />
-              <span className="text-primary-foreground/90">Global coverage in 190+ countries</span>
-            </div>
-            <div className="flex items-center gap-3">
-              <CheckCircle className="w-5 h-5 text-primary-foreground/80" />
-              <span className="text-primary-foreground/90">Competitive agent pricing</span>
-            </div>
-            <div className="flex items-center gap-3">
-              <CheckCircle className="w-5 h-5 text-primary-foreground/80" />
-              <span className="text-primary-foreground/90">24/7 dedicated support</span>
-            </div>
-            <div className="flex items-center gap-3">
-              <CheckCircle className="w-5 h-5 text-primary-foreground/80" />
-              <span className="text-primary-foreground/90">Real-time order management</span>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Right Panel - Video Background & Authentication Forms */}
-      <section className="flex-1 relative flex items-center justify-center">
-        {/* Video Background */}
-        <video 
-          autoPlay 
-          muted 
-          loop 
-          playsInline 
-          className="absolute inset-0 w-full h-full object-cover"
-        >
-          <source src="/videos/auth-background.mp4" type="video/mp4" />
-        </video>
-        
-        {/* Overlay */}
-        <div className="absolute inset-0 bg-black/50"></div>
-        
-        {/* Content */}
-        <div className="relative z-10 w-full max-w-md mx-auto p-4 lg:p-8">
-          <div className="space-y-6">
-            {/* Mobile Logo */}
-            <div className="lg:hidden flex items-center justify-center gap-3 mb-8">
-              <img 
-                src="/lovable-uploads/9355fd63-0dfc-4481-94b6-230d9ac84236.png" 
-                alt="Journey Stack Logo" 
-                className="w-8 h-8 object-contain"
-              />
-              <h1 className="text-xl font-bold text-white">Journey Stack</h1>
-            </div>
-
-            <Card className="border-border/50 shadow-2xl bg-white/95 backdrop-blur-sm">
-              <CardHeader className="space-y-2 pb-6">
-                <CardTitle className="text-2xl font-bold text-center">Welcome to Journey Stack!</CardTitle>
-                <CardDescription className="text-center">
-                  Sign in or create your account
-                </CardDescription>
-              </CardHeader>
+          <Card className="border-border/50 shadow-lg">
+            <CardHeader className="space-y-2 pb-6">
+              <CardTitle className="text-2xl font-bold text-center">Welcome to Journey Stack!</CardTitle>
+              <CardDescription className="text-center">
+                Sign in or create your account
+              </CardDescription>
+            </CardHeader>
             
             <CardContent className="space-y-6">
               <Tabs defaultValue="signin" className="w-full">
@@ -451,9 +385,25 @@ const Auth = () => {
             </CardContent>
             </Card>
           </div>
-        </div>
-      </section>
-    </main>
+        </section>
+
+        {/* Right Panel - Video Background */}
+        <section className="hidden lg:block lg:w-1/2 relative">
+          {/* Video Background */}
+          <video 
+            autoPlay 
+            muted 
+            loop 
+            playsInline 
+            className="w-full h-screen object-cover"
+          >
+            <source src="/videos/auth-background.mp4" type="video/mp4" />
+          </video>
+          
+          {/* Gradient Overlay */}
+          <div className="absolute inset-0 bg-gradient-to-l from-primary/20 via-transparent to-background/20"></div>
+        </section>
+      </main>
   );
 };
 

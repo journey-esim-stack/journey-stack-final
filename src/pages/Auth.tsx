@@ -389,15 +389,23 @@ const Auth = () => {
 
         {/* Right Panel - Video Background */}
         <section className="hidden lg:block lg:w-1/2 relative">
+          {/* Fallback gradient background in case video doesn't load */}
+          <div className="w-full h-screen bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600"></div>
+          
           {/* Video Background */}
           <video 
             autoPlay 
             muted 
             loop 
             playsInline 
-            className="w-full h-screen object-cover"
+            className="absolute inset-0 w-full h-full object-cover"
+            onError={(e) => {
+              console.log('Video failed to load:', e);
+              e.currentTarget.style.display = 'none';
+            }}
           >
-            <source src="/videos/auth-background.mp4" type="video/mp4" />
+            <source src="/auth-background.mp4" type="video/mp4" />
+            Your browser does not support the video tag.
           </video>
           
           {/* Gradient Overlay */}

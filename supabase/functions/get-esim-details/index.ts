@@ -37,30 +37,61 @@ serve(async (req) => {
       });
     }
 
-    // Fetch eSIM details from eSIM Access API
-    const response = await fetch('https://api.esimaccess.com/api/v1/esim/info', {
+    // Query eSIM details by ICCID using eSIM Access "open/esim/query"
+    const response = await fetch('https://api.esimaccess.com/api/v1/open/esim/query', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'RT-AccessCode': accessCode,
+        'RT-SecretKey': secretKey,
       },
       body: JSON.stringify({
-        access_code: accessCode,
-        secret_key: secretKey,
-        iccid: iccid
+        iccid,
+        pager: { pageNum: 1, pageSize: 1 }
       }),
     });
 
-    const data = await response.json();
+    const raw = await response.json();
     
-    if (!response.ok) {
-      console.error('eSIM Access API error:', data);
+    if (!response.ok || !(raw?.success === true || String(raw?.success).toLowerCase() === 'true')) {
+      console.error('eSIM Access API error:', raw);
       return new Response(JSON.stringify({ error: 'Failed to fetch eSIM details' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    return new Response(JSON.stringify(data), {
+    const esim = raw?.obj?.esimList?.[0] ?? null;
+
+    const result = {
+      success: true,
+      obj: esim
+        ? {
+            iccid: esim.iccid,
+            status: esim.esimStatus,
+            dataUsage: {
+              used: (Number(esim.orderUsage || 0) / (1024 * 1024 * 1024)).toFixed(2),
+              total: (Number(esim.totalVolume || 0) / (1024 * 1024 * 1024)).toFixed(2),
+            },
+            network: {
+              connected: esim.esimStatus === 'IN_USE',
+              operator: '',
+              country: (esim.packageList?.[0]?.locationCode) || '',
+              signalStrength: '0',
+            },
+            plan: {
+              expiresAt: esim.expiredTime || null,
+            },
+            activation: {
+              ac: esim.ac,
+              qrCodeUrl: esim.qrCodeUrl,
+            },
+            sessions: [],
+          }
+        : null,
+    };
+
+    return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 

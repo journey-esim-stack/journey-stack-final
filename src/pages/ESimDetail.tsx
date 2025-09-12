@@ -504,16 +504,18 @@ Instructions:
                       </div>
                     </div>
 
-                    {/* Expiration */}
-                    <div className="text-center">
-                      <p className="text-sm text-muted-foreground mb-2">Expiration</p>
-                      <div className="text-sm">
-                        {format(new Date(new Date(topup.created_at).getTime() + topup.validity_days * 24 * 60 * 60 * 1000), "yyyy-MM-dd")}
+                    {/* Expiration (show only when connected) */}
+                    {esimDetails.network.connected && (
+                      <div className="text-center">
+                        <p className="text-sm text-muted-foreground mb-2">Expiration</p>
+                        <div className="text-sm">
+                          {format(new Date(new Date(topup.created_at).getTime() + topup.validity_days * 24 * 60 * 60 * 1000), "yyyy-MM-dd")}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {format(new Date(new Date(topup.created_at).getTime() + topup.validity_days * 24 * 60 * 60 * 1000), "HH:mm:ss")}
+                        </div>
                       </div>
-                      <div className="text-xs text-muted-foreground">
-                        {format(new Date(new Date(topup.created_at).getTime() + topup.validity_days * 24 * 60 * 60 * 1000), "HH:mm:ss")}
-                      </div>
-                    </div>
+                    )}
                   </div>
                 ))}
 
@@ -570,16 +572,18 @@ Instructions:
                     </div>
                   </div>
 
-                  {/* Expiration */}
-                  <div className="text-center">
-                    <p className="text-sm text-muted-foreground mb-2">Expiration</p>
-                    <div className="text-sm">
-                      {format(new Date(esimDetails.plan.expires_at), "yyyy-MM-dd")}
+                  {/* Expiration (show only when connected) */}
+                  {esimDetails.network.connected && (
+                    <div className="text-center">
+                      <p className="text-sm text-muted-foreground mb-2">Expiration</p>
+                      <div className="text-sm">
+                        {format(new Date(esimDetails.plan.expires_at), "yyyy-MM-dd")}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {format(new Date(esimDetails.plan.expires_at), "HH:mm:ss")}
+                      </div>
                     </div>
-                    <div className="text-xs text-muted-foreground">
-                      {format(new Date(esimDetails.plan.expires_at), "HH:mm:ss")}
-                    </div>
-                  </div>
+                  )}
                 </div>
 
                 {/* Top-up Button Row */}

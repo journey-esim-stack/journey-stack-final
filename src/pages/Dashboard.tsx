@@ -54,6 +54,7 @@ export default function Dashboard() {
   const [activeESims, setActiveESims] = useState(0);
   const [chartData, setChartData] = useState<any[]>([]);
   const [highUsageESims, setHighUsageESims] = useState<HighDataUsageESim[]>([]);
+  const [statusMap, setStatusMap] = useState<Record<string, string>>({});
   const { toast } = useToast();
 
   useEffect(() => {
@@ -102,6 +103,7 @@ export default function Dashboard() {
 
       if (ordersError) throw ordersError;
       setOrders(ordersData || []);
+      fetchApiStatuses(ordersData || []);
 
       // Calculate active eSIMs (completed orders with eSIM data)
       const activeCount = ordersData?.filter(o => 
@@ -148,6 +150,32 @@ export default function Dashboard() {
     setChartData(last30Days);
   };
 
+  const fetchApiStatuses = async (ordersData: Order[]) => {
+    const items = (ordersData || []).filter(o => !!o.esim_iccid);
+    if (items.length === 0) return;
+    try {
+      const results = await Promise.allSettled(items.slice(0, 25).map(async (o) => {
+        const { data, error } = await supabase.functions.invoke('get-esim-details', {
+          body: { iccid: o.esim_iccid }
+        });
+        if (!error && (data?.success === true || String(data?.success).toLowerCase() === 'true')) {
+          const status = data?.obj?.status || data?.obj?.esimStatus || 'unknown';
+          return { iccid: o.esim_iccid, status };
+        }
+        return { iccid: o.esim_iccid, status: 'unknown' };
+      }));
+      const map: Record<string, string> = {};
+      results.forEach((r) => {
+        if (r.status === 'fulfilled' && r.value) {
+          map[r.value.iccid] = r.value.status;
+        }
+      });
+      setStatusMap(prev => ({ ...prev, ...map }));
+    } catch (e) {
+      console.error('Failed to fetch eSIM statuses', e);
+    }
+  };
+  
   const fetchHighUsageESims = async (ordersData: Order[]) => {
     const completedOrdersWithESims = ordersData.filter(o => 
       o.status === "completed" && o.esim_iccid
@@ -426,14 +454,11 @@ export default function Dashboard() {
                       </TableCell>
                       <TableCell>
                         <div>
-                          <p className="font-medium">USD {order.retail_price}</p>
-                          <p className="text-sm text-muted-foreground">
-                            Margin: USD {(order.retail_price - order.wholesale_price).toFixed(2)}
-                          </p>
+                          <p className="font-medium">USD {Number(order.retail_price).toFixed(2)}</p>
                         </div>
                       </TableCell>
                       <TableCell>
-                        <StatusBadge status={order.status} variant="with-icon" />
+                        <StatusBadge status={statusMap[order.esim_iccid] || order.status} variant="with-icon" />
                       </TableCell>
                       <TableCell>
                         {order.esim_iccid ? (

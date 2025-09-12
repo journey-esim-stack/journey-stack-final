@@ -318,7 +318,7 @@ export default function Wallet() {
                 <img 
                   src="/payment-methods.png" 
                   alt="Payment methods" 
-                  className="h-8 opacity-80 hover:opacity-100 transition-opacity max-w-full"
+                  className="h-8 opacity-80 max-w-full"
                 />
               </div>
             </div>

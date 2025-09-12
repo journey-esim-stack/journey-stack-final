@@ -22,12 +22,20 @@ import {
   CheckCircle,
   AlertCircle,
   Globe,
-  MoreHorizontal
+  MoreHorizontal,
+  Share2,
+  MessageSquare,
+  Mail
 } from "lucide-react";
 import TopupModal from "@/components/TopupModal";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import Layout from "@/components/Layout";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 interface ESIMDetails {
   iccid: string;
@@ -83,6 +91,12 @@ const ESimDetail = () => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("summary");
   const [showTopupModal, setShowTopupModal] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [agentBranding, setAgentBranding] = useState({
+    companyName: "",
+    message: "",
+    contactInfo: ""
+  });
 
   useEffect(() => {
     if (iccid) {
@@ -224,6 +238,47 @@ const ESimDetail = () => {
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
     toast.success("Copied to clipboard");
+  };
+
+  const generateShareMessage = () => {
+    const planName = esimDetails?.plan?.name || "eSIM Plan";
+    const companyBranding = agentBranding.companyName ? `${agentBranding.companyName}\n\n` : "";
+    const message = agentBranding.message || `Here is your ${planName} activation details:`;
+    const contactInfo = agentBranding.contactInfo ? `\n\nFor support: ${agentBranding.contactInfo}` : "";
+    
+    return `${companyBranding}${message}
+
+Plan: ${planName}
+QR Code: ${esimDetails?.activation?.qr_code || ""}
+Activation Code: ${esimDetails?.activation?.manual_code || ""}
+
+Instructions:
+• Scan the QR code with your Camera app
+• Follow prompts to add the new Data Plan
+• Turn on Data Roaming for the new eSIM${contactInfo}`;
+  };
+
+  const handleShare = (method: 'copy' | 'whatsapp' | 'email') => {
+    const shareText = generateShareMessage();
+    
+    switch (method) {
+      case 'copy':
+        copyToClipboard(shareText);
+        break;
+      case 'whatsapp':
+        const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(shareText)}`;
+        window.open(whatsappUrl, '_blank');
+        break;
+      case 'email':
+        const planName = esimDetails?.plan?.name || "eSIM Plan";
+        const subject = `Your ${planName} Activation Details`;
+        const emailUrl = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(shareText)}`;
+        window.open(emailUrl);
+        break;
+    }
+    
+    setShowShareModal(false);
+    toast.success(`Shared via ${method === 'copy' ? 'clipboard' : method}`);
   };
 
   const getStatusIcon = (status: string) => {
@@ -551,9 +606,50 @@ const ESimDetail = () => {
                     <QrCode className="h-5 w-5 text-primary" />
                     QR Code
                   </CardTitle>
-                  <Button variant="outline" size="sm" className="ml-auto glass-intense border-0 hover:bg-white/10">
-                    Email to User
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" className="glass-intense border-0 hover:bg-white/10">
+                      Email to User
+                    </Button>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" size="sm" className="glass-intense border-0 hover:bg-white/10">
+                          <Share2 className="h-4 w-4 mr-2" />
+                          Share
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-80 glass-intense border-white/10">
+                        <div className="space-y-4">
+                          <h4 className="font-semibold">Share eSIM Details</h4>
+                          <div className="space-y-3">
+                            <Button 
+                              variant="outline" 
+                              className="w-full justify-start glass-intense border-0 hover:bg-white/10"
+                              onClick={() => setShowShareModal(true)}
+                            >
+                              <Copy className="h-4 w-4 mr-2" />
+                              Copy to Clipboard
+                            </Button>
+                            <Button 
+                              variant="outline" 
+                              className="w-full justify-start glass-intense border-0 hover:bg-white/10"
+                              onClick={() => setShowShareModal(true)}
+                            >
+                              <MessageSquare className="h-4 w-4 mr-2" />
+                              Share via WhatsApp
+                            </Button>
+                            <Button 
+                              variant="outline" 
+                              className="w-full justify-start glass-intense border-0 hover:bg-white/10"
+                              onClick={() => setShowShareModal(true)}
+                            >
+                              <Mail className="h-4 w-4 mr-2" />
+                              Share via Email
+                            </Button>
+                          </div>
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
                 </CardHeader>
                 <CardContent className="text-center">
                   <div className="w-64 h-64 mx-auto mb-4 glass-intense rounded-lg flex items-center justify-center border border-white/10">
@@ -725,6 +821,80 @@ const ESimDetail = () => {
             fetchESIMDetails(); // Refresh to show new top-up
           }}
         />
+
+        {/* Share Modal */}
+        <Dialog open={showShareModal} onOpenChange={setShowShareModal}>
+          <DialogContent className="glass-intense border-white/10 max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Share2 className="h-5 w-5 text-primary" />
+                Share eSIM Details
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="companyName">Company Name (Optional)</Label>
+                <Input
+                  id="companyName"
+                  value={agentBranding.companyName}
+                  onChange={(e) => setAgentBranding(prev => ({ ...prev, companyName: e.target.value }))}
+                  placeholder="Your Travel Agency Name"
+                  className="glass-intense border-white/10"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="message">Custom Message (Optional)</Label>
+                <Textarea
+                  id="message"
+                  value={agentBranding.message}
+                  onChange={(e) => setAgentBranding(prev => ({ ...prev, message: e.target.value }))}
+                  placeholder={`Here is your ${esimDetails?.plan?.name || 'eSIM Plan'} activation details:`}
+                  className="glass-intense border-white/10"
+                  rows={3}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="contactInfo">Contact Information (Optional)</Label>
+                <Input
+                  id="contactInfo"
+                  value={agentBranding.contactInfo}
+                  onChange={(e) => setAgentBranding(prev => ({ ...prev, contactInfo: e.target.value }))}
+                  placeholder="support@yourcompany.com or +1-234-567-8900"
+                  className="glass-intense border-white/10"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Share Options</Label>
+                <div className="space-y-2">
+                  <Button 
+                    variant="outline" 
+                    className="w-full justify-start glass-intense border-0 hover:bg-white/10"
+                    onClick={() => handleShare('copy')}
+                  >
+                    <Copy className="h-4 w-4 mr-2" />
+                    Copy to Clipboard
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    className="w-full justify-start glass-intense border-0 hover:bg-white/10"
+                    onClick={() => handleShare('whatsapp')}
+                  >
+                    <MessageSquare className="h-4 w-4 mr-2" />
+                    Share via WhatsApp
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    className="w-full justify-start glass-intense border-0 hover:bg-white/10"
+                    onClick={() => handleShare('email')}
+                  >
+                    <Mail className="h-4 w-4 mr-2" />
+                    Share via Email
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </Layout>
   );

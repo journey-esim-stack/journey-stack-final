@@ -671,29 +671,58 @@ Instructions:
                   <Button 
                     variant="outline" 
                     size="sm"
-                    onClick={() => {
-                      // Create a canvas to copy the QR code image
-                      const canvas = document.createElement('canvas');
-                      const ctx = canvas.getContext('2d');
-                      const img = new Image();
-                      img.crossOrigin = 'anonymous';
-                      img.onload = () => {
-                        canvas.width = img.width;
-                        canvas.height = img.height;
-                        ctx?.drawImage(img, 0, 0);
-                        canvas.toBlob((blob) => {
-                          if (blob) {
-                            navigator.clipboard.write([
-                              new ClipboardItem({ 'image/png': blob })
-                            ]).then(() => {
-                              toast.success('QR Code image copied to clipboard');
-                            }).catch(() => {
-                              toast.error('Failed to copy QR code image');
+                    onClick={async () => {
+                      try {
+                        if (!esimDetails?.activation?.qr_code) {
+                          toast.error('No QR code available to copy');
+                          return;
+                        }
+
+                        // For data URLs, we can directly convert to blob
+                        if (esimDetails.activation.qr_code.startsWith('data:')) {
+                          const response = await fetch(esimDetails.activation.qr_code);
+                          const blob = await response.blob();
+                          
+                          await navigator.clipboard.write([
+                            new ClipboardItem({ [blob.type]: blob })
+                          ]);
+                          toast.success('QR Code image copied to clipboard');
+                        } else {
+                          // For external URLs, create canvas
+                          const canvas = document.createElement('canvas');
+                          const ctx = canvas.getContext('2d');
+                          const img = new Image();
+                          
+                          img.onload = () => {
+                            canvas.width = img.width;
+                            canvas.height = img.height;
+                            ctx?.drawImage(img, 0, 0);
+                            canvas.toBlob(async (blob) => {
+                              if (blob) {
+                                try {
+                                  await navigator.clipboard.write([
+                                    new ClipboardItem({ 'image/png': blob })
+                                  ]);
+                                  toast.success('QR Code image copied to clipboard');
+                                } catch (error) {
+                                  console.error('Failed to copy QR code:', error);
+                                  toast.error('Failed to copy QR code image');
+                                }
+                              }
                             });
-                          }
-                        });
-                      };
-                      img.src = esimDetails.activation.qr_code;
+                          };
+                          
+                          img.onerror = () => {
+                            toast.error('Failed to load QR code image');
+                          };
+                          
+                          img.crossOrigin = 'anonymous';
+                          img.src = esimDetails.activation.qr_code;
+                        }
+                      } catch (error) {
+                        console.error('Error copying QR code:', error);
+                        toast.error('Failed to copy QR code image');
+                      }
                     }}
                     className="glass-intense border-0 hover:bg-white/10"
                   >

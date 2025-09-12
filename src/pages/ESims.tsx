@@ -43,6 +43,9 @@ const ESims = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
+    // Set page title
+    document.title = "Journey Stack | Unrivaled eSIM Platform - eSIMs";
+    
     fetchOrders();
   }, []);
 

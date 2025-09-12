@@ -41,6 +41,9 @@ export default function Profile() {
   const { toast } = useToast();
 
   useEffect(() => {
+    // Set page title
+    document.title = "Journey Stack | Unrivaled eSIM Platform - Profile";
+    
     loadProfileData();
   }, []);
 

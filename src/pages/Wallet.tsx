@@ -41,6 +41,9 @@ export default function Wallet() {
   const itemsPerPage = 20;
 
   useEffect(() => {
+    // Set page title
+    document.title = "Journey Stack | Unrivaled eSIM Platform - Wallet";
+    
     const run = async () => {
       try {
         await supabase.functions.invoke('sync-topups');

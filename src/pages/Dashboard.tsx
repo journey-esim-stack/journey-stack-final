@@ -58,6 +58,9 @@ export default function Dashboard() {
   const { toast } = useToast();
 
   useEffect(() => {
+    // Set page title
+    document.title = "Journey Stack | Unrivaled eSIM Platform - Dashboard";
+    
     fetchDashboardData();
   }, []);
 

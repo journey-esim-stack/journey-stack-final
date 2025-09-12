@@ -56,7 +56,7 @@ const Auth = () => {
 
   useEffect(() => {
     setSEO(
-      "eSIM Agent Portal – Sign in or Create Account",
+      "Journey Stack | Unrivaled eSIM Platform - Auth",
       "Login or sign up to the Journey eSIM Agent Portal to manage plans, pricing, and orders.",
       window.location.href
     );

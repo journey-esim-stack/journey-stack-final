@@ -27,8 +27,8 @@ serve(async (req) => {
       });
     }
 
-    const accessCode = Deno.env.get('ESIMACCESS_ACCESS_CODE');
-    const secretKey = Deno.env.get('ESIMACCESS_SECRET_KEY');
+    const accessCode = Deno.env.get('PROVIDER_ACCESS_CODE');
+    const secretKey = Deno.env.get('PROVIDER_SECRET_KEY');
 
     if (!accessCode || !secretKey) {
       return new Response(JSON.stringify({ error: 'Service credentials not configured' }), {
@@ -38,7 +38,8 @@ serve(async (req) => {
     }
 
     // Query eSIM details by ICCID using provider API
-    const response = await fetch('https://api.esimaccess.com/api/v1/open/esim/query', {
+    const providerApiUrl = Deno.env.get('PROVIDER_API_URL');
+    const response = await fetch(`${providerApiUrl}/api/v1/open/esim/query`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

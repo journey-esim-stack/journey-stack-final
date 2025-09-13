@@ -139,7 +139,7 @@ serve(async (req) => {
     // Generate unique transaction ID
     const transactionId = `TOPUP_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-    // Make top-up request to eSIM Access API
+    // Make top-up request to provider API
     const topupPayload = {
       iccid: iccid,
       packageCode: packageCode,

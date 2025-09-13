@@ -57,10 +57,10 @@ serve(async (req) => {
     const secretKey = Deno.env.get("ESIMACCESS_SECRET_KEY");
 
     if (!accessCode || !secretKey) {
-      throw new Error("eSIM Access API credentials not configured");
+      throw new Error("Service API credentials not configured");
     }
 
-    console.log("Fetching top-up plans from eSIM Access API...");
+    console.log("Fetching top-up plans from provider API...");
 
     // Create request payload for getting TOPUP plans
     const requestPayload: any = {
@@ -85,20 +85,19 @@ serve(async (req) => {
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error("eSIM Access API error:", response.status, errorText);
-      throw new Error(`API request failed: ${response.status} - ${errorText}`);
+      console.error("Provider API error:", response.status);
+      throw new Error(`API request failed: ${response.status}`);
     }
 
     const apiData = await response.json();
-    console.log("Received top-up plans from eSIM Access:", apiData);
+    console.log("Received top-up plans from provider: Success");
 
     // Check if response is successful
     const isSuccess = apiData?.success === true || apiData?.success === "true";
     if (!isSuccess) {
       const errCode = apiData?.errorCode ?? apiData?.code ?? "unknown";
       const errMsg = apiData?.errorMessage ?? apiData?.errorMsg ?? "Unknown error from provider";
-      console.error("eSIM Access returned error:", { errCode, errMsg, apiData });
+      console.error("Provider returned error");
       throw new Error(`Provider error: ${errCode} - ${errMsg}`);
     }
 

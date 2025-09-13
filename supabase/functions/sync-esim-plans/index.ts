@@ -13,26 +13,24 @@ serve(async (req) => {
   }
 
   try {
-    console.log('Starting eSIM plans sync...');
+    console.log('Starting data sync...');
 
     // Initialize Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-// Get eSIM Access API credentials
+// Get provider API credentials
     const accessCode = Deno.env.get('ESIMACCESS_ACCESS_CODE');
     const secretKey = Deno.env.get('ESIMACCESS_SECRET_KEY');
 
     if (!accessCode || !secretKey) {
-      throw new Error('eSIM Access credentials not configured');
+      throw new Error('Service credentials not configured');
     }
 
-    console.log('AccessCode length:', accessCode.length);
-    console.log('AccessCode first 8 chars:', accessCode.substring(0, 8));
-    console.log('SecretKey configured:', !!secretKey);
+    console.log('Credentials configured:', !!accessCode && !!secretKey);
 
-    console.log('Fetching plans from eSIM Access API...');
+    console.log('Fetching data from provider API...');
 
     // Try the balance endpoint first to test authentication
     const balanceResponse = await fetch('https://api.esimaccess.com/api/v1/open/balance/query', {
@@ -64,12 +62,12 @@ serve(async (req) => {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('eSIM Access API error:', response.status, errorText);
-      throw new Error(`API request failed: ${response.status} - ${errorText}`);
+      console.error('Provider API error:', response.status);
+      throw new Error(`API request failed: ${response.status}`);
     }
 
     const apiData = await response.json();
-    console.log('Received data from eSIM Access:', apiData);
+    console.log('Received data from provider: Success');
 
 // Some endpoints return success as boolean or string "true"
     const successVal = apiData?.success;
@@ -77,7 +75,7 @@ serve(async (req) => {
     if (!isSuccess) {
       const errCode = apiData?.errorCode ?? apiData?.code ?? 'unknown';
       const errMsg = apiData?.errorMessage ?? apiData?.errorMsg ?? 'Unknown error from provider';
-      console.error('eSIM Access returned error:', { errCode, errMsg, apiData });
+      console.error('Provider returned error');
       throw new Error(`Provider error: ${errCode} - ${errMsg}`);
     }
 
@@ -94,7 +92,7 @@ let rawPlans: any = apiData.data ?? apiData.obj ?? [];
 
     // Transform API data to match our esim_plans table structure
 const transformedPlans = plans.map((plan: any) => {
-      // eSIM Access fields: packageCode, slug, name, price (int, 10000 = $1), currencyCode,
+      // Provider API fields: packageCode, slug, name, price (int, 10000 = $1), currencyCode,
       // volume (bytes), duration, durationUnit (DAY), location (comma-separated country codes)
       const toGB = (bytes: number) => bytes > 0 ? (bytes / (1024 * 1024 * 1024)) : 0;
       const dataStr = plan.volume ? `${Math.round(toGB(Number(plan.volume)) * 100) / 100}GB` : '';
@@ -157,7 +155,7 @@ const transformedPlans = plans.map((plan: any) => {
     return new Response(
       JSON.stringify({
         success: true,
-        message: `Successfully synced ${upsertedPlans?.length || 0} eSIM plans`,
+        message: `Successfully synced ${upsertedPlans?.length || 0} plans`,
         synced_count: upsertedPlans?.length || 0
       }),
       {

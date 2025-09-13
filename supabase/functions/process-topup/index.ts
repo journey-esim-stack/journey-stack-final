@@ -59,10 +59,10 @@ serve(async (req) => {
     const secretKey = Deno.env.get("ESIMACCESS_SECRET_KEY");
 
     if (!accessCode || !secretKey) {
-      throw new Error("eSIM Access API credentials not configured");
+      throw new Error("Service API credentials not configured");
     }
 
-    console.log("Processing top-up with eSIM Access API...");
+    console.log("Processing top-up with provider API...");
 
     // First, refresh the latest plans to get current pricing
     console.log("Refreshing top-up plans...");
@@ -81,13 +81,12 @@ serve(async (req) => {
     });
 
     if (!refreshPlansResponse.ok) {
-      const errorText = await refreshPlansResponse.text();
-      console.error("Failed to refresh plans:", refreshPlansResponse.status, errorText);
-      throw new Error(`Failed to refresh plans: ${refreshPlansResponse.status} - ${errorText}`);
+      console.error("Failed to refresh plans:", refreshPlansResponse.status);
+      throw new Error(`Failed to refresh plans: ${refreshPlansResponse.status}`);
     }
 
     const refreshPlansData = await refreshPlansResponse.json();
-    console.log("Refreshed plans response:", refreshPlansData);
+    console.log("Refreshed plans response: Success");
 
     // Check if refresh was successful
     const refreshSuccess = refreshPlansData?.success === true || refreshPlansData?.success === "true";
@@ -160,20 +159,19 @@ serve(async (req) => {
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error("eSIM Access top-up API error:", response.status, errorText);
-      throw new Error(`Top-up API request failed: ${response.status} - ${errorText}`);
+      console.error("Provider top-up API error:", response.status);
+      throw new Error(`Top-up API request failed: ${response.status}`);
     }
 
     const apiResult = await response.json();
-    console.log("Top-up API response:", apiResult);
+    console.log("Top-up API response: Success");
 
     // Check if top-up was successful
     const isSuccess = apiResult?.success === true || apiResult?.success === "true";
     if (!isSuccess) {
       const errCode = apiResult?.errorCode ?? apiResult?.code ?? "unknown";
       const errMsg = apiResult?.errorMessage ?? apiResult?.errorMsg ?? "Unknown error from provider";
-      console.error("eSIM Access top-up failed:", { errCode, errMsg, apiResult });
+      console.error("Provider top-up failed");
       throw new Error(`Top-up failed: ${errCode} - ${errMsg}`);
     }
 

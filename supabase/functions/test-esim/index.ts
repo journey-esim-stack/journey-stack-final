@@ -52,9 +52,9 @@ serve(async (req) => {
       });
     }
 
-    // Test eSIM Access API with the plan
+    // Test provider API with the plan
     if (accessCode && secretKey && testPlan) {
-      console.log('Testing eSIM Access API...');
+      console.log('Testing provider API...');
       
       const apiPayload = {
         access_code: accessCode,

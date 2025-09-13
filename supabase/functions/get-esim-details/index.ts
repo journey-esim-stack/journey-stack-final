@@ -31,13 +31,13 @@ serve(async (req) => {
     const secretKey = Deno.env.get('ESIMACCESS_SECRET_KEY');
 
     if (!accessCode || !secretKey) {
-      return new Response(JSON.stringify({ error: 'eSIM Access credentials not configured' }), {
+      return new Response(JSON.stringify({ error: 'Service credentials not configured' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    // Query eSIM details by ICCID using eSIM Access "open/esim/query"
+    // Query eSIM details by ICCID using provider API
     const response = await fetch('https://api.esimaccess.com/api/v1/open/esim/query', {
       method: 'POST',
       headers: {
@@ -54,7 +54,7 @@ serve(async (req) => {
     const raw = await response.json();
     
     if (!response.ok || !(raw?.success === true || String(raw?.success).toLowerCase() === 'true')) {
-      console.error('eSIM Access API error:', raw);
+      console.error('Provider API error:', raw);
       return new Response(JSON.stringify({ error: 'Failed to fetch eSIM details' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

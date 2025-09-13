@@ -72,14 +72,14 @@ serve(async (req) => {
     });
 
     if (!accessCode || !secretKey) {
-      console.error('Missing eSIM Access credentials');
-      return new Response(JSON.stringify({ error: 'eSIM Access credentials not configured' }), {
+      console.error('Missing service credentials');
+      return new Response(JSON.stringify({ error: 'Service credentials not configured' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    console.log('Creating eSIM with eSIM Access API...');
+    console.log('Creating eSIM with provider API...');
     console.log('Plan supplier_plan_id:', plan.supplier_plan_id);
 
     // Place order via eSIM Access API (v1 OPEN endpoint)
@@ -110,11 +110,11 @@ serve(async (req) => {
     console.log('Order API Response data:', orderJson);
 
     if (!orderRes.ok || !orderJson?.success) {
-      console.error('eSIM Access Order API error - Status:', orderRes.status);
-      console.error('eSIM Access Order API error - Data:', orderJson);
+      console.error('Provider Order API error - Status:', orderRes.status);
+      console.error('Provider Order API error');
       return new Response(JSON.stringify({
         error: 'Failed to place eSIM order',
-        details: orderJson,
+        details: 'Service temporarily unavailable',
         status: orderRes.status,
         supplier_plan_id: plan.supplier_plan_id,
       }), {

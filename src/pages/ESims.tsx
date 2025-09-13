@@ -346,7 +346,7 @@ const ESims = () => {
         
         let fullErrorMsg = errorMsg;
         if (details && typeof details === 'object') {
-          // If details is an object (eSIM Access API response), extract meaningful info
+          // If details is an object (provider API response), extract meaningful info
           const detailMsg = details.message || details.error || JSON.stringify(details);
           fullErrorMsg = `${errorMsg}: ${detailMsg}`;
         } else if (details) {

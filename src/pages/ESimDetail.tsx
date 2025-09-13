@@ -157,7 +157,7 @@ const ESimDetail = () => {
         setTopupHistory(topupData);
       }
 
-      // Fetch real-time details from eSIM Access API
+      // Fetch real-time details from provider API
       const { data: apiData, error: apiError } = await supabase.functions.invoke('get-esim-details', {
         body: { iccid }
       });

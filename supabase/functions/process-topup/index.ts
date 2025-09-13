@@ -54,9 +54,9 @@ serve(async (req) => {
 
     // Wallet balance check will occur after fetching latest provider price and applying markup
 
-    // Get eSIM Access API credentials
-    const accessCode = Deno.env.get("ESIMACCESS_ACCESS_CODE");
-    const secretKey = Deno.env.get("ESIMACCESS_SECRET_KEY");
+    // Get provider API credentials
+    const accessCode = Deno.env.get("PROVIDER_ACCESS_CODE");
+    const secretKey = Deno.env.get("PROVIDER_SECRET_KEY");
 
     if (!accessCode || !secretKey) {
       throw new Error("Service API credentials not configured");
@@ -66,7 +66,8 @@ serve(async (req) => {
 
     // First, refresh the latest plans to get current pricing
     console.log("Refreshing top-up plans...");
-    const refreshPlansResponse = await fetch("https://api.esimaccess.com/api/v1/open/package/list", {
+    const providerApiUrl = Deno.env.get("PROVIDER_API_URL");
+    const refreshPlansResponse = await fetch(`${providerApiUrl}/api/v1/open/package/list`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -148,7 +149,7 @@ serve(async (req) => {
 
     console.log("Top-up request payload:", topupPayload);
 
-    const response = await fetch("https://api.esimaccess.com/api/v1/open/esim/topup", {
+    const response = await fetch(`${providerApiUrl}/api/v1/open/esim/topup`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

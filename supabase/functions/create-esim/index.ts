@@ -61,8 +61,8 @@ serve(async (req) => {
       });
     }
 
-    const accessCode = Deno.env.get('ESIMACCESS_ACCESS_CODE');
-    const secretKey = Deno.env.get('ESIMACCESS_SECRET_KEY');
+    const accessCode = Deno.env.get('PROVIDER_ACCESS_CODE');
+    const secretKey = Deno.env.get('PROVIDER_SECRET_KEY');
 
     console.log('Environment variables check:', {
       hasAccessCode: !!accessCode,
@@ -82,7 +82,7 @@ serve(async (req) => {
     console.log('Creating eSIM with provider API...');
     console.log('Plan supplier_plan_id:', plan.supplier_plan_id);
 
-    // Place order via eSIM Access API (v1 OPEN endpoint)
+    // Place order via provider API (v1 OPEN endpoint)
     const orderPayload = {
       transactionId: order_id, // use our DB order id as the unique transaction id
       packageInfoList: [
@@ -94,11 +94,13 @@ serve(async (req) => {
     };
     console.log('Order Request payload:', { ...orderPayload });
 
-    const orderRes = await fetch('https://api.esimaccess.com/api/v1/open/esim/order', {
+    const providerApiUrl = Deno.env.get('PROVIDER_API_URL');
+    const orderRes = await fetch(`${providerApiUrl}/api/v1/open/esim/order`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'RT-AccessCode': accessCode,
+        'RT-SecretKey': secretKey,
       },
       body: JSON.stringify(orderPayload),
     });
@@ -149,11 +151,12 @@ serve(async (req) => {
       };
 
       console.log(`Query attempt ${attempt}/${maxAttempts} for orderNo:`, orderNo);
-      const queryRes = await fetch('https://api.esimaccess.com/api/v1/open/esim/query', {
+      const queryRes = await fetch(`${providerApiUrl}/api/v1/open/esim/query`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'RT-AccessCode': accessCode,
+          'RT-SecretKey': secretKey,
         },
         body: JSON.stringify(queryPayload),
       });

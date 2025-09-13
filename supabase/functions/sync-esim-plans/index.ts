@@ -21,8 +21,8 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Get provider API credentials
-    const accessCode = Deno.env.get('ESIMACCESS_ACCESS_CODE');
-    const secretKey = Deno.env.get('ESIMACCESS_SECRET_KEY');
+    const accessCode = Deno.env.get('PROVIDER_ACCESS_CODE');
+    const secretKey = Deno.env.get('PROVIDER_SECRET_KEY');
 
     if (!accessCode || !secretKey) {
       throw new Error('Service credentials not configured');

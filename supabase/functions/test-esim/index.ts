@@ -18,8 +18,8 @@ serve(async (req) => {
     // Test environment variables
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-    const accessCode = Deno.env.get('ESIMACCESS_ACCESS_CODE');
-    const secretKey = Deno.env.get('ESIMACCESS_SECRET_KEY');
+    const accessCode = Deno.env.get('PROVIDER_ACCESS_CODE');
+    const secretKey = Deno.env.get('PROVIDER_SECRET_KEY');
 
     console.log('Environment check:', {
       hasSupabaseUrl: !!supabaseUrl,
@@ -69,7 +69,8 @@ serve(async (req) => {
       });
 
       try {
-        const response = await fetch('https://api.esimaccess.com/api/v1/esim/order', {
+        const providerApiUrl = Deno.env.get('PROVIDER_API_URL');
+        const response = await fetch(`${providerApiUrl}/api/v1/esim/order`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

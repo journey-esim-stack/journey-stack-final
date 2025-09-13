@@ -52,9 +52,9 @@ serve(async (req) => {
       throw new Error("Agent profile not found");
     }
 
-    // Get eSIM Access API credentials
-    const accessCode = Deno.env.get("ESIMACCESS_ACCESS_CODE");
-    const secretKey = Deno.env.get("ESIMACCESS_SECRET_KEY");
+    // Get provider API credentials
+    const accessCode = Deno.env.get("PROVIDER_ACCESS_CODE");
+    const secretKey = Deno.env.get("PROVIDER_SECRET_KEY");
 
     if (!accessCode || !secretKey) {
       throw new Error("Service API credentials not configured");
@@ -74,7 +74,8 @@ serve(async (req) => {
       requestPayload.packageCode = packageCode;
     }
 
-    const response = await fetch("https://api.esimaccess.com/api/v1/open/package/list", {
+    const providerApiUrl = Deno.env.get("PROVIDER_API_URL");
+    const response = await fetch(`${providerApiUrl}/api/v1/open/package/list`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

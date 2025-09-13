@@ -56,24 +56,30 @@ serve(async (req) => {
     if (accessCode && secretKey && testPlan) {
       console.log('Testing provider API...');
       
+      const transactionId = `test_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
       const apiPayload = {
-        access_code: accessCode,
-        secret_key: secretKey,
-        plan_id: testPlan.supplier_plan_id,
-        quantity: 1
+        transactionId: transactionId,
+        packageInfoList: [{
+          packageCode: testPlan.supplier_plan_id,
+          count: 1,
+          price: 0
+        }]
       };
 
-      console.log('API payload (secret hidden):', { 
-        ...apiPayload, 
-        secret_key: '[HIDDEN]' 
+      console.log('API payload:', { 
+        transactionId: transactionId,
+        packageCode: testPlan.supplier_plan_id,
+        count: 1
       });
 
       try {
         const providerApiUrl = Deno.env.get('PROVIDER_API_URL');
-        const response = await fetch(`${providerApiUrl}/api/v1/esim/order`, {
+        const response = await fetch(`${providerApiUrl}/api/v1/open/esim/order`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            'RT-AccessCode': accessCode,
+            'RT-SecretKey': secretKey,
           },
           body: JSON.stringify(apiPayload),
         });

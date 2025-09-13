@@ -33,10 +33,12 @@ serve(async (req) => {
     console.log('Fetching data from provider API...');
 
     // Try the balance endpoint first to test authentication
-    const balanceResponse = await fetch('https://api.esimaccess.com/api/v1/open/balance/query', {
+    const providerApiUrl = Deno.env.get('PROVIDER_API_URL');
+    const balanceResponse = await fetch(`${providerApiUrl}/api/v1/open/balance/query`, {
       method: 'POST',
       headers: {
         'RT-AccessCode': accessCode,
+        'RT-SecretKey': secretKey,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({})
@@ -51,10 +53,11 @@ serve(async (req) => {
     }
 
     // If balance check works, try the package list
-    const response = await fetch('https://api.esimaccess.com/api/v1/open/package/list', {
+    const response = await fetch(`${providerApiUrl}/api/v1/open/package/list`, {
       method: 'POST',
       headers: {
         'RT-AccessCode': accessCode,
+        'RT-SecretKey': secretKey,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({})

@@ -17,6 +17,7 @@ import Dashboard from "./pages/Dashboard";
 import ESims from "./pages/ESims";
 import ESimDetail from "./pages/ESimDetail";
 import AdminAgents from "./pages/AdminAgents";
+import AdminInventory from "./pages/AdminInventory";
 import TopupSuccess from "./pages/TopupSuccess";
 import TopupCanceled from "./pages/TopupCanceled";
 import Profile from "./pages/Profile";
@@ -41,6 +42,7 @@ const App = () => (
           <Route path="/esims" element={<AgentApprovalGuard><ESims /></AgentApprovalGuard>} />
           <Route path="/esims/:iccid" element={<AgentApprovalGuard><ESimDetail /></AgentApprovalGuard>} />
           <Route path="/admin/agents" element={<AgentApprovalGuard><AdminAgents /></AgentApprovalGuard>} />
+          <Route path="/admin/inventory" element={<AgentApprovalGuard><AdminInventory /></AgentApprovalGuard>} />
           <Route path="/profile" element={<AgentApprovalGuard><Profile /></AgentApprovalGuard>} />
           <Route path="/wallet/topup-success" element={<AgentApprovalGuard><TopupSuccess /></AgentApprovalGuard>} />
           <Route path="/wallet/topup-canceled" element={<AgentApprovalGuard><TopupCanceled /></AgentApprovalGuard>} />

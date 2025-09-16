@@ -95,12 +95,12 @@ export default function Layout({ children }: LayoutProps) {
       <nav className="border-b bg-card">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
-            <div className="flex items-center space-x-8">
+            <div className="flex items-center space-x-4">
               <Link to="/dashboard" className="flex items-center">
                 <img 
                   src="/lovable-uploads/1e1f433f-d326-4551-ba07-4e6b9e5c259f.png" 
                   alt="Journey Stack" 
-                  className="h-12 md:h-14 w-auto object-contain shrink-0"
+                  className="h-8 w-auto object-contain shrink-0"
                 />
               </Link>
               <div className="hidden md:flex items-center space-x-1">
@@ -121,7 +121,7 @@ export default function Layout({ children }: LayoutProps) {
                     </Link>
                   );
                 })}
-                <div className="flex items-center space-x-3 ml-4 pr-3 md:pr-6">
+                <div className="flex items-center space-x-2 ml-3">
                   {adminNavigation.map((item) => {
                     const Icon = item.icon;
                     return (
@@ -142,8 +142,7 @@ export default function Layout({ children }: LayoutProps) {
                 </div>
               </div>
             </div>
-            <div className="flex items-center space-x-6">
-              <div className="hidden md:block h-6 w-px bg-border mr-4" aria-hidden="true" />
+            <div className="flex items-center space-x-4">
               {/* Currency Selector */}
               <CurrencySelector />
               

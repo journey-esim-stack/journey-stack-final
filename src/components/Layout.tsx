@@ -94,13 +94,13 @@ export default function Layout({ children }: LayoutProps) {
     <div className="min-h-screen bg-background">
       <nav className="border-b bg-card">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16">
-            <div className="flex items-center space-x-4">
+          <div className="flex justify-between h-16 md:h-20">
+            <div className="flex items-center space-x-3">
               <Link to="/dashboard" className="flex items-center">
                 <img 
                   src="/lovable-uploads/1e1f433f-d326-4551-ba07-4e6b9e5c259f.png" 
                   alt="Journey Stack" 
-                  className="h-10 md:h-12 w-auto object-contain shrink-0"
+                  className="h-12 md:h-16 w-auto object-contain shrink-0"
                 />
               </Link>
               <div className="hidden md:flex items-center space-x-1">
@@ -110,7 +110,7 @@ export default function Layout({ children }: LayoutProps) {
                     <Link
                       key={item.name}
                       to={item.href}
-                      className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                      className={`flex items-center space-x-2 px-2 md:px-3 py-2 rounded-md text-xs md:text-sm font-medium transition-colors ${
                         location.pathname === item.href
                           ? "bg-primary text-primary-foreground"
                           : "text-foreground/80 hover:text-foreground hover:bg-accent"
@@ -128,7 +128,7 @@ export default function Layout({ children }: LayoutProps) {
                       <Link
                         key={item.name}
                         to={item.href}
-                        className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                        className={`flex items-center space-x-2 px-2 md:px-3 py-2 rounded-md text-xs md:text-sm font-medium transition-colors ${
                           location.pathname === item.href
                             ? "bg-orange-600 text-white"
                             : "bg-orange-500 text-white hover:bg-orange-600"
@@ -142,7 +142,7 @@ export default function Layout({ children }: LayoutProps) {
                 </div>
               </div>
             </div>
-            <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-2 md:space-x-3">
               <div className="hidden md:block h-6 w-px bg-border" aria-hidden="true" />
               {/* Currency Selector */}
               <CurrencySelector />

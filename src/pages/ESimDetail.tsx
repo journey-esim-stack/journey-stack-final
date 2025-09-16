@@ -253,6 +253,12 @@ Plan: ${planName}
 QR Code: ${esimDetails?.activation?.qr_code || ""}
 Manual Activation Code: ${esimDetails?.activation?.manual_code || ""}
 
+IMPORTANT - Check your device eSIM compatibility:
+
+📞 Dial *#06#
+👀 Look for your device's unique eSIM ID (EID)
+✅ If you see it, your phone is eSIM compatible!
+
 Instructions:
 • Scan the QR code with your Camera app
 • Follow prompts to add the new Data Plan

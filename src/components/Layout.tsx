@@ -97,7 +97,11 @@ export default function Layout({ children }: LayoutProps) {
           <div className="flex justify-between h-16">
             <div className="flex items-center space-x-8">
               <Link to="/dashboard" className="flex items-center">
-                <img src="/lovable-uploads/1e1f433f-d326-4551-ba07-4e6b9e5c259f.png" alt="Journey Stack" className="h-12" />
+                <img 
+                  src="/lovable-uploads/1e1f433f-d326-4551-ba07-4e6b9e5c259f.png" 
+                  alt="Journey Stack" 
+                  className="h-10 w-auto object-contain"
+                />
               </Link>
               <div className="hidden md:flex items-center space-x-1">
                 {navigation.map((item) => {
@@ -117,23 +121,25 @@ export default function Layout({ children }: LayoutProps) {
                     </Link>
                   );
                 })}
-                {adminNavigation.map((item) => {
-                  const Icon = item.icon;
-                  return (
-                    <Link
-                      key={item.name}
-                      to={item.href}
-                      className={`flex items-center space-x-2 px-3 py-2 ml-2 rounded-md text-sm font-medium transition-colors ${
-                        location.pathname === item.href
-                          ? "bg-orange-600 text-white"
-                          : "bg-orange-500 text-white hover:bg-orange-600"
-                      }`}
-                    >
-                      <Icon className="h-4 w-4" />
-                      <span className="whitespace-nowrap">{item.name}</span>
-                    </Link>
-                  );
-                })}
+                <div className="flex items-center space-x-2 ml-4">
+                  {adminNavigation.map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <Link
+                        key={item.name}
+                        to={item.href}
+                        className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                          location.pathname === item.href
+                            ? "bg-orange-600 text-white"
+                            : "bg-orange-500 text-white hover:bg-orange-600"
+                        }`}
+                      >
+                        <Icon className="h-4 w-4" />
+                        <span className="whitespace-nowrap">{item.name}</span>
+                      </Link>
+                    );
+                  })}
+                </div>
               </div>
             </div>
             <div className="flex items-center space-x-4">

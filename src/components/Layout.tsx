@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { User as SupabaseUser } from "@supabase/supabase-js";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { LogOut, Package, Wallet, ShoppingCart, ShieldCheck, Smartphone, User, BarChart3 } from "lucide-react";
+import { LogOut, Package, Wallet, ShoppingCart, ShieldCheck, Smartphone, User, BarChart3, Archive } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import CartSidebar from "@/components/CartSidebar";
 import CartIcon from "@/components/CartIcon";
@@ -87,6 +87,7 @@ export default function Layout({ children }: LayoutProps) {
 
   const adminNavigation = isAdmin ? [
     { name: "Admin: Agents", href: "/admin/agents", icon: ShieldCheck },
+    { name: "Admin: Inventory", href: "/admin/inventory", icon: Archive },
   ] : [];
 
   return (
@@ -129,7 +130,7 @@ export default function Layout({ children }: LayoutProps) {
                       }`}
                     >
                       <Icon className="h-4 w-4" />
-                      <span className="whitespace-nowrap">Admin: Agents</span>
+                      <span className="whitespace-nowrap">{item.name}</span>
                     </Link>
                   );
                 })}

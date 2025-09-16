@@ -170,7 +170,7 @@ export default function Wallet() {
       case "purchase":
         return "bg-red-100 text-red-800 border-red-200";
       case "refund":
-        return "bg-blue-100 text-blue-800 border-blue-200";
+        return "bg-green-100 text-green-800 border-green-200";
       default:
         return "bg-gray-100 text-gray-800 border-gray-200";
     }
@@ -193,7 +193,7 @@ export default function Wallet() {
       format(new Date(transaction.created_at), "MMM dd, yyyy HH:mm"),
       transaction.transaction_type === "deposit" ? "Top-up" : transaction.transaction_type === "purchase" ? "Purchase" : "Refund",
       transaction.description || "-",
-      `${transaction.transaction_type === "deposit" ? "+" : "-"}USD ${Math.abs(transaction.amount).toFixed(2)}`,
+      `${transaction.transaction_type === "deposit" || transaction.transaction_type === "refund" ? "+" : "-"}USD ${Math.abs(transaction.amount).toFixed(2)}`,
       `USD ${transaction.balance_after.toFixed(2)}`,
       transaction.reference_id || "-"
     ]);
@@ -394,8 +394,12 @@ export default function Wallet() {
                       </TableCell>
                       <TableCell>{transaction.description || "-"}</TableCell>
                       <TableCell>
-                        <span className={transaction.transaction_type === "deposit" ? "text-green-600" : "text-red-600"}>
-                          {transaction.transaction_type === "deposit" ? "+" : "-"}
+                        <span className={
+                          transaction.transaction_type === "deposit" || transaction.transaction_type === "refund" 
+                            ? "text-green-600" 
+                            : "text-red-600"
+                        }>
+                          {transaction.transaction_type === "deposit" || transaction.transaction_type === "refund" ? "+" : "-"}
                           USD {Math.abs(transaction.amount).toFixed(2)}
                         </span>
                       </TableCell>

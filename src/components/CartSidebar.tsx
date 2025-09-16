@@ -78,13 +78,15 @@ export default function CartSidebar({ isOpen: externalIsOpen, onOpenChange }: Ca
           </SheetTitle>
         </SheetHeader>
 
-        <div className="mt-6 space-y-4 flex-1 overflow-hidden">
+        <div className="mt-6 flex-1 flex flex-col overflow-hidden">
           {showCheckout ? (
-            <div className="overflow-y-auto flex-1 pr-2">
-              <CheckoutForm
-                onSuccess={handleCheckoutSuccess}
-                onCancel={handleCheckoutCancel}
-              />
+            <div className="flex-1 overflow-y-auto">
+              <div className="space-y-4 pr-2">
+                <CheckoutForm
+                  onSuccess={handleCheckoutSuccess}
+                  onCancel={handleCheckoutCancel}
+                />
+              </div>
             </div>
           ) : state.items.length === 0 ? (
             <div className="text-center py-8">
@@ -94,7 +96,7 @@ export default function CartSidebar({ isOpen: externalIsOpen, onOpenChange }: Ca
             </div>
           ) : (
             <>
-              <div className="space-y-3 max-h-96 overflow-y-auto">
+              <div className="space-y-3 flex-1 overflow-y-auto">
                 {state.items.map((item) => (
                   <Card key={item.id} className="glass-subtle border-0">
                     <CardContent className="p-4">

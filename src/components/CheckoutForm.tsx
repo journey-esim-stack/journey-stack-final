@@ -90,18 +90,27 @@ export const CheckoutForm = ({ onSuccess, onCancel }: CheckoutFormProps) => {
     setIsSubmitting(true);
     
     try {
+      // Convert prices back to USD for backend processing
+      const usdConversionRate = selectedCurrency === 'USD' ? 1 : 
+        selectedCurrency === 'INR' ? 1/84.50 :
+        selectedCurrency === 'AUD' ? 1/1.58 :
+        selectedCurrency === 'EUR' ? 1/0.95 : 1;
+      
+      const usdTotal = Number((state.total * usdConversionRate).toFixed(2));
+      
       const { error, data } = await supabase.functions.invoke('wallet-debit', {
         body: {
-          amount: Number(state.total.toFixed(2)),
+          amount: usdTotal,
           description: `eSIM purchase: ${state.items.map(item => item.title).join(", ")}`,
           reference_id: `cart-${Date.now()}`,
           cart_items: state.items.map(item => ({
             ...item,
-            wholesalePrice: item.agentPrice * 0.8 // Estimate wholesale price as 80% of agent price
+            agentPrice: item.agentPrice * usdConversionRate, // Convert back to USD
+            wholesalePrice: (item.agentPrice * usdConversionRate) * 0.8 // Convert back to USD and estimate wholesale
           })),
           customer_info: {
-            name: customerInfo.name.trim() || null,
-            email: customerInfo.email.trim() || null,
+            name: customerInfo.name.trim() || 'Customer',
+            email: customerInfo.email.trim() || 'customer@example.com',
             phone: customerInfo.phone.trim() || null,
           },
           device_info: deviceInfo.modelId ? {

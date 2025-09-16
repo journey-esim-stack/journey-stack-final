@@ -98,30 +98,51 @@ export default function AdminInventory() {
   const fetchInventory = async () => {
     try {
       setLoading(true);
+      console.log("Fetching inventory data...");
 
-      // Fetch orders with related data
+      // Try using the edge function for better data access
+      const { data: response, error: functionError } = await supabase.functions.invoke('get-admin-inventory');
+      
+      if (functionError) {
+        console.error("Function error:", functionError);
+        throw functionError;
+      }
+
+      if (response?.success) {
+        console.log("Inventory data from function:", response.data?.length || 0);
+        setInventory(response.data || []);
+        return;
+      }
+
+      // Fallback to direct query if function fails
+      console.log("Function failed, trying direct query...");
       const { data: orders, error: ordersError } = await supabase
         .from("orders")
         .select(`
           *,
-          agent_profiles!inner(id, company_name, contact_person),
-          esim_plans!inner(title, country_name, data_amount)
+          agent_profiles(id, company_name, contact_person),
+          esim_plans(title, country_name, data_amount)
         `)
         .order("created_at", { ascending: false });
 
-      if (ordersError) throw ordersError;
+      if (ordersError) {
+        console.error("Direct query error:", ordersError);
+        throw ordersError;
+      }
+
+      console.log("Direct query orders fetched:", orders?.length || 0);
 
       // Transform the data
       const inventoryData: InventoryItem[] = (orders || []).map((order: any) => ({
         id: order.id,
         agent_id: order.agent_id,
-        agent_name: order.agent_profiles.contact_person,
-        company_name: order.agent_profiles.company_name,
+        agent_name: order.agent_profiles?.contact_person || 'Unknown',
+        company_name: order.agent_profiles?.company_name || 'Unknown Company',
         esim_iccid: order.esim_iccid || 'Pending',
         plan_id: order.plan_id,
-        plan_title: order.esim_plans.title,
-        country_name: order.esim_plans.country_name,
-        data_amount: order.esim_plans.data_amount,
+        plan_title: order.esim_plans?.title || 'Unknown Plan',
+        country_name: order.esim_plans?.country_name || 'Unknown',
+        data_amount: order.esim_plans?.data_amount || 'Unknown',
         retail_price: order.retail_price,
         wholesale_price: order.wholesale_price,
         status: order.status,
@@ -133,12 +154,14 @@ export default function AdminInventory() {
         supplier_order_id: order.supplier_order_id
       }));
 
+      console.log("Direct query inventory data:", inventoryData.length);
       setInventory(inventoryData);
+
     } catch (error) {
       console.error("Error fetching inventory:", error);
       toast({
         title: "Error",
-        description: "Failed to fetch inventory data",
+        description: "Failed to fetch inventory data. Check console for details.",
         variant: "destructive",
       });
     } finally {
@@ -249,6 +272,15 @@ export default function AdminInventory() {
             </Button>
           </div>
         </div>
+
+        {/* Debug Info */}
+        <Card className="bg-yellow-50 border-yellow-200">
+          <CardContent className="p-4">
+            <p className="text-sm text-yellow-800">
+              Debug: Total inventory items: {inventory.length}, Filtered: {filteredInventory.length}
+            </p>
+          </CardContent>
+        </Card>
 
         {/* Filters */}
         <Card>
@@ -408,9 +440,9 @@ export default function AdminInventory() {
                   </tbody>
                 </table>
                 
-                {filteredInventory.length === 0 && (
+                {filteredInventory.length === 0 && !loading && (
                   <div className="text-center py-8 text-muted-foreground">
-                    No inventory items found
+                    No inventory items found{inventory.length > 0 && " (check filters)"}
                   </div>
                 )}
               </div>

@@ -60,13 +60,8 @@ export const CheckoutForm = ({ onSuccess, onCancel }: CheckoutFormProps) => {
   const validateForm = () => {
     const errors: Record<string, string> = {};
     
-    if (!customerInfo.name.trim()) {
-      errors.name = 'Customer name is required';
-    }
-    
-    if (!customerInfo.email.trim()) {
-      errors.email = 'Customer email is required';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerInfo.email)) {
+    // Customer name and email are now optional
+    if (customerInfo.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerInfo.email)) {
       errors.email = 'Please enter a valid email address';
     }
     
@@ -105,8 +100,8 @@ export const CheckoutForm = ({ onSuccess, onCancel }: CheckoutFormProps) => {
             wholesalePrice: item.agentPrice * 0.8 // Estimate wholesale price as 80% of agent price
           })),
           customer_info: {
-            name: customerInfo.name.trim(),
-            email: customerInfo.email.trim(),
+            name: customerInfo.name.trim() || null,
+            email: customerInfo.email.trim() || null,
             phone: customerInfo.phone.trim() || null,
           },
           device_info: deviceInfo.modelId ? {
@@ -170,7 +165,7 @@ export const CheckoutForm = ({ onSuccess, onCancel }: CheckoutFormProps) => {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="customer-name">Customer Name *</Label>
+            <Label htmlFor="customer-name">Customer Name (Optional)</Label>
             <Input
               id="customer-name"
               value={customerInfo.name}
@@ -184,7 +179,7 @@ export const CheckoutForm = ({ onSuccess, onCancel }: CheckoutFormProps) => {
           </div>
           
           <div className="space-y-2">
-            <Label htmlFor="customer-email">Customer Email *</Label>
+            <Label htmlFor="customer-email">Customer Email (Optional)</Label>
             <Input
               id="customer-email"
               type="email"

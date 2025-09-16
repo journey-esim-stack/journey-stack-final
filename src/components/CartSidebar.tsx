@@ -60,7 +60,7 @@ export default function CartSidebar({ isOpen: externalIsOpen, onOpenChange }: Ca
           </Button>
         </SheetTrigger>
       )}
-      <SheetContent className="w-full sm:max-w-lg glass-intense border-0">
+      <SheetContent className="w-full sm:max-w-lg glass-intense border-0 flex flex-col h-full">
         <SheetHeader>
           <SheetTitle className="flex items-center gap-2">
             {showCheckout && (
@@ -78,12 +78,14 @@ export default function CartSidebar({ isOpen: externalIsOpen, onOpenChange }: Ca
           </SheetTitle>
         </SheetHeader>
 
-        <div className="mt-6 space-y-4">
+        <div className="mt-6 space-y-4 flex-1 overflow-hidden">
           {showCheckout ? (
-            <CheckoutForm
-              onSuccess={handleCheckoutSuccess}
-              onCancel={handleCheckoutCancel}
-            />
+            <div className="overflow-y-auto flex-1 pr-2">
+              <CheckoutForm
+                onSuccess={handleCheckoutSuccess}
+                onCancel={handleCheckoutCancel}
+              />
+            </div>
           ) : state.items.length === 0 ? (
             <div className="text-center py-8">
               <ShoppingCart className="h-16 w-16 mx-auto mb-4 text-muted-foreground opacity-50" />

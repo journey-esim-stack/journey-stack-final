@@ -12,15 +12,34 @@ async function issueRefund(supabaseClient: any, orderId: string, reason: string)
   try {
     console.log('Processing refund for order:', orderId, 'Reason:', reason);
     
+    // Check if refund already exists for this order
+    const { data: existingRefund } = await supabaseClient
+      .from('wallet_transactions')
+      .select('id')
+      .eq('reference_id', `refund-${orderId}`)
+      .eq('transaction_type', 'refund')
+      .single();
+    
+    if (existingRefund) {
+      console.log('Refund already processed for order:', orderId);
+      return;
+    }
+    
     // Get order details
     const { data: order, error: orderError } = await supabaseClient
       .from('orders')
-      .select('agent_id, retail_price')
+      .select('agent_id, retail_price, status')
       .eq('id', orderId)
       .single();
     
     if (orderError || !order) {
       console.error('Failed to fetch order for refund:', orderError);
+      return;
+    }
+    
+    // Don't refund if order is already completed
+    if (order.status === 'completed') {
+      console.log('Order already completed, skipping refund for order:', orderId);
       return;
     }
     

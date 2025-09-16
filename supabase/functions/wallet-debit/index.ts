@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { amount, description, reference_id, cart_items, customer_info } = await req.json();
+    const { amount, description, reference_id, cart_items, customer_info, device_info } = await req.json();
     if (typeof amount !== "number" || amount <= 0) {
       throw new Error("amount must be a positive number");
     }
@@ -89,6 +89,10 @@ serve(async (req) => {
         customer_name: customer_info.name,
         customer_email: customer_info.email,
         customer_phone: customer_info.phone || null,
+        device_brand_id: device_info?.brand_id || null,
+        device_model_id: device_info?.model_id || null,
+        compatibility_checked: device_info?.compatibility_checked || false,
+        compatibility_warning_shown: device_info?.compatibility_warning_shown || false,
         status: "pending",
       }));
 

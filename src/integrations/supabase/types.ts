@@ -143,6 +143,65 @@ export type Database = {
         }
         Relationships: []
       }
+      device_brands: {
+        Row: {
+          brand_name: string
+          created_at: string
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          brand_name: string
+          created_at?: string
+          id?: string
+          updated_at?: string
+        }
+        Update: {
+          brand_name?: string
+          created_at?: string
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      device_models: {
+        Row: {
+          brand_id: string
+          created_at: string
+          id: string
+          is_esim_compatible: boolean
+          model_name: string
+          notes: string | null
+          updated_at: string
+        }
+        Insert: {
+          brand_id: string
+          created_at?: string
+          id?: string
+          is_esim_compatible?: boolean
+          model_name: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Update: {
+          brand_id?: string
+          created_at?: string
+          id?: string
+          is_esim_compatible?: boolean
+          model_name?: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "device_models_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "device_brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       esim_plans: {
         Row: {
           country_code: string
@@ -237,10 +296,14 @@ export type Database = {
         Row: {
           activation_code: string | null
           agent_id: string
+          compatibility_checked: boolean | null
+          compatibility_warning_shown: boolean | null
           created_at: string
           customer_email: string
           customer_name: string
           customer_phone: string | null
+          device_brand_id: string | null
+          device_model_id: string | null
           esim_iccid: string | null
           esim_qr_code: string | null
           id: string
@@ -254,10 +317,14 @@ export type Database = {
         Insert: {
           activation_code?: string | null
           agent_id: string
+          compatibility_checked?: boolean | null
+          compatibility_warning_shown?: boolean | null
           created_at?: string
           customer_email: string
           customer_name: string
           customer_phone?: string | null
+          device_brand_id?: string | null
+          device_model_id?: string | null
           esim_iccid?: string | null
           esim_qr_code?: string | null
           id?: string
@@ -271,10 +338,14 @@ export type Database = {
         Update: {
           activation_code?: string | null
           agent_id?: string
+          compatibility_checked?: boolean | null
+          compatibility_warning_shown?: boolean | null
           created_at?: string
           customer_email?: string
           customer_name?: string
           customer_phone?: string | null
+          device_brand_id?: string | null
+          device_model_id?: string | null
           esim_iccid?: string | null
           esim_qr_code?: string | null
           id?: string
@@ -294,6 +365,20 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "orders_device_brand_id_fkey"
+            columns: ["device_brand_id"]
+            isOneToOne: false
+            referencedRelation: "device_brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_device_model_id_fkey"
+            columns: ["device_model_id"]
+            isOneToOne: false
+            referencedRelation: "device_models"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "orders_plan_id_fkey"
             columns: ["plan_id"]
             isOneToOne: false
@@ -301,6 +386,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      system_settings: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          setting_key: string
+          setting_value: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          setting_key: string
+          setting_value: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          setting_key?: string
+          setting_value?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       user_roles: {
         Row: {

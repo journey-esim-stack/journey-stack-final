@@ -5,10 +5,9 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { useCart } from '@/contexts/CartContext';
 import { useCurrency } from '@/contexts/CurrencyContext';
-import { ShoppingCart, Plus, Minus, Trash2, CreditCard } from 'lucide-react';
+import { ShoppingCart, Plus, Minus, Trash2, CreditCard, ArrowLeft } from 'lucide-react';
 import { getCountryFlag } from '@/utils/countryFlags';
-import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
+import CheckoutForm from './CheckoutForm';
 
 interface CartSidebarProps {
   isOpen?: boolean;
@@ -19,7 +18,7 @@ export default function CartSidebar({ isOpen: externalIsOpen, onOpenChange }: Ca
   const { state, updateQuantity, removeFromCart, clearCart } = useCart();
   const { getCurrencySymbol, selectedCurrency } = useCurrency();
   const [internalIsOpen, setInternalIsOpen] = useState(false);
-  const { toast } = useToast();
+  const [showCheckout, setShowCheckout] = useState(false);
 
   // Open the cart when a custom event is dispatched (from header icon)
   useEffect(() => {
@@ -32,44 +31,13 @@ export default function CartSidebar({ isOpen: externalIsOpen, onOpenChange }: Ca
   const isOpen = externalIsOpen !== undefined ? externalIsOpen : internalIsOpen;
   const setIsOpen = onOpenChange || setInternalIsOpen;
 
-  const handleCheckout = async () => {
-    if (state.items.length === 0) return;
-    try {
-      const { error, data } = await supabase.functions.invoke('wallet-debit', {
-        body: {
-          amount: Number(state.total.toFixed(2)),
-          description: `eSIM purchase: ${state.items.map(item => item.title).join(", ")}`,
-          reference_id: `cart-${Date.now()}`,
-          cart_items: state.items.map(item => ({
-            ...item,
-            wholesalePrice: item.agentPrice * 0.8 // Estimate wholesale price as 80% of agent price
-          })),
-          customer_info: {
-            name: "Customer Name", // TODO: Get from user profile or form
-            email: "customer@example.com", // TODO: Get from user profile or form
-            phone: null,
-          },
-        },
-      });
-      if (error) {
-        const msg = (error as any)?.message || '';
-        if (msg.includes('INSUFFICIENT_FUNDS')) {
-          toast({ title: 'Insufficient wallet balance', description: 'Please top up your wallet and try again.', variant: 'destructive' });
-        } else {
-          toast({ title: 'Checkout failed', description: 'Something went wrong. Try again.', variant: 'destructive' });
-        }
-        return;
-      }
-      const orderCount = data?.order_ids?.length || 0;
-      toast({ 
-        title: 'Payment successful', 
-        description: `${orderCount} order(s) created and charged from wallet.` 
-      });
-      clearCart();
-      setIsOpen(false);
-    } catch (e) {
-      toast({ title: 'Checkout error', description: 'Unexpected error occurred.', variant: 'destructive' });
-    }
+  const handleCheckoutSuccess = () => {
+    setShowCheckout(false);
+    setIsOpen(false);
+  };
+
+  const handleCheckoutCancel = () => {
+    setShowCheckout(false);
   };
 
   return (
@@ -95,13 +63,28 @@ export default function CartSidebar({ isOpen: externalIsOpen, onOpenChange }: Ca
       <SheetContent className="w-full sm:max-w-lg glass-intense border-0">
         <SheetHeader>
           <SheetTitle className="flex items-center gap-2">
+            {showCheckout && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setShowCheckout(false)}
+                className="h-8 w-8 mr-2"
+              >
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+            )}
             <ShoppingCart className="h-5 w-5" />
-            Your Cart ({state.items.length} plans)
+            {showCheckout ? 'Checkout' : `Your Cart (${state.items.length} plans)`}
           </SheetTitle>
         </SheetHeader>
 
         <div className="mt-6 space-y-4">
-          {state.items.length === 0 ? (
+          {showCheckout ? (
+            <CheckoutForm
+              onSuccess={handleCheckoutSuccess}
+              onCancel={handleCheckoutCancel}
+            />
+          ) : state.items.length === 0 ? (
             <div className="text-center py-8">
               <ShoppingCart className="h-16 w-16 mx-auto mb-4 text-muted-foreground opacity-50" />
               <p className="text-muted-foreground">Your cart is empty</p>
@@ -177,12 +160,12 @@ export default function CartSidebar({ isOpen: externalIsOpen, onOpenChange }: Ca
 
                 <div className="space-y-2">
                   <Button
-                    onClick={handleCheckout}
+                    onClick={() => setShowCheckout(true)}
                     className="w-full"
                     disabled={state.items.length === 0}
                   >
                     <CreditCard className="h-4 w-4 mr-2" />
-                    Pay from Wallet
+                    Proceed to Checkout
                   </Button>
                   
                   <Button

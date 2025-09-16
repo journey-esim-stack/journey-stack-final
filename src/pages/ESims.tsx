@@ -22,12 +22,23 @@ interface Order {
   plan_id: string;
   customer_name: string;
   customer_email: string;
+  device_brand_id?: string;
+  device_model_id?: string;
+  compatibility_checked: boolean;
+  compatibility_warning_shown: boolean;
   esim_plans?: {
     title: string;
     country_name: string;
     country_code: string;
     data_amount: string;
     validity_days: number;
+  };
+  device_brands?: {
+    brand_name: string;
+  };
+  device_models?: {
+    model_name: string;
+    is_esim_compatible: boolean;
   };
   real_status?: string; // Real eSIM status from API
 }
@@ -136,6 +147,13 @@ const ESims = () => {
             country_code,
             data_amount,
             validity_days
+          ),
+          device_brands (
+            brand_name
+          ),
+          device_models (
+            model_name,
+            is_esim_compatible
           )
         `)
         .eq("agent_id", agentProfile.id)
@@ -477,6 +495,7 @@ const ESims = () => {
                       <TableHead className="text-muted-foreground font-medium">Date Assigned</TableHead>
                       <TableHead className="text-muted-foreground font-medium">Country</TableHead>
                       <TableHead className="text-muted-foreground font-medium">Data Plan</TableHead>
+                      <TableHead className="text-muted-foreground font-medium">Device</TableHead>
                       <TableHead className="text-muted-foreground font-medium">Status</TableHead>
                       <TableHead className="text-muted-foreground font-medium">Actions</TableHead>
                     </TableRow>
@@ -506,6 +525,30 @@ const ESims = () => {
                           <div className="space-y-1">
                             <div className="font-medium">{order.esim_plans?.title || "N/A"}</div>
                             <div className="text-sm text-muted-foreground">{order.esim_plans?.data_amount || "N/A"}</div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="space-y-1">
+                            {order.device_brands && order.device_models ? (
+                              <>
+                                <p className="text-sm font-medium">
+                                  {order.device_brands.brand_name} {order.device_models.model_name}
+                                </p>
+                                <div className="flex items-center gap-1">
+                                  {order.device_models.is_esim_compatible ? (
+                                    <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+                                      Compatible
+                                    </Badge>
+                                  ) : (
+                                    <Badge variant="outline" className="text-xs bg-red-50 text-red-700 border-red-200">
+                                      Not Compatible
+                                    </Badge>
+                                  )}
+                                </div>
+                              </>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">Not specified</span>
+                            )}
                           </div>
                         </TableCell>
                         <TableCell>

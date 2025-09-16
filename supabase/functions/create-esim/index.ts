@@ -7,6 +7,74 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Function to issue automatic refunds when eSIM creation fails
+async function issueRefund(supabaseClient: any, orderId: string, reason: string) {
+  try {
+    console.log('Processing refund for order:', orderId, 'Reason:', reason);
+    
+    // Get order details
+    const { data: order, error: orderError } = await supabaseClient
+      .from('orders')
+      .select('agent_id, retail_price')
+      .eq('id', orderId)
+      .single();
+    
+    if (orderError || !order) {
+      console.error('Failed to fetch order for refund:', orderError);
+      return;
+    }
+    
+    // Get current agent balance
+    const { data: profile, error: profileError } = await supabaseClient
+      .from('agent_profiles')
+      .select('wallet_balance')
+      .eq('id', order.agent_id)
+      .single();
+    
+    if (profileError || !profile) {
+      console.error('Failed to fetch agent profile for refund:', profileError);
+      return;
+    }
+    
+    const newBalance = Number(profile.wallet_balance) + Number(order.retail_price);
+    
+    // Update agent balance
+    const { error: updateError } = await supabaseClient
+      .from('agent_profiles')
+      .update({ 
+        wallet_balance: newBalance,
+        updated_at: new Date().toISOString() 
+      })
+      .eq('id', order.agent_id);
+    
+    if (updateError) {
+      console.error('Failed to update agent balance for refund:', updateError);
+      return;
+    }
+    
+    // Insert refund transaction
+    const { error: transactionError } = await supabaseClient
+      .from('wallet_transactions')
+      .insert({
+        agent_id: order.agent_id,
+        transaction_type: 'refund',
+        amount: Number(order.retail_price),
+        balance_after: newBalance,
+        description: `Automatic refund: ${reason}`,
+        reference_id: `refund-${orderId}`,
+      });
+    
+    if (transactionError) {
+      console.error('Failed to insert refund transaction:', transactionError);
+      return;
+    }
+    
+    console.log('Refund processed successfully for order:', orderId, 'Amount:', order.retail_price);
+  } catch (error) {
+    console.error('Error processing refund:', error);
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -122,9 +190,12 @@ serve(async (req) => {
         })
         .eq('id', order_id);
 
+      // Issue automatic refund to agent's wallet
+      await issueRefund(supabaseClient, order_id, 'eSIM provider service unavailable');
+
       return new Response(JSON.stringify({
         error: 'Provider API service is currently unavailable',
-        details: 'The eSIM provider service is down. Please try again later.',
+        details: 'The eSIM provider service is down. Your payment has been refunded.',
         status: orderRes.status,
       }), {
         status: 503,
@@ -147,9 +218,12 @@ serve(async (req) => {
         })
         .eq('id', order_id);
 
+      // Issue automatic refund to agent's wallet  
+      await issueRefund(supabaseClient, order_id, 'Failed to parse provider response');
+
       return new Response(JSON.stringify({
         error: 'Provider API returned invalid response',
-        details: 'Unable to parse provider response. Service may be down.',
+        details: 'Unable to parse provider response. Your payment has been refunded.',
       }), {
         status: 502,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -170,9 +244,12 @@ serve(async (req) => {
         })
         .eq('id', order_id);
 
+      // Issue automatic refund to agent's wallet
+      await issueRefund(supabaseClient, order_id, orderJson?.message || 'Service temporarily unavailable');
+
       return new Response(JSON.stringify({
         error: 'Failed to place eSIM order',
-        details: orderJson?.message || 'Service temporarily unavailable',
+        details: `${orderJson?.message || 'Service temporarily unavailable'}. Your payment has been refunded.`,
         status: orderRes.status,
         supplier_plan_id: plan.supplier_plan_id,
       }), {
@@ -244,9 +321,12 @@ serve(async (req) => {
         })
         .eq('id', order_id);
 
+      // Issue automatic refund to agent's wallet
+      await issueRefund(supabaseClient, order_id, 'eSIM allocation timeout');
+
       return new Response(JSON.stringify({
         error: 'eSIM allocation timeout',
-        details: 'Profiles not allocated in time. Please contact support.',
+        details: 'Profiles not allocated in time. Your payment has been refunded.',
         orderNo,
       }), {
         status: 502,

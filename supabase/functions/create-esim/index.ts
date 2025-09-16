@@ -108,15 +108,71 @@ serve(async (req) => {
     console.log('Order API Response status:', orderRes.status);
     console.log('Order API Response headers:', Object.fromEntries(orderRes.headers.entries()));
 
-    const orderJson = await orderRes.json();
+    // Check if response is HTML (404 error page) instead of JSON
+    const contentType = orderRes.headers.get('content-type');
+    if (contentType?.includes('text/html')) {
+      console.error('Provider API returned HTML instead of JSON - likely 404 or service down');
+      
+      // Update order status to failed
+      await supabaseClient
+        .from('orders')
+        .update({ 
+          status: 'failed',
+          updated_at: new Date().toISOString() 
+        })
+        .eq('id', order_id);
+
+      return new Response(JSON.stringify({
+        error: 'Provider API service is currently unavailable',
+        details: 'The eSIM provider service is down. Please try again later.',
+        status: orderRes.status,
+      }), {
+        status: 503,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    let orderJson;
+    try {
+      orderJson = await orderRes.json();
+    } catch (parseError) {
+      console.error('Failed to parse provider API response as JSON:', parseError);
+      
+      // Update order status to failed
+      await supabaseClient
+        .from('orders')
+        .update({ 
+          status: 'failed',
+          updated_at: new Date().toISOString() 
+        })
+        .eq('id', order_id);
+
+      return new Response(JSON.stringify({
+        error: 'Provider API returned invalid response',
+        details: 'Unable to parse provider response. Service may be down.',
+      }), {
+        status: 502,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
     console.log('Order API Response data:', orderJson);
 
     if (!orderRes.ok || !orderJson?.success) {
       console.error('Provider Order API error - Status:', orderRes.status);
-      console.error('Provider Order API error');
+      console.error('Provider Order API error response:', orderJson);
+      
+      // Update order status to failed
+      await supabaseClient
+        .from('orders')
+        .update({ 
+          status: 'failed',
+          updated_at: new Date().toISOString() 
+        })
+        .eq('id', order_id);
+
       return new Response(JSON.stringify({
         error: 'Failed to place eSIM order',
-        details: 'Service temporarily unavailable',
+        details: orderJson?.message || 'Service temporarily unavailable',
         status: orderRes.status,
         supplier_plan_id: plan.supplier_plan_id,
       }), {
@@ -178,8 +234,19 @@ serve(async (req) => {
 
     if (!esimProfile) {
       console.error('Profiles not allocated in time for orderNo:', orderNo);
+      
+      // Update order status to failed due to timeout
+      await supabaseClient
+        .from('orders')
+        .update({ 
+          status: 'failed',
+          updated_at: new Date().toISOString() 
+        })
+        .eq('id', order_id);
+
       return new Response(JSON.stringify({
-        error: 'Profiles not allocated yet. Please retry shortly.',
+        error: 'eSIM allocation timeout',
+        details: 'Profiles not allocated in time. Please contact support.',
         orderNo,
       }), {
         status: 502,

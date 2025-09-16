@@ -100,7 +100,7 @@ export default function Layout({ children }: LayoutProps) {
                 <img 
                   src="/lovable-uploads/1e1f433f-d326-4551-ba07-4e6b9e5c259f.png" 
                   alt="Journey Stack" 
-                  className="h-8 w-auto object-contain shrink-0"
+                  className="h-10 md:h-12 w-auto object-contain shrink-0"
                 />
               </Link>
               <div className="hidden md:flex items-center space-x-1">
@@ -142,16 +142,17 @@ export default function Layout({ children }: LayoutProps) {
                 </div>
               </div>
             </div>
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-3">
+              <div className="hidden md:block h-6 w-px bg-border" aria-hidden="true" />
               {/* Currency Selector */}
               <CurrencySelector />
               
               {/* Enhanced Cart Icon */}
               <CartIcon />
               
-              <Button variant="ghost" onClick={handleSignOut} className="hover:glass-subtle transition-all duration-200 rounded-xl">
+              <Button variant="ghost" size="sm" onClick={handleSignOut} className="hover:glass-subtle transition-all duration-200 rounded-xl">
                 <LogOut className="h-4 w-4 mr-2" />
-                Sign Out
+                <span className="hidden md:inline">Sign Out</span>
               </Button>
             </div>
           </div>

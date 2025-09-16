@@ -14,7 +14,7 @@ export default function CurrencySelector() {
 
   return (
     <Select value={selectedCurrency} onValueChange={setSelectedCurrency}>
-      <SelectTrigger className="w-28 h-8 text-sm bg-background border-border">
+      <SelectTrigger className="w-24 md:w-28 h-8 text-xs md:text-sm bg-background border-border">
         <SelectValue />
       </SelectTrigger>
       <SelectContent className="bg-background border-border shadow-lg">

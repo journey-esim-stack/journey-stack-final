@@ -66,20 +66,20 @@ export default function AdminAgents() {
 
       if (agentError) throw agentError;
 
-      // Then calculate lifetime revenue for each agent
+      // Then calculate lifetime revenue for each agent (sum of topups)
       const agentsWithRevenue = await Promise.all(
         (agentData || []).map(async (agent) => {
-          const { data: orders, error: orderError } = await supabase
-            .from("orders")
-            .select("retail_price")
+          const { data: topups, error: topupError } = await supabase
+            .from("esim_topups")
+            .select("amount")
             .eq("agent_id", agent.id)
             .eq("status", "completed");
 
-          if (orderError) {
-            console.error("Error fetching orders for agent:", agent.id, orderError);
+          if (topupError) {
+            console.error("Error fetching topups for agent:", agent.id, topupError);
           }
 
-          const lifetimeRevenue = orders?.reduce((sum, order) => sum + Number(order.retail_price), 0) || 0;
+          const lifetimeRevenue = topups?.reduce((sum, topup) => sum + Number(topup.amount), 0) || 0;
 
           return {
             ...agent,

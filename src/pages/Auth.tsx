@@ -97,7 +97,7 @@ const Auth = () => {
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoadingUp(true);
-    const redirectUrl = `${window.location.origin}/auth/confirmed`;
+    const redirectUrl = `${window.location.origin}/auth/confirm`;
     const { error } = await supabase.auth.signUp({
       email: emailUp.trim(),
       password: passwordUp,

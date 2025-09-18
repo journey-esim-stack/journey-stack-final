@@ -9,6 +9,7 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Auth from "./pages/Auth";
 import AuthConfirmed from "./pages/AuthConfirmed";
+import EmailConfirm from "./pages/EmailConfirm";
 import TestAuth from "./pages/TestAuth";
 import Plans from "./pages/Plans";
 
@@ -32,6 +33,7 @@ const App = () => (
           {/* Public routes */}
           <Route path="/auth" element={<Auth />} />
           <Route path="/auth/confirmed" element={<AuthConfirmed />} />
+          <Route path="/auth/confirm" element={<EmailConfirm />} />
           <Route path="/test-auth" element={<TestAuth />} />
           
           {/* Protected routes - require agent approval */}

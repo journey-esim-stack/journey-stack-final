@@ -48,7 +48,7 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         iccid,
-        pager: { pageNum: 1, pageSize: 1 }
+        pager: { pageNum: 1, pageSize: 5 }
       }),
     });
 

@@ -250,6 +250,39 @@ export type Database = {
         }
         Relationships: []
       }
+      esim_status_events: {
+        Row: {
+          created_at: string
+          eid: string | null
+          esim_status: string | null
+          event_type: string
+          iccid: string
+          id: string
+          smdp_status: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          eid?: string | null
+          esim_status?: string | null
+          event_type: string
+          iccid: string
+          id?: string
+          smdp_status?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          eid?: string | null
+          esim_status?: string | null
+          event_type?: string
+          iccid?: string
+          id?: string
+          smdp_status?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       esim_topups: {
         Row: {
           agent_id: string
@@ -304,10 +337,12 @@ export type Database = {
           customer_phone: string | null
           device_brand_id: string | null
           device_model_id: string | null
+          esim_expiry_date: string | null
           esim_iccid: string | null
           esim_qr_code: string | null
           id: string
           plan_id: string
+          real_status: string | null
           retail_price: number
           status: Database["public"]["Enums"]["order_status"]
           supplier_order_id: string | null
@@ -325,10 +360,12 @@ export type Database = {
           customer_phone?: string | null
           device_brand_id?: string | null
           device_model_id?: string | null
+          esim_expiry_date?: string | null
           esim_iccid?: string | null
           esim_qr_code?: string | null
           id?: string
           plan_id: string
+          real_status?: string | null
           retail_price: number
           status?: Database["public"]["Enums"]["order_status"]
           supplier_order_id?: string | null
@@ -346,10 +383,12 @@ export type Database = {
           customer_phone?: string | null
           device_brand_id?: string | null
           device_model_id?: string | null
+          esim_expiry_date?: string | null
           esim_iccid?: string | null
           esim_qr_code?: string | null
           id?: string
           plan_id?: string
+          real_status?: string | null
           retail_price?: number
           status?: Database["public"]["Enums"]["order_status"]
           supplier_order_id?: string | null

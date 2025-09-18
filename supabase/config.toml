@@ -14,3 +14,9 @@ verify_jwt = false
 
 [functions.get-admin-users]
 verify_jwt = false
+
+[functions.get-esim-details]
+verify_jwt = false
+
+[functions.esim-webhook]
+verify_jwt = false

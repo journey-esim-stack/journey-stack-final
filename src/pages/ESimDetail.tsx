@@ -105,21 +105,62 @@ const ESimDetail = () => {
     }
   }, [iccid]);
 
-  // Add real-time updates with polling
+  // Set up real-time subscriptions for immediate updates
   useEffect(() => {
     if (!iccid) return;
 
+    // Subscribe to orders table changes for this ICCID
+    const ordersChannel = supabase
+      .channel('esim-orders-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'orders',
+          filter: `esim_iccid=eq.${iccid}`
+        },
+        (payload) => {
+          console.log('Order updated:', payload);
+          fetchESIMDetails(); // Refresh data when order updates
+        }
+      )
+      .subscribe();
+
+    // Subscribe to esim_status_events for real-time status updates
+    const statusChannel = supabase
+      .channel('esim-status-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'esim_status_events',
+          filter: `iccid=eq.${iccid}`
+        },
+        (payload) => {
+          console.log('eSIM status updated:', payload);
+          fetchESIMDetails(); // Refresh data when status changes
+        }
+      )
+      .subscribe();
+
+    // Fallback polling for API data (less frequent since we have real-time for status)
     const interval = setInterval(() => {
       fetchESIMDetails();
-    }, 10000); // Refresh every 10 seconds for real-time updates
+    }, 30000); // Refresh every 30 seconds as fallback
 
-    return () => clearInterval(interval);
+    return () => {
+      supabase.removeChannel(ordersChannel);
+      supabase.removeChannel(statusChannel);
+      clearInterval(interval);
+    };
   }, [iccid]);
 
   const fetchESIMDetails = async () => {
     try {
-      // Fetch order information and top-up history in parallel
-      const [orderResponse, topupResponse] = await Promise.all([
+      // Fetch order information, top-up history, and real-time status in parallel
+      const [orderResponse, topupResponse, statusResponse] = await Promise.all([
         supabase
           .from("orders")
           .select(`
@@ -139,11 +180,19 @@ const ESimDetail = () => {
           .from("esim_topups")
           .select("*")
           .eq("iccid", iccid)
-          .order("created_at", { ascending: false })
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("esim_status_events")
+          .select("*")
+          .eq("iccid", iccid)
+          .order("updated_at", { ascending: false })
+          .limit(1)
+          .maybeSingle()
       ]);
 
       const { data: orderData, error: orderError } = orderResponse;
       const { data: topupData, error: topupError } = topupResponse;
+      const { data: statusData, error: statusError } = statusResponse;
 
       if (orderError) {
         console.error("Error fetching order:", orderError);
@@ -165,26 +214,31 @@ const ESimDetail = () => {
       if (apiError || !apiData?.success) {
         console.error("Error fetching eSIM details:", apiError);
         
-        // Use basic data from order when API fails, but don't use mock active data
+        // Use real-time status data when available, or fall back to basic data
+        const currentStatus = statusData?.esim_status || orderData.real_status || (orderData.status === 'completed' ? "Ready" : "New");
+        const isActive = currentStatus === 'IN_USE';
+        const expiryDate = orderData.esim_expiry_date || 
+          (isActive ? new Date(Date.now() + (orderData.esim_plans?.validity_days || 30) * 24 * 60 * 60 * 1000).toISOString() : null);
+
         const basicDetails: ESIMDetails = {
           iccid: iccid || "",
-          status: orderData.status === 'completed' ? "Ready" : "New",
+          status: currentStatus,
           data_usage: {
             used: 0,
             total: parseFloat(orderData.esim_plans?.data_amount?.replace(/[^\d.]/g, '') || "3"),
             unit: "GB"
           },
           network: {
-            connected: false,
-            operator: "Not Connected",
+            connected: isActive,
+            operator: isActive ? "Connected" : "Not Connected",
             country: orderData.esim_plans?.country_name || "Unknown",
-            signal_strength: 0
+            signal_strength: isActive ? 85 : 0
           },
           plan: {
             name: orderData.esim_plans?.title || "Unknown Plan",
             validity: orderData.esim_plans?.validity_days || 30,
             data_amount: orderData.esim_plans?.data_amount || "3GB",
-            expires_at: new Date(Date.now() + (orderData.esim_plans?.validity_days || 30) * 24 * 60 * 60 * 1000).toISOString(),
+            expires_at: expiryDate || new Date(Date.now() + (orderData.esim_plans?.validity_days || 30) * 24 * 60 * 60 * 1000).toISOString(),
             plan_id: orderData.esim_plans?.id || ""
           },
           activation: {
@@ -196,26 +250,33 @@ const ESimDetail = () => {
         };
         setEsimDetails(basicDetails);
       } else {
+        // Use real-time status data when available, prioritizing webhook data
+        const realtimeStatus = statusData?.esim_status || orderData.real_status;
+        const apiStatus = apiData.obj?.status;
+        const currentStatus = realtimeStatus || apiStatus || "Unknown";
+        const isActive = currentStatus === 'IN_USE';
+        const expiryDate = orderData.esim_expiry_date || apiData.obj?.plan?.expiresAt;
+
         // Transform API response to match our interface
         const transformedData: ESIMDetails = {
           iccid: apiData.obj?.iccid || iccid || "",
-          status: apiData.obj?.status || "Unknown",
+          status: currentStatus,
           data_usage: {
             used: parseFloat(apiData.obj?.dataUsage?.used || "0"),
             total: parseFloat(apiData.obj?.dataUsage?.total || orderData.esim_plans?.data_amount?.replace(/[^\d.]/g, '') || "3"),
             unit: "GB"
           },
           network: {
-            connected: apiData.obj?.network?.connected || false,
-            operator: apiData.obj?.network?.operator || "Not Connected",
+            connected: isActive || apiData.obj?.network?.connected || false,
+            operator: isActive ? (apiData.obj?.network?.operator || "Network Operator") : "Not Connected",
             country: apiData.obj?.network?.country || orderData.esim_plans?.country_name || "Unknown",
-            signal_strength: parseInt(apiData.obj?.network?.signalStrength || "0")
+            signal_strength: isActive ? parseInt(apiData.obj?.network?.signalStrength || "85") : 0
           },
           plan: {
             name: orderData.esim_plans?.title || "Unknown Plan",
             validity: orderData.esim_plans?.validity_days || 30,
             data_amount: orderData.esim_plans?.data_amount || "3GB",
-            expires_at: apiData.obj?.plan?.expiresAt || new Date(Date.now() + (orderData.esim_plans?.validity_days || 30) * 24 * 60 * 60 * 1000).toISOString(),
+            expires_at: expiryDate || new Date(Date.now() + (orderData.esim_plans?.validity_days || 30) * 24 * 60 * 60 * 1000).toISOString(),
             plan_id: orderData.esim_plans?.id || ""
           },
           activation: {

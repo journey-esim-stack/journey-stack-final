@@ -25,7 +25,8 @@ import {
   MoreHorizontal,
   Share2,
   MessageSquare,
-  Mail
+  Mail,
+  RefreshCw
 } from "lucide-react";
 import TopupModal from "@/components/TopupModal";
 import { format } from "date-fns";
@@ -98,6 +99,7 @@ const ESimDetail = () => {
     message: "",
     contactInfo: ""
   });
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   useEffect(() => {
     if (iccid) {
@@ -157,7 +159,10 @@ const ESimDetail = () => {
     };
   }, [iccid]);
 
-  const fetchESIMDetails = async () => {
+  const fetchESIMDetails = async (isManualRefresh = false) => {
+    if (isManualRefresh) {
+      setIsRefreshing(true);
+    }
     try {
       // Fetch order information, top-up history, and real-time status in parallel
       const [orderResponse, topupResponse, statusResponse] = await Promise.all([
@@ -294,7 +299,15 @@ const ESimDetail = () => {
       toast.error("An error occurred while fetching eSIM details");
     } finally {
       setLoading(false);
+      if (isManualRefresh) {
+        setIsRefreshing(false);
+        toast.success("eSIM data refreshed");
+      }
     }
+  };
+
+  const handleManualRefresh = () => {
+    fetchESIMDetails(true);
   };
 
   const copyToClipboard = (text: string) => {
@@ -516,12 +529,23 @@ Instructions:
 
             {/* Data Usage Component - Enhanced with Progress Bar */}
             <Card className="glass-card">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Activity className="h-5 w-5 text-primary" />
-                  Data Usage
-                </CardTitle>
-              </CardHeader>
+               <CardHeader>
+                 <CardTitle className="flex items-center justify-between">
+                   <div className="flex items-center gap-2">
+                     <Activity className="h-5 w-5 text-primary" />
+                     Data Usage
+                   </div>
+                   <Button 
+                     variant="ghost" 
+                     size="sm" 
+                     onClick={handleManualRefresh}
+                     disabled={isRefreshing}
+                     className="hover:bg-white/10"
+                   >
+                     <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                   </Button>
+                 </CardTitle>
+               </CardHeader>
               <CardContent className="space-y-4">
                 {/* Top-up History - Show newest first */}
                 {topupHistory.length > 0 && topupHistory.map((topup) => (

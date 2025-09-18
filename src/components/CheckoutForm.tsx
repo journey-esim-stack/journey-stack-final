@@ -123,17 +123,23 @@ export const CheckoutForm = ({ onSuccess, onCancel }: CheckoutFormProps) => {
       });
       
       if (error) {
-        const msg = (error as any)?.message || '';
-        if (msg.includes('INSUFFICIENT_FUNDS')) {
+        console.error('Wallet debit error:', error);
+        const errorData = error as any;
+        const msg = errorData?.message || '';
+        
+        if (msg.includes('INSUFFICIENT_FUNDS') || errorData?.error === 'INSUFFICIENT_FUNDS') {
+          const balance = errorData?.balance || data?.balance || 0;
           toast({ 
             title: 'Insufficient wallet balance', 
-            description: 'Please top up your wallet and try again.', 
+            description: `Current balance: $${balance.toFixed(2)}. Required: $${usdTotal.toFixed(2)}. Please top up your wallet.`, 
             variant: 'destructive' 
           });
         } else {
+          // Show specific error message if available
+          const errorMessage = msg || errorData?.error || 'Something went wrong. Try again.';
           toast({ 
             title: 'Checkout failed', 
-            description: 'Something went wrong. Try again.', 
+            description: errorMessage, 
             variant: 'destructive' 
           });
         }

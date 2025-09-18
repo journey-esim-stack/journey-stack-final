@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.get-admin-inventory]
 verify_jwt = false
+
+[functions.get-admin-users]
+verify_jwt = false

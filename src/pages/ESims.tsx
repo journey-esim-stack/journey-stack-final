@@ -306,6 +306,8 @@ const ESims = () => {
         return "Expired";
       case "pending":
         return "Processing";
+      case "completed":
+        return "Purchased";
       case "failed":
         return "Failed";
       default:

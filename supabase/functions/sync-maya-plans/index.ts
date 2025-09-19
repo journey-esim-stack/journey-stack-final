@@ -30,7 +30,13 @@ Deno.serve(async (req) => {
   }
 
   try {
+    const body = req.method === 'POST' ? await req.json().catch(() => ({})) : {};
+    const selectedRegion = body.region;
+    
     console.log('Starting Maya plans sync...');
+    if (selectedRegion) {
+      console.log('Selected region:', selectedRegion);
+    }
 
     // Initialize Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -53,7 +59,8 @@ Deno.serve(async (req) => {
     const basicAuth = 'Basic ' + btoa(`${mayaApiKey}:${mayaApiSecret}`);
 
     // Regions to include (per Maya docs)
-    const regions = ['europe', 'apac', 'latam', 'caribbean', 'mena', 'balkans', 'caucasus'];
+    const allRegions = ['europe', 'apac', 'latam', 'caribbean', 'mena', 'balkans', 'caucasus'];
+    const regions = selectedRegion ? [selectedRegion] : allRegions;
 
     // Helper to format MB nicely
     const formatData = (mb: number) => {

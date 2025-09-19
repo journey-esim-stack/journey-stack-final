@@ -28,6 +28,7 @@ export default function AdminSuppliers() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [syncingMaya, setSyncingMaya] = useState(false);
+  const [selectedRegion, setSelectedRegion] = useState<string>('');
   const { toast } = useToast();
 
   const countries = [
@@ -46,6 +47,16 @@ export default function AdminSuppliers() {
   ];
 
   const suppliers = ['esim_access', 'maya'];
+
+  const mayaRegions = [
+    { code: 'europe', name: 'Europe', countries: ['Germany', 'France', 'Italy', 'Spain', 'United Kingdom', 'Netherlands', 'Poland'] },
+    { code: 'apac', name: 'Asia Pacific', countries: ['Japan', 'South Korea', 'Singapore', 'Thailand', 'Australia', 'India', 'Philippines'] },
+    { code: 'latam', name: 'Latin America', countries: ['Mexico', 'Brazil', 'Argentina', 'Chile', 'Colombia', 'Peru'] },
+    { code: 'caribbean', name: 'Caribbean', countries: ['Jamaica', 'Dominican Republic', 'Puerto Rico', 'Bahamas'] },
+    { code: 'mena', name: 'Middle East & North Africa', countries: ['UAE', 'Saudi Arabia', 'Egypt', 'Israel', 'Turkey'] },
+    { code: 'balkans', name: 'Balkans', countries: ['Serbia', 'Croatia', 'Bosnia', 'Montenegro', 'Albania'] },
+    { code: 'caucasus', name: 'Caucasus', countries: ['Georgia', 'Armenia', 'Azerbaijan'] }
+  ];
 
   useEffect(() => {
     fetchSupplierSettings();
@@ -143,17 +154,29 @@ export default function AdminSuppliers() {
   };
 
   const syncMayaPlans = async () => {
+    if (!selectedRegion) {
+      toast({
+        title: "Error",
+        description: "Please select a region to sync",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setSyncingMaya(true);
     try {
-      const { data, error } = await supabase.functions.invoke('sync-maya-plans');
+      const { data, error } = await supabase.functions.invoke('sync-maya-plans', {
+        body: { region: selectedRegion }
+      });
       
       if (error) {
         throw error;
       }
 
+      const regionName = mayaRegions.find(r => r.code === selectedRegion)?.name || selectedRegion;
       toast({
         title: "Success",
-        description: `Maya plans synced successfully: ${data?.synced_count || 0} plans`,
+        description: `Maya ${regionName} plans synced successfully: ${data?.synced_count || 0} plans`,
       });
     } catch (error) {
       console.error('Error syncing Maya plans:', error);
@@ -271,6 +294,52 @@ export default function AdminSuppliers() {
           </CardContent>
         </Card>
 
+        {/* Maya Region Sync */}
+        <Card className="glass-card">
+          <CardHeader>
+            <CardTitle>Maya Region Sync</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {mayaRegions.map(region => (
+                <div key={region.code} className="p-4 border rounded-lg space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-medium">{region.name}</h3>
+                    <Badge variant={selectedRegion === region.code ? "default" : "outline"}>
+                      {region.code.toUpperCase()}
+                    </Badge>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Countries: {region.countries.slice(0, 3).join(', ')}
+                    {region.countries.length > 3 && ` +${region.countries.length - 3} more`}
+                  </p>
+                  <Button
+                    variant={selectedRegion === region.code ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setSelectedRegion(region.code)}
+                    className="w-full"
+                  >
+                    Select {region.name}
+                  </Button>
+                </div>
+              ))}
+            </div>
+            
+            <Separator />
+            
+            <div className="flex gap-4">
+              <Button 
+                onClick={syncMayaPlans} 
+                disabled={syncingMaya || !selectedRegion}
+                className="flex-1"
+              >
+                {syncingMaya ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                Sync Selected Region Plans
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Actions */}
         <Card className="glass-card">
           <CardHeader>
@@ -281,17 +350,6 @@ export default function AdminSuppliers() {
               <Button onClick={saveSettings} disabled={saving}>
                 {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                 Save Settings
-              </Button>
-              
-              <Separator orientation="vertical" className="h-8" />
-              
-              <Button 
-                variant="outline" 
-                onClick={syncMayaPlans} 
-                disabled={syncingMaya}
-              >
-                {syncingMaya ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                Sync Maya Plans
               </Button>
             </div>
           </CardContent>

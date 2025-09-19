@@ -20,3 +20,6 @@ verify_jwt = false
 
 [functions.esim-webhook]
 verify_jwt = false
+
+[functions.sync-maya-plans]
+verify_jwt = false

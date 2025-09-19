@@ -30,6 +30,8 @@ interface EsimPlan {
   wholesale_price: number;
   currency: string;
   is_active: boolean;
+  supplier_name: string;
+  admin_only: boolean;
   agent_price?: number; // Calculated agent price based on markup
 }
 
@@ -90,12 +92,23 @@ export default function Plans() {
       throw new Error("User not authenticated");
     }
 
-    // Fetch agent markup settings
-    const { data: agentProfile } = await supabase
-      .from("agent_profiles")
-      .select("markup_type, markup_value")
-      .eq("user_id", user.id)
-      .single();
+    // Fetch agent markup settings and supplier routing in parallel
+    const [agentProfileResponse, supplierRoutingResponse] = await Promise.all([
+      supabase
+        .from("agent_profiles")
+        .select("markup_type, markup_value")
+        .eq("user_id", user.id)
+        .single(),
+      supabase
+        .from("system_settings")
+        .select("setting_value")
+        .eq("setting_key", "supplier_routing")
+        .single()
+    ]);
+
+    const agentProfile = agentProfileResponse.data;
+    const supplierRouting = supplierRoutingResponse.data ? 
+      JSON.parse(supplierRoutingResponse.data.setting_value) : {};
 
     // Fetch all plans in batches to overcome 1000 row limit
     let allPlans: EsimPlan[] = [];
@@ -108,6 +121,7 @@ export default function Plans() {
         .from("esim_plans")
         .select("*")
         .eq("is_active", true)
+        .eq("admin_only", false) // Exclude admin-only plans
         .range(from, from + batchSize - 1)
         .order("country_name", { ascending: true });
 
@@ -127,6 +141,20 @@ export default function Plans() {
         hasMore = false;
       }
     }
+
+    // Filter plans based on supplier routing (if configured)
+    let filteredPlans = allPlans;
+    if (Object.keys(supplierRouting).length > 0) {
+      filteredPlans = allPlans.filter(plan => {
+        // Check if country/region routing is configured
+        const countrySupplier = supplierRouting[plan.country_code] || 
+                               supplierRouting[plan.country_name] || 
+                               supplierRouting.default;
+        
+        // If no routing rule exists, show all plans. If routing exists, filter by supplier
+        return !countrySupplier || plan.supplier_name === countrySupplier;
+      });
+    }
     
     // Calculate agent prices for each plan using the fetched markup
     const currentMarkup = agentProfile ? {
@@ -136,7 +164,7 @@ export default function Plans() {
         : 300
     } : { type: 'percent', value: 300 };
     
-    const plansWithAgentPrices = allPlans.map(plan => {
+    const plansWithAgentPrices = filteredPlans.map(plan => {
       const basePrice = Number(plan.wholesale_price) || 0;
       let agentPrice = basePrice;
       

@@ -187,6 +187,7 @@ serve(async (req) => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Accept': 'application/json',
         'Authorization': basicAuth,
       },
       body: JSON.stringify(orderPayload),
@@ -250,7 +251,11 @@ serve(async (req) => {
     }
     console.log('Maya Order API Response data:', orderJson);
 
-    if (!orderRes.ok || !orderJson?.success) {
+    // Consider response successful if we have an order_id in a known location
+    const orderId = orderJson?.data?.order_id || orderJson?.order_id || orderJson?.data?.id;
+
+    if (!orderRes.ok || !orderId) {
+      const errMsg = orderJson?.message || orderJson?.developer_message || 'Maya service temporarily unavailable';
       console.error('Maya Order API error - Status:', orderRes.status);
       console.error('Maya Order API error response:', orderJson);
       
@@ -264,25 +269,13 @@ serve(async (req) => {
         .eq('id', order_id);
 
       // Issue automatic refund to agent's wallet
-      await issueRefund(supabaseClient, order_id, orderJson?.message || 'Maya service temporarily unavailable');
+      await issueRefund(supabaseClient, order_id, errMsg);
 
       return new Response(JSON.stringify({
         error: 'Failed to place Maya eSIM order',
-        details: `${orderJson?.message || 'Maya service temporarily unavailable'}. Your payment has been refunded.`,
+        details: `${errMsg}. Your payment has been refunded.`,
         status: orderRes.status,
         supplier_plan_id: plan.supplier_plan_id,
-      }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    const orderId = orderJson?.data?.order_id;
-    if (!orderId) {
-      console.error('Maya Order API did not return order_id');
-      return new Response(JSON.stringify({
-        error: 'No order_id returned from Maya',
-        details: orderJson,
       }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -303,6 +296,7 @@ serve(async (req) => {
         method: 'GET',
         headers: {
           'Authorization': basicAuth,
+          'Accept': 'application/json',
         },
       });
 
@@ -311,10 +305,15 @@ serve(async (req) => {
       console.log('Maya Status API Response data:', statusJson);
 
       // Check if order is completed and has eSIM data
-      if (statusRes.ok && statusJson?.success && statusJson?.data?.status === 'completed') {
-        const sims = statusJson?.data?.sims;
+      const sims = statusJson?.data?.sims || statusJson?.data?.sim_list || statusJson?.sims;
+      if (Array.isArray(sims) && sims.length > 0 && sims[0]?.iccid) {
+        esimData = sims[0];
+        break;
+      }
+      const statusVal = statusJson?.data?.status || statusJson?.data?.order_status || statusJson?.status;
+      if (statusRes.ok && (statusVal === 'completed' || statusVal === 'fulfilled' || statusVal === 'success')) {
         if (Array.isArray(sims) && sims.length > 0) {
-          esimData = sims[0]; // Get first eSIM
+          esimData = sims[0];
           break;
         }
       }

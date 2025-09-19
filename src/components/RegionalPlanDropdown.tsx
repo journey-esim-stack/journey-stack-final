@@ -7,10 +7,11 @@ import { getCountryFlag } from '@/utils/countryFlags';
 interface RegionalPlanDropdownProps {
   planTitle: string;
   countryCode: string;
+  supplierName?: string;
 }
 
-// Define regional coverage based on plan patterns
-const getRegionalCoverage = (planTitle: string, countryCode: string): { name: string; code: string; flag: string }[] => {
+// Define regional coverage based on plan patterns and supplier
+const getRegionalCoverage = (planTitle: string, countryCode: string, supplierName: string = 'esim_access'): { name: string; code: string; flag: string }[] => {
   const title = planTitle.toLowerCase();
   
   // Extract area count from title (e.g., "20 areas", "12 areas", "7 areas")
@@ -155,55 +156,147 @@ const getRegionalCoverage = (planTitle: string, countryCode: string): { name: st
     { name: 'Turkey', code: 'TR', flag: '🇹🇷' },
     { name: 'United Arab Emirates', code: 'AE', flag: '🇦🇪' }
   ];
+
+  // Caucasus region countries
+  const caucasusCountries = [
+    { name: 'Armenia', code: 'AM', flag: '🇦🇲' },
+    { name: 'Azerbaijan', code: 'AZ', flag: '🇦🇿' },
+    { name: 'Georgia', code: 'GE', flag: '🇬🇪' }
+  ];
+
+  // Maya-specific regional coverage (different from eSIM Access)
+  const mayaRegionalCoverage = {
+    europe: [
+      { name: 'Austria', code: 'AT', flag: '🇦🇹' },
+      { name: 'Belgium', code: 'BE', flag: '🇧🇪' },
+      { name: 'Bulgaria', code: 'BG', flag: '🇧🇬' },
+      { name: 'Croatia', code: 'HR', flag: '🇭🇷' },
+      { name: 'Cyprus', code: 'CY', flag: '🇨🇾' },
+      { name: 'Czech Republic', code: 'CZ', flag: '🇨🇿' },
+      { name: 'Denmark', code: 'DK', flag: '🇩🇰' },
+      { name: 'Estonia', code: 'EE', flag: '🇪🇪' },
+      { name: 'Finland', code: 'FI', flag: '🇫🇮' },
+      { name: 'France', code: 'FR', flag: '🇫🇷' },
+      { name: 'Germany', code: 'DE', flag: '🇩🇪' },
+      { name: 'Greece', code: 'GR', flag: '🇬🇷' },
+      { name: 'Hungary', code: 'HU', flag: '🇭🇺' },
+      { name: 'Iceland', code: 'IS', flag: '🇮🇸' },
+      { name: 'Ireland', code: 'IE', flag: '🇮🇪' },
+      { name: 'Italy', code: 'IT', flag: '🇮🇹' },
+      { name: 'Latvia', code: 'LV', flag: '🇱🇻' },
+      { name: 'Lithuania', code: 'LT', flag: '🇱🇹' },
+      { name: 'Luxembourg', code: 'LU', flag: '🇱🇺' },
+      { name: 'Malta', code: 'MT', flag: '🇲🇹' },
+      { name: 'Netherlands', code: 'NL', flag: '🇳🇱' },
+      { name: 'Norway', code: 'NO', flag: '🇳🇴' },
+      { name: 'Poland', code: 'PL', flag: '🇵🇱' },
+      { name: 'Portugal', code: 'PT', flag: '🇵🇹' },
+      { name: 'Romania', code: 'RO', flag: '🇷🇴' },
+      { name: 'Slovakia', code: 'SK', flag: '🇸🇰' },
+      { name: 'Slovenia', code: 'SI', flag: '🇸🇮' },
+      { name: 'Spain', code: 'ES', flag: '🇪🇸' },
+      { name: 'Sweden', code: 'SE', flag: '🇸🇪' },
+      { name: 'Switzerland', code: 'CH', flag: '🇨🇭' },
+      { name: 'United Kingdom', code: 'GB', flag: '🇬🇧' }
+    ],
+    asia: [
+      { name: 'Bangladesh', code: 'BD', flag: '🇧🇩' },
+      { name: 'Cambodia', code: 'KH', flag: '🇰🇭' },
+      { name: 'Hong Kong', code: 'HK', flag: '🇭🇰' },
+      { name: 'India', code: 'IN', flag: '🇮🇳' },
+      { name: 'Indonesia', code: 'ID', flag: '🇮🇩' },
+      { name: 'Japan', code: 'JP', flag: '🇯🇵' },
+      { name: 'Laos', code: 'LA', flag: '🇱🇦' },
+      { name: 'Macau', code: 'MO', flag: '🇲🇴' },
+      { name: 'Malaysia', code: 'MY', flag: '🇲🇾' },
+      { name: 'Myanmar', code: 'MM', flag: '🇲🇲' },
+      { name: 'Philippines', code: 'PH', flag: '🇵🇭' },
+      { name: 'Singapore', code: 'SG', flag: '🇸🇬' },
+      { name: 'South Korea', code: 'KR', flag: '🇰🇷' },
+      { name: 'Sri Lanka', code: 'LK', flag: '🇱🇰' },
+      { name: 'Taiwan', code: 'TW', flag: '🇹🇼' },
+      { name: 'Thailand', code: 'TH', flag: '🇹🇭' },
+      { name: 'Vietnam', code: 'VN', flag: '🇻🇳' }
+    ],
+    caucasus: caucasusCountries
+  };
   
-  // Asia regional plans - only match explicit Asian keywords
-  if (countryCode === 'RG' && (title.includes('asia') || title.includes('asian'))) {
-    if (areaCount > 0 && areaCount <= asianCountries.length) {
-      return asianCountries.slice(0, areaCount);
+  // Return early if not a regional plan
+  if (countryCode !== 'RG') {
+    return [];
+  }
+
+  // Check for specific regions first (Maya or eSIM Access)
+  if (supplierName === 'maya') {
+    // Maya-specific regional coverage
+    if (title.includes('caucasus')) {
+      return mayaRegionalCoverage.caucasus;
     }
-    return asianCountries;
-  }
-  
-  // Europe regional plans - handle various European plan formats
-  if (countryCode === 'RG' && (title.includes('europe') || title.includes('eu-') || planTitle.includes('eu-'))) {
-    if (areaCount > 0 && areaCount <= europeanCountries.length) {
-      return europeanCountries.slice(0, areaCount);
+    
+    if (title.includes('europe') || title.includes('eu-') || planTitle.includes('eu-')) {
+      return mayaRegionalCoverage.europe;
     }
-    return europeanCountries;
-  }
+    
+    if (title.includes('asia') || title.includes('asian')) {
+      return mayaRegionalCoverage.asia;
+    }
+  } else {
+    // eSIM Access regional coverage (original logic)
+    
+    // Caucasus regional plans
+    if (title.includes('caucasus')) {
+      return caucasusCountries;
+    }
+    
+    // Asia regional plans - only match explicit Asian keywords
+    if (title.includes('asia') || title.includes('asian')) {
+      if (areaCount > 0 && areaCount <= asianCountries.length) {
+        return asianCountries.slice(0, areaCount);
+      }
+      return asianCountries;
+    }
+    
+    // Europe regional plans - handle various European plan formats
+    if (title.includes('europe') || title.includes('eu-') || planTitle.includes('eu-')) {
+      if (areaCount > 0 && areaCount <= europeanCountries.length) {
+        return europeanCountries.slice(0, areaCount);
+      }
+      return europeanCountries;
+    }
 
-  // Gulf regional plans
-  if (countryCode === 'RG' && title.includes('gulf')) {
-    return gulfCountries;
-  }
+    // Gulf regional plans
+    if (title.includes('gulf')) {
+      return gulfCountries;
+    }
 
-  // Middle East & North Africa regional plans (check first to avoid conflict with "middle east")
-  if (countryCode === 'RG' && (title.includes('middle east') && title.includes('north africa'))) {
-    return middleEastNorthAfricaCountries;
-  }
+    // Middle East & North Africa regional plans (check first to avoid conflict with "middle east")
+    if (title.includes('middle east') && title.includes('north africa')) {
+      return middleEastNorthAfricaCountries;
+    }
 
-  // Middle East regional plans
-  if (countryCode === 'RG' && title.includes('middle east') && !title.includes('north africa')) {
-    return middleEastCountries;
-  }
+    // Middle East regional plans
+    if (title.includes('middle east') && !title.includes('north africa')) {
+      return middleEastCountries;
+    }
 
-  // South America regional plans (check this first to avoid conflict with "america")
-  if (countryCode === 'RG' && title.includes('south america')) {
-    return southAmericaCountries;
-  }
+    // South America regional plans (check this first to avoid conflict with "america")
+    if (title.includes('south america')) {
+      return southAmericaCountries;
+    }
 
-  // North America regional plans
-  if (countryCode === 'RG' && title.includes('north america')) {
-    return northAmericaCountries;
+    // North America regional plans
+    if (title.includes('north america')) {
+      return northAmericaCountries;
+    }
   }
   
   // Default fallback for other regional plans
   return [];
 };
 
-export default function RegionalPlanDropdown({ planTitle, countryCode }: RegionalPlanDropdownProps) {
+export default function RegionalPlanDropdown({ planTitle, countryCode, supplierName }: RegionalPlanDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const countries = getRegionalCoverage(planTitle, countryCode);
+  const countries = getRegionalCoverage(planTitle, countryCode, supplierName);
   
   // Extract area count from title (e.g., "20 areas")
   const areaMatch = planTitle.match(/(\d+)\s+areas?/i);

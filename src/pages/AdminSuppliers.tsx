@@ -2,11 +2,10 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
-import { Loader2, Globe, Settings, CheckCircle, XCircle } from "lucide-react";
+import { Loader2, Globe, Settings, CheckCircle, XCircle, Plus, Minus } from "lucide-react";
 import Layout from "@/components/Layout";
 
 interface SupplierConfig {
@@ -18,13 +17,17 @@ interface SupplierConfigs {
   [key: string]: SupplierConfig;
 }
 
-interface SupplierRouting {
-  [key: string]: string;
+interface CountryActivation {
+  [key: string]: string[];  // country code -> array of active suppliers
+}
+
+interface RegionActivation {
+  [key: string]: boolean;  // region code -> whether Maya is active
 }
 
 export default function AdminSuppliers() {
-  const [supplierRouting, setSupplierRouting] = useState<SupplierRouting>({});
-  const [regionalRouting, setRegionalRouting] = useState<SupplierRouting>({});
+  const [countryActivation, setCountryActivation] = useState<CountryActivation>({});
+  const [regionActivation, setRegionActivation] = useState<RegionActivation>({});
   const [supplierConfigs, setSupplierConfigs] = useState<SupplierConfigs>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -65,16 +68,16 @@ export default function AdminSuppliers() {
 
   const fetchSupplierSettings = async () => {
     try {
-      const [routingResponse, regionalResponse, configsResponse] = await Promise.all([
+      const [countryResponse, regionResponse, configsResponse] = await Promise.all([
         supabase
           .from('system_settings')
           .select('setting_value')
-          .eq('setting_key', 'supplier_routing')
+          .eq('setting_key', 'country_activation')
           .single(),
         supabase
           .from('system_settings')
           .select('setting_value')
-          .eq('setting_key', 'regional_routing')
+          .eq('setting_key', 'region_activation')
           .single(),
         supabase
           .from('system_settings')
@@ -83,12 +86,12 @@ export default function AdminSuppliers() {
           .single()
       ]);
 
-      if (routingResponse.data) {
-        setSupplierRouting(JSON.parse(routingResponse.data.setting_value));
+      if (countryResponse.data) {
+        setCountryActivation(JSON.parse(countryResponse.data.setting_value));
       }
 
-      if (regionalResponse.data) {
-        setRegionalRouting(JSON.parse(regionalResponse.data.setting_value));
+      if (regionResponse.data) {
+        setRegionActivation(JSON.parse(regionResponse.data.setting_value));
       }
 
       if (configsResponse.data) {
@@ -106,17 +109,29 @@ export default function AdminSuppliers() {
     }
   };
 
-  const handleRegionalRoutingChange = (regionCode: string, supplier: string) => {
-    setRegionalRouting(prev => ({
-      ...prev,
-      [regionCode]: supplier
-    }));
+  const toggleCountrySupplier = (countryCode: string, supplier: string) => {
+    setCountryActivation(prev => {
+      const current = prev[countryCode] || ['esim_access']; // always include esim_access
+      const newActivation = current.includes(supplier) 
+        ? current.filter(s => s !== supplier || s === 'esim_access') // can't remove esim_access
+        : [...current, supplier];
+      
+      // ensure esim_access is always included
+      if (!newActivation.includes('esim_access')) {
+        newActivation.push('esim_access');
+      }
+      
+      return {
+        ...prev,
+        [countryCode]: newActivation
+      };
+    });
   };
 
-  const handleRoutingChange = (countryCode: string, supplier: string) => {
-    setSupplierRouting(prev => ({
+  const toggleRegionActivation = (regionCode: string) => {
+    setRegionActivation(prev => ({
       ...prev,
-      [countryCode]: supplier
+      [regionCode]: !prev[regionCode]
     }));
   };
 
@@ -133,20 +148,20 @@ export default function AdminSuppliers() {
   const saveSettings = async () => {
     setSaving(true);
     try {
-      const [routingResult, regionalResult, configsResult] = await Promise.all([
+      const [countryResult, regionResult, configsResult] = await Promise.all([
         supabase
           .from('system_settings')
           .upsert({
-            setting_key: 'supplier_routing',
-            setting_value: JSON.stringify(supplierRouting),
-            description: 'JSON configuration for routing countries to specific suppliers'
+            setting_key: 'country_activation',
+            setting_value: JSON.stringify(countryActivation),
+            description: 'JSON configuration for active suppliers per country'
           }),
         supabase
           .from('system_settings')
           .upsert({
-            setting_key: 'regional_routing',
-            setting_value: JSON.stringify(regionalRouting),
-            description: 'JSON configuration for routing regions to specific suppliers'
+            setting_key: 'region_activation',
+            setting_value: JSON.stringify(regionActivation),
+            description: 'JSON configuration for active Maya regions'
           }),
         supabase
           .from('system_settings')
@@ -157,7 +172,7 @@ export default function AdminSuppliers() {
           })
       ]);
 
-      if (routingResult.error || regionalResult.error || configsResult.error) {
+      if (countryResult.error || regionResult.error || configsResult.error) {
         throw new Error('Failed to save settings');
       }
 
@@ -233,7 +248,7 @@ export default function AdminSuppliers() {
             Supplier Management
           </h1>
           <p className="text-muted-foreground text-lg">
-            Configure supplier routing and manage eSIM plan sources
+            Configure supplier activation and manage eSIM plan sources
           </p>
         </div>
 
@@ -250,31 +265,145 @@ export default function AdminSuppliers() {
               {suppliers.map(supplier => {
                 const config = supplierConfigs[supplier];
                 const isEnabled = config?.enabled;
+                const isBase = supplier === 'esim_access';
                 return (
                   <div key={supplier} className="flex items-center justify-between p-4 border rounded-lg">
                     <div className="flex items-center gap-3">
-                      {isEnabled ? (
+                      {isEnabled || isBase ? (
                         <CheckCircle className="h-5 w-5 text-green-500" />
                       ) : (
                         <XCircle className="h-5 w-5 text-red-500" />
                       )}
                       <div>
-                        <p className="font-medium capitalize">{supplier.replace('_', ' ')}</p>
+                        <p className="font-medium capitalize">
+                          {supplier.replace('_', ' ')}
+                          {isBase && <span className="text-xs ml-2 text-muted-foreground">(Base)</span>}
+                        </p>
                         <p className="text-sm text-muted-foreground">
                           Priority: {config?.priority || 1}
                         </p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Badge variant={isEnabled ? "default" : "secondary"}>
-                        {isEnabled ? "Active" : "Inactive"}
+                      <Badge variant={isEnabled || isBase ? "default" : "secondary"}>
+                        {isEnabled || isBase ? "Active" : "Inactive"}
                       </Badge>
+                      {!isBase && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => toggleSupplier(supplier)}
+                        >
+                          {isEnabled ? "Disable" : "Enable"}
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Country Activation */}
+        <Card className="glass-card">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Globe className="h-5 w-5" />
+              Country-Level Activation
+            </CardTitle>
+            <p className="text-sm text-muted-foreground">
+              eSIM Access is always active. Enable additional suppliers per country.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {countries.map(country => {
+                const activeSuppliers = countryActivation[country.code] || ['esim_access'];
+                const isMayaActive = activeSuppliers.includes('maya');
+                
+                return (
+                  <div key={country.code} className="p-4 border rounded-lg space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium">{country.name}</span>
+                      <Badge variant="outline">{country.code}</Badge>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle className="h-4 w-4 text-green-500" />
+                        <span className="text-sm">eSIM Access</span>
+                        <Badge variant="default" className="text-xs">Base</Badge>
+                      </div>
+                      
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          {isMayaActive ? (
+                            <CheckCircle className="h-4 w-4 text-green-500" />
+                          ) : (
+                            <XCircle className="h-4 w-4 text-gray-400" />
+                          )}
+                          <span className="text-sm">Maya</span>
+                        </div>
+                        <Button
+                          variant={isMayaActive ? "destructive" : "default"}
+                          size="sm"
+                          onClick={() => toggleCountrySupplier(country.code, 'maya')}
+                        >
+                          {isMayaActive ? <Minus className="h-3 w-3" /> : <Plus className="h-3 w-3" />}
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Regional Activation */}
+        <Card className="glass-card">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Globe className="h-5 w-5" />
+              Regional Activation (Maya Multi-Country)
+            </CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Activate Maya regional plans alongside eSIM Access plans.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {mayaRegions.map(region => {
+                const isActive = regionActivation[region.code];
+                
+                return (
+                  <div key={region.code} className="p-4 border rounded-lg space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium">{region.name}</span>
+                      <Badge variant="outline">{region.code.toUpperCase()}</Badge>
+                    </div>
+                    
+                    <p className="text-xs text-muted-foreground">
+                      {region.countries.slice(0, 3).join(', ')}
+                      {region.countries.length > 3 && ` +${region.countries.length - 3} more`}
+                    </p>
+                    
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        {isActive ? (
+                          <CheckCircle className="h-4 w-4 text-green-500" />
+                        ) : (
+                          <XCircle className="h-4 w-4 text-gray-400" />
+                        )}
+                        <span className="text-sm">Maya Plans</span>
+                      </div>
                       <Button
-                        variant="outline"
+                        variant={isActive ? "destructive" : "default"}
                         size="sm"
-                        onClick={() => toggleSupplier(supplier)}
+                        onClick={() => toggleRegionActivation(region.code)}
                       >
-                        {isEnabled ? "Disable" : "Enable"}
+                        {isActive ? <Minus className="h-3 w-3" /> : <Plus className="h-3 w-3" />}
                       </Button>
                     </div>
                   </div>
@@ -284,78 +413,13 @@ export default function AdminSuppliers() {
           </CardContent>
         </Card>
 
-        {/* Country Routing */}
-        <Card className="glass-card">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Globe className="h-5 w-5" />
-              Country Routing
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {countries.map(country => (
-                <div key={country.code} className="flex items-center justify-between p-3 border rounded-lg">
-                  <span className="font-medium">{country.name}</span>
-                  <Select
-                    value={supplierRouting[country.code] || 'esim_access'}
-                    onValueChange={(value) => handleRoutingChange(country.code, value)}
-                  >
-                    <SelectTrigger className="w-32">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="bg-background border shadow-lg z-50">
-                      {suppliers.map(supplier => (
-                        <SelectItem key={supplier} value={supplier}>
-                          {supplier.replace('_', ' ')}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Regional Routing */}
-        <Card className="glass-card">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Globe className="h-5 w-5" />
-              Regional Routing
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {mayaRegions.map(region => (
-                <div key={region.code} className="flex items-center justify-between p-3 border rounded-lg">
-                  <span className="font-medium">{region.name}</span>
-                  <Select
-                    value={regionalRouting[region.code] || 'maya'}
-                    onValueChange={(value) => handleRegionalRoutingChange(region.code, value)}
-                  >
-                    <SelectTrigger className="w-32">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="bg-background border shadow-lg z-50">
-                      {suppliers.map(supplier => (
-                        <SelectItem key={supplier} value={supplier}>
-                          {supplier.replace('_', ' ')}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
         {/* Maya Region Sync */}
         <Card className="glass-card">
           <CardHeader>
-            <CardTitle>Maya Region Sync</CardTitle>
+            <CardTitle>Maya Plans Sync</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Sync Maya plans for specific regions. Plans will appear alongside eSIM Access plans.
+            </p>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

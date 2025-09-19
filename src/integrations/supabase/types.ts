@@ -204,6 +204,7 @@ export type Database = {
       }
       esim_plans: {
         Row: {
+          admin_only: boolean
           country_code: string
           country_name: string
           created_at: string
@@ -212,6 +213,7 @@ export type Database = {
           description: string | null
           id: string
           is_active: boolean
+          supplier_name: string
           supplier_plan_id: string
           title: string
           updated_at: string
@@ -219,6 +221,7 @@ export type Database = {
           wholesale_price: number
         }
         Insert: {
+          admin_only?: boolean
           country_code: string
           country_name: string
           created_at?: string
@@ -227,6 +230,7 @@ export type Database = {
           description?: string | null
           id?: string
           is_active?: boolean
+          supplier_name?: string
           supplier_plan_id: string
           title: string
           updated_at?: string
@@ -234,6 +238,7 @@ export type Database = {
           wholesale_price: number
         }
         Update: {
+          admin_only?: boolean
           country_code?: string
           country_name?: string
           created_at?: string
@@ -242,6 +247,7 @@ export type Database = {
           description?: string | null
           id?: string
           is_active?: boolean
+          supplier_name?: string
           supplier_plan_id?: string
           title?: string
           updated_at?: string

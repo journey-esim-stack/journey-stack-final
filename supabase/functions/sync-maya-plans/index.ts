@@ -49,57 +49,96 @@ Deno.serve(async (req) => {
     console.log('Maya credentials configured: true');
     console.log('Fetching data from Maya API...');
 
-    // Fetch plans from Maya API - using API key and secret
-    const response = await fetch(`${mayaApiUrl}/plans`, {
-      method: 'GET',
-      headers: {
-        'X-API-Key': mayaApiKey,
-        'X-API-Secret': mayaApiSecret,
-        'Content-Type': 'application/json',
-      },
+    // Build Basic Auth header
+    const basicAuth = 'Basic ' + btoa(`${mayaApiKey}:${mayaApiSecret}`);
+
+    // Regions to include (per Maya docs)
+    const regions = ['europe', 'apac', 'latam', 'caribbean', 'mena', 'balkans', 'caucasus'];
+
+    // Helper to format MB nicely
+    const formatData = (mb: number) => {
+      if (!mb || isNaN(mb)) return '';
+      if (mb >= 1024) return `${(mb / 1024).toFixed(mb % 1024 === 0 ? 0 : 1)} GB`;
+      return `${mb} MB`;
+    };
+
+    // Fetch products for each region in parallel
+    const fetches = regions.map(async (region) => {
+      const url = `${mayaApiUrl}/connectivity/v1/account/products?region=${region}`;
+      console.log('Fetching region:', region, 'URL:', url);
+      const res = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': basicAuth,
+          'Accept': 'application/json',
+        },
+      });
+
+      if (!res.ok) {
+        const text = await res.text().catch(() => '');
+        console.error(`Region ${region} fetch failed`, res.status, res.statusText, text.slice(0, 300));
+        throw new Error(`Region ${region} fetch failed: ${res.status}`);
+      }
+
+      const json = await res.json().catch(async () => {
+        const text = await res.text().catch(() => '');
+        console.error('Invalid JSON for region', region, text.slice(0, 300));
+        throw new Error(`Invalid JSON for region ${region}`);
+      });
+
+      const products = Array.isArray(json?.products) ? json.products : [];
+      console.log(`Region ${region} products:`, products.length);
+      return { region, products } as { region: string; products: any[] };
     });
 
-    console.log('Maya API response status:', response.status);
+    const regionResults = await Promise.all(fetches);
 
-    if (!response.ok) {
-      const errorText = await response.text().catch(() => '');
-      console.error('Maya API non-OK response:', response.status, response.statusText, 'Body:', errorText?.slice(0, 500));
-      throw new Error(`Maya API error: ${response.status} ${response.statusText} - ${errorText?.slice(0, 200)}`);
+    // Deduplicate by product uid
+    const productMap = new Map<string, { region: string; product: any }>();
+    for (const { region, products } of regionResults) {
+      for (const p of products) {
+        if (!p?.uid) continue;
+        if (!productMap.has(p.uid)) {
+          productMap.set(p.uid, { region, product: p });
+        }
+      }
     }
 
-    let apiData: MayaResponse;
-    try {
-      apiData = await response.json();
-    } catch (parseErr) {
-      const rawText = await response.text().catch(() => '');
-      console.error('Failed to parse Maya API JSON. Raw body:', rawText?.slice(0, 500));
-      throw new Error('Invalid JSON returned by Maya API');
-    }
-    console.log('Received data from Maya:', apiData.success ? 'Success' : 'Failed');
+    const allProducts = Array.from(productMap.values());
+    console.log('Total unique regional products:', allProducts.length);
 
-    if (!apiData.success || !apiData.data) {
-      throw new Error(`Maya API returned error: ${apiData.message || 'Unknown error'}`);
-    }
+    // Transform to our database format (mark as Regional "RG")
+    const transformedPlans = allProducts.map(({ region, product }) => {
+      const countries = Array.isArray(product?.countries_enabled) ? product.countries_enabled : [];
+      const desc = `Region: ${region.toUpperCase()}. Countries: ${countries.join(', ')}`;
+      const dataAmount = formatData(Number(product?.data_quota_mb));
+      const price = Number(product?.wholesale_price_usd);
 
-    console.log(`Processing ${apiData.data.length} Maya plans...`);
-
-    // Transform Maya plans to our database format
-    const transformedPlans = apiData.data
-      .filter(plan => plan.active)
-      .map(plan => ({
-        supplier_plan_id: `maya_${plan.product_id}`,
+      return {
+        supplier_plan_id: `maya_${product.uid}`,
         supplier_name: 'maya',
-        title: plan.title,
-        description: plan.description || '',
-        country_code: plan.country_code.toUpperCase(),
-        country_name: plan.country_name,
-        data_amount: plan.data_amount,
-        validity_days: plan.validity_days,
-        wholesale_price: plan.price,
-        currency: plan.currency || 'USD',
+        title: product?.name || `Maya ${region} plan`,
+        description: desc,
+        country_code: 'RG',
+        country_name: `${region[0].toUpperCase()}${region.slice(1)} Region`,
+        data_amount: dataAmount,
+        validity_days: Number(product?.validity_days) || 0,
+        wholesale_price: isNaN(price) ? 0 : price,
+        currency: 'USD',
         is_active: true,
-        admin_only: false
-      }));
+        admin_only: false,
+      };
+    });
+
+    console.log('Transformed Maya plans:', transformedPlans.length);
+
+    if (transformedPlans.length === 0) {
+      console.log('No regional products returned from Maya');
+      return new Response(
+        JSON.stringify({ success: true, message: 'No regional Maya products to sync' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     console.log('Transformed Maya plans:', transformedPlans.length);
 

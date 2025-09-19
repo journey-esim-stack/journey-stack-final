@@ -6,6 +6,20 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Trace helper to persist diagnostics even if logs UI is lagging
+async function logTrace(supabase: any, action: string, details: any, userId?: string) {
+  try {
+    await supabase.from('audit_logs').insert({
+      table_name: 'wallet_debit',
+      action,
+      user_id: userId || null,
+      new_values: details,
+    });
+  } catch (e) {
+    console.error('audit log insert failed', e);
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -37,7 +51,9 @@ serve(async (req) => {
       .select("id, wallet_balance")
       .eq("user_id", user.id)
       .single();
-    if (profileErr) throw profileErr;
+if (profileErr) throw profileErr;
+
+    await logTrace(supabase, 'start', { amount, reference_id, cart_items_count: cart_items?.length || 0 }, user.id);
 
     const currentBalance = Number(profile.wallet_balance);
     if (currentBalance < amount) {
@@ -101,7 +117,9 @@ serve(async (req) => {
         .insert(orders)
         .select("id");
       if (orderErr) throw orderErr;
-      orderIds = orderData?.map(o => o.id) || [];
+orderIds = orderData?.map(o => o.id) || [];
+
+      await logTrace(supabase, 'orders_created', { order_ids: orderIds }, user.id);
 
       // Create eSIMs for each order
       for (let i = 0; i < orderData.length; i++) {
@@ -158,7 +176,9 @@ serve(async (req) => {
           
           // Route to appropriate eSIM creation function based on supplier
           const functionName = supplierName === 'maya' ? 'create-maya-esim' : 'create-esim';
-          console.log(`Using function ${functionName} for supplier ${supplierName}`);
+console.log(`Using function ${functionName} for supplier ${supplierName}`);
+
+          await logTrace(supabase, 'invoke_create_esim', { function: functionName, plan_id: planIdToUse, order_id: order.id }, user.id);
           
           const { data: esimData, error: esimError } = await supabase.functions.invoke(functionName, {
             body: {
@@ -167,8 +187,9 @@ serve(async (req) => {
             }
           });
           
-          if (esimError) {
+if (esimError) {
             console.error(`Failed to create eSIM for order ${order.id}:`, esimError);
+            await logTrace(supabase, 'invoke_failed', { order_id: order.id, error: esimError }, user.id);
             // Update order status to failed
             await supabase
               .from("orders")
@@ -176,6 +197,7 @@ serve(async (req) => {
               .eq("id", order.id);
           } else {
             console.log(`Successfully created eSIM for order ${order.id}:`, esimData);
+            await logTrace(supabase, 'invoke_success', { order_id: order.id, response: esimData }, user.id);
           }
         } catch (esimCreateError) {
           console.error(`Error creating eSIM for order ${order.id}:`, esimCreateError);

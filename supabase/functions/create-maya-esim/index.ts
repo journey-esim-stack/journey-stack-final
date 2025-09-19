@@ -178,6 +178,8 @@ serve(async (req) => {
     // Create eSIM order via Maya API
     const orderPayload = {
       product_uid: mayaProductUid,
+      product_id: mayaProductUid,
+      uid: mayaProductUid,
       quantity: 1,
       external_reference: order_id, // use our DB order id as reference
     };
@@ -252,7 +254,7 @@ serve(async (req) => {
     console.log('Maya Order API Response data:', orderJson);
 
     // Consider response successful if we have an order_id in a known location
-    const orderId = orderJson?.data?.order_id || orderJson?.order_id || orderJson?.data?.id;
+    const orderId = orderJson?.data?.order_id || orderJson?.order_id || orderJson?.data?.id || orderJson?.data?.order_uid || orderJson?.uid || orderJson?.data?.order?.id || orderJson?.order?.uid;
 
     if (!orderRes.ok || !orderId) {
       const errMsg = orderJson?.message || orderJson?.developer_message || 'Maya service temporarily unavailable';

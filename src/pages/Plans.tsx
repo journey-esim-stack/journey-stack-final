@@ -216,10 +216,29 @@ export default function Plans() {
       return {
         ...plan,
         agent_price: agentPrice
-      };
+      } as EsimPlan & { agent_price: number };
     });
+
+    // Dedupe Maya plans by (title, validity_days, country_code) keeping the most recently updated
+    const dedupedPlansMap = new Map<string, EsimPlan & { agent_price?: number }>();
+    for (const p of plansWithAgentPrices) {
+      if (p.supplier_name === 'maya') { // only dedupe Maya
+        const k = `maya|${p.title}|${p.validity_days}|${p.country_code}`;
+        const existing = dedupedPlansMap.get(k);
+        if (!existing) dedupedPlansMap.set(k, p);
+        else {
+          const exTime = new Date((existing as any).updated_at || 0).getTime();
+          const curTime = new Date((p as any).updated_at || 0).getTime();
+          if (curTime >= exTime) dedupedPlansMap.set(k, p);
+        }
+      } else {
+        // non-maya suppliers: keep as-is with key to avoid collision
+        dedupedPlansMap.set(`${p.supplier_name}|${p.id}`, p);
+      }
+    }
+    const dedupedPlans = Array.from(dedupedPlansMap.values());
     
-    return plansWithAgentPrices;
+    return dedupedPlans;
   };
 
   const { data: plans = [], isLoading, error } = useQuery<EsimPlan[]>({

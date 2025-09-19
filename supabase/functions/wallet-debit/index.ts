@@ -127,26 +127,28 @@ serve(async (req) => {
             continue;
           }
           
-          // Resolve potential inactive Maya plan to the active production one
+          // Resolve to the latest active Maya plan matching key attributes (avoid stale test plan IDs)
           let planIdToUse = item.planId;
           const supplierName = planData.supplier_name;
-          if (supplierName === 'maya' && planData.is_active === false) {
-            console.log(`Plan ${item.planId} is inactive; attempting to find active Maya replacement`);
-            const { data: replacement, error: replErr } = await supabase
+          if (supplierName === 'maya') {
+            console.log(`Ensuring latest active Maya plan for order ${order.id}`);
+            const { data: replacementList, error: replErr } = await supabase
               .from("esim_plans")
-              .select("id")
+              .select("id, updated_at")
               .eq("supplier_name", "maya")
               .eq("title", planData.title)
               .eq("validity_days", planData.validity_days)
               .eq("country_code", planData.country_code)
               .eq("is_active", true)
-              .maybeSingle();
+              .order("updated_at", { ascending: false })
+              .limit(1);
             if (replErr) {
-              console.error('Error searching replacement Maya plan:', replErr);
+              console.error('Error searching latest Maya plan:', replErr);
             }
-            if (replacement?.id) {
-              planIdToUse = replacement.id;
-              console.log(`Using replacement Maya plan ${planIdToUse} for order ${order.id}`);
+            const latest = replacementList && replacementList.length > 0 ? replacementList[0] : null;
+            if (latest?.id && latest.id !== item.planId) {
+              planIdToUse = latest.id;
+              console.log(`Switching to latest Maya plan ${planIdToUse} for order ${order.id}`);
               await supabase
                 .from("orders")
                 .update({ plan_id: planIdToUse })
@@ -156,6 +158,25 @@ serve(async (req) => {
           
           // Route to appropriate eSIM creation function based on supplier
           const functionName = supplierName === 'maya' ? 'create-maya-esim' : 'create-esim';
+          console.log(`Using function ${functionName} for supplier ${supplierName}`);
+          
+          const { data: esimData, error: esimError } = await supabase.functions.invoke(functionName, {
+            body: {
+              plan_id: planIdToUse,
+              order_id: order.id
+            }
+          });
+          
+          if (esimError) {
+            console.error(`Failed to create eSIM for order ${order.id}:`, esimError);
+            // Update order status to failed
+            await supabase
+              .from("orders")
+              .update({ status: "failed" })
+              .eq("id", order.id);
+          } else {
+            console.log(`Successfully created eSIM for order ${order.id}:`, esimData);
+          }
           console.log(`Using function ${functionName} for supplier ${planData.supplier_name}`);
           
           const { data: esimData, error: esimError } = await supabase.functions.invoke(functionName, {

@@ -24,6 +24,7 @@ interface SupplierRouting {
 
 export default function AdminSuppliers() {
   const [supplierRouting, setSupplierRouting] = useState<SupplierRouting>({});
+  const [regionalRouting, setRegionalRouting] = useState<SupplierRouting>({});
   const [supplierConfigs, setSupplierConfigs] = useState<SupplierConfigs>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -64,11 +65,16 @@ export default function AdminSuppliers() {
 
   const fetchSupplierSettings = async () => {
     try {
-      const [routingResponse, configsResponse] = await Promise.all([
+      const [routingResponse, regionalResponse, configsResponse] = await Promise.all([
         supabase
           .from('system_settings')
           .select('setting_value')
           .eq('setting_key', 'supplier_routing')
+          .single(),
+        supabase
+          .from('system_settings')
+          .select('setting_value')
+          .eq('setting_key', 'regional_routing')
           .single(),
         supabase
           .from('system_settings')
@@ -79,6 +85,10 @@ export default function AdminSuppliers() {
 
       if (routingResponse.data) {
         setSupplierRouting(JSON.parse(routingResponse.data.setting_value));
+      }
+
+      if (regionalResponse.data) {
+        setRegionalRouting(JSON.parse(regionalResponse.data.setting_value));
       }
 
       if (configsResponse.data) {
@@ -94,6 +104,13 @@ export default function AdminSuppliers() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleRegionalRoutingChange = (regionCode: string, supplier: string) => {
+    setRegionalRouting(prev => ({
+      ...prev,
+      [regionCode]: supplier
+    }));
   };
 
   const handleRoutingChange = (countryCode: string, supplier: string) => {
@@ -116,13 +133,20 @@ export default function AdminSuppliers() {
   const saveSettings = async () => {
     setSaving(true);
     try {
-      const [routingResult, configsResult] = await Promise.all([
+      const [routingResult, regionalResult, configsResult] = await Promise.all([
         supabase
           .from('system_settings')
           .upsert({
             setting_key: 'supplier_routing',
             setting_value: JSON.stringify(supplierRouting),
-            description: 'JSON configuration for routing countries/regions to specific suppliers'
+            description: 'JSON configuration for routing countries to specific suppliers'
+          }),
+        supabase
+          .from('system_settings')
+          .upsert({
+            setting_key: 'regional_routing',
+            setting_value: JSON.stringify(regionalRouting),
+            description: 'JSON configuration for routing regions to specific suppliers'
           }),
         supabase
           .from('system_settings')
@@ -133,7 +157,7 @@ export default function AdminSuppliers() {
           })
       ]);
 
-      if (routingResult.error || configsResult.error) {
+      if (routingResult.error || regionalResult.error || configsResult.error) {
         throw new Error('Failed to save settings');
       }
 
@@ -280,7 +304,41 @@ export default function AdminSuppliers() {
                     <SelectTrigger className="w-32">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="bg-background border shadow-lg z-50">
+                      {suppliers.map(supplier => (
+                        <SelectItem key={supplier} value={supplier}>
+                          {supplier.replace('_', ' ')}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Regional Routing */}
+        <Card className="glass-card">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Globe className="h-5 w-5" />
+              Regional Routing
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {mayaRegions.map(region => (
+                <div key={region.code} className="flex items-center justify-between p-3 border rounded-lg">
+                  <span className="font-medium">{region.name}</span>
+                  <Select
+                    value={regionalRouting[region.code] || 'maya'}
+                    onValueChange={(value) => handleRegionalRoutingChange(region.code, value)}
+                  >
+                    <SelectTrigger className="w-32">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-background border shadow-lg z-50">
                       {suppliers.map(supplier => (
                         <SelectItem key={supplier} value={supplier}>
                           {supplier.replace('_', ' ')}

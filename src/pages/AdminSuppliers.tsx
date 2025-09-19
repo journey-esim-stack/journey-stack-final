@@ -148,6 +148,12 @@ export default function AdminSuppliers() {
   const saveSettings = async () => {
     setSaving(true);
     try {
+      console.log('Saving settings:', {
+        countryActivation,
+        regionActivation,
+        supplierConfigs
+      });
+
       const [countryResult, regionResult, configsResult] = await Promise.all([
         supabase
           .from('system_settings')
@@ -172,8 +178,21 @@ export default function AdminSuppliers() {
           })
       ]);
 
-      if (countryResult.error || regionResult.error || configsResult.error) {
-        throw new Error('Failed to save settings');
+      console.log('Upsert results:', { countryResult, regionResult, configsResult });
+
+      if (countryResult.error) {
+        console.error('Country activation error:', countryResult.error);
+        throw new Error(`Country activation: ${countryResult.error.message}`);
+      }
+      
+      if (regionResult.error) {
+        console.error('Region activation error:', regionResult.error);
+        throw new Error(`Region activation: ${regionResult.error.message}`);
+      }
+      
+      if (configsResult.error) {
+        console.error('Supplier configs error:', configsResult.error);
+        throw new Error(`Supplier configs: ${configsResult.error.message}`);
       }
 
       toast({
@@ -184,7 +203,7 @@ export default function AdminSuppliers() {
       console.error('Error saving settings:', error);
       toast({
         title: "Error",
-        description: "Failed to save supplier settings",
+        description: `Failed to save supplier settings: ${(error as Error).message}`,
         variant: "destructive",
       });
     } finally {

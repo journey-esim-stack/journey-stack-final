@@ -177,25 +177,6 @@ serve(async (req) => {
           } else {
             console.log(`Successfully created eSIM for order ${order.id}:`, esimData);
           }
-          console.log(`Using function ${functionName} for supplier ${planData.supplier_name}`);
-          
-          const { data: esimData, error: esimError } = await supabase.functions.invoke(functionName, {
-            body: {
-              plan_id: planIdToUse,
-              order_id: order.id
-            }
-          });
-          
-          if (esimError) {
-            console.error(`Failed to create eSIM for order ${order.id}:`, esimError);
-            // Update order status to failed
-            await supabase
-              .from("orders")
-              .update({ status: "failed" })
-              .eq("id", order.id);
-          } else {
-            console.log(`Successfully created eSIM for order ${order.id}:`, esimData);
-          }
         } catch (esimCreateError) {
           console.error(`Error creating eSIM for order ${order.id}:`, esimCreateError);
           // Update order status to failed

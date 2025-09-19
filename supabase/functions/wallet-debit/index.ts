@@ -114,7 +114,7 @@ serve(async (req) => {
           // Get plan details to determine supplier
           const { data: planData, error: planError } = await supabase
             .from("esim_plans")
-            .select("supplier_name")
+            .select("supplier_name, is_active, title, validity_days, data_amount, country_code")
             .eq("id", item.planId)
             .single();
           
@@ -127,13 +127,40 @@ serve(async (req) => {
             continue;
           }
           
+          // Resolve potential inactive Maya plan to the active production one
+          let planIdToUse = item.planId;
+          const supplierName = planData.supplier_name;
+          if (supplierName === 'maya' && planData.is_active === false) {
+            console.log(`Plan ${item.planId} is inactive; attempting to find active Maya replacement`);
+            const { data: replacement, error: replErr } = await supabase
+              .from("esim_plans")
+              .select("id")
+              .eq("supplier_name", "maya")
+              .eq("title", planData.title)
+              .eq("validity_days", planData.validity_days)
+              .eq("country_code", planData.country_code)
+              .eq("is_active", true)
+              .maybeSingle();
+            if (replErr) {
+              console.error('Error searching replacement Maya plan:', replErr);
+            }
+            if (replacement?.id) {
+              planIdToUse = replacement.id;
+              console.log(`Using replacement Maya plan ${planIdToUse} for order ${order.id}`);
+              await supabase
+                .from("orders")
+                .update({ plan_id: planIdToUse })
+                .eq("id", order.id);
+            }
+          }
+          
           // Route to appropriate eSIM creation function based on supplier
-          const functionName = planData.supplier_name === 'maya' ? 'create-maya-esim' : 'create-esim';
+          const functionName = supplierName === 'maya' ? 'create-maya-esim' : 'create-esim';
           console.log(`Using function ${functionName} for supplier ${planData.supplier_name}`);
           
           const { data: esimData, error: esimError } = await supabase.functions.invoke(functionName, {
             body: {
-              plan_id: item.planId,
+              plan_id: planIdToUse,
               order_id: order.id
             }
           });

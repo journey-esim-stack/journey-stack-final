@@ -62,10 +62,19 @@ Deno.serve(async (req) => {
     console.log('Maya API response status:', response.status);
 
     if (!response.ok) {
-      throw new Error(`Maya API error: ${response.status} ${response.statusText}`);
+      const errorText = await response.text().catch(() => '');
+      console.error('Maya API non-OK response:', response.status, response.statusText, 'Body:', errorText?.slice(0, 500));
+      throw new Error(`Maya API error: ${response.status} ${response.statusText} - ${errorText?.slice(0, 200)}`);
     }
 
-    const apiData: MayaResponse = await response.json();
+    let apiData: MayaResponse;
+    try {
+      apiData = await response.json();
+    } catch (parseErr) {
+      const rawText = await response.text().catch(() => '');
+      console.error('Failed to parse Maya API JSON. Raw body:', rawText?.slice(0, 500));
+      throw new Error('Invalid JSON returned by Maya API');
+    }
     console.log('Received data from Maya:', apiData.success ? 'Success' : 'Failed');
 
     if (!apiData.success || !apiData.data) {

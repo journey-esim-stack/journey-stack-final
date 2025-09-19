@@ -22,11 +22,12 @@ export function TestMayaSync() {
         title: "Success",
         description: `Maya plans synced: ${data?.synced_count || 0} plans`,
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error syncing Maya plans:', error);
+      const message = error?.message || error?.error || 'Failed to sync Maya plans';
       toast({
         title: "Error",
-        description: "Failed to sync Maya plans",
+        description: String(message).slice(0, 300),
         variant: "destructive",
       });
     } finally {

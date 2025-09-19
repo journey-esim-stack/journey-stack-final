@@ -253,11 +253,49 @@ serve(async (req) => {
     }
     console.log('Maya Order API Response data:', orderJson);
 
-    // Consider response successful if we have an order_id in a known location
-    const orderId = orderJson?.data?.order_id || orderJson?.order_id || orderJson?.data?.id || orderJson?.data?.order_uid || orderJson?.uid || orderJson?.data?.order?.id || orderJson?.order?.uid;
+    // If provider returned eSIM immediately in the create response, finish here
+    const simsFromCreate = orderJson?.data?.sims || orderJson?.sims || orderJson?.data?.sim_list;
+    if (Array.isArray(simsFromCreate) && simsFromCreate.length > 0 && simsFromCreate[0]?.iccid) {
+      const esim = simsFromCreate[0];
+      console.log('Maya eSIM returned on create:', { iccid: esim.iccid, hasActivationCode: !!esim.activation_code });
+
+      const { error: updateOnCreateErr } = await supabaseClient
+        .from('orders')
+        .update({
+          status: 'completed',
+          esim_iccid: esim.iccid,
+          esim_qr_code: esim.qr_code || null,
+          activation_code: esim.activation_code || null,
+          supplier_order_id: orderJson?.data?.order_id || orderJson?.order_id || null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', order_id);
+
+      if (updateOnCreateErr) {
+        console.error('Failed to update order from create response:', updateOnCreateErr);
+        return new Response(JSON.stringify({ error: 'Failed to update order', details: updateOnCreateErr }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      return new Response(JSON.stringify({
+        success: true,
+        iccid: esim.iccid,
+        order_id: order_id,
+        supplier_order_id: orderJson?.data?.order_id || orderJson?.order_id || null,
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Consider response successful if we have an order id in any known place or headers
+    const locationHeader = orderRes.headers.get('location') || orderRes.headers.get('Location');
+    const orderIdFromHeader = locationHeader ? locationHeader.split('/').pop() : undefined;
+    const orderId = orderJson?.data?.order_id || orderJson?.order_id || orderJson?.data?.id || orderJson?.data?.order_uid || orderJson?.uid || orderJson?.data?.order?.id || orderJson?.order?.uid || orderIdFromHeader;
 
     if (!orderRes.ok || !orderId) {
-      const errMsg = orderJson?.message || orderJson?.developer_message || 'Maya service temporarily unavailable';
+      const errMsg = orderJson?.message || orderJson?.developer_message || orderJson?.error || 'Maya service temporarily unavailable';
       console.error('Maya Order API error - Status:', orderRes.status);
       console.error('Maya Order API error response:', orderJson);
       

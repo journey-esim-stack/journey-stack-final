@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Maya Sync Test</title>
+</head>
+<body>
+    <h1>Maya Plans Sync</h1>
+    <button id="syncBtn">Sync Maya Plans</button>
+    <div id="result"></div>
+
+    <script>
+        document.getElementById('syncBtn').addEventListener('click', async () => {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = 'Syncing...';
+            
+            try {
+                const response = await fetch('https://cccktfactlzxuprpyhgh.supabase.co/functions/v1/sync-maya-plans', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNjY2t0ZmFjdGx6eHVwcnB5aGdoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc0MjQwMDUsImV4cCI6MjA3MzAwMDAwNX0.JmpRczZr46IUVpv_vkBopf9zovD9Z5muwF4wmX7ac-Q'
+                    },
+                    body: JSON.stringify({})
+                });
+                
+                const data = await response.json();
+                resultDiv.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+            } catch (error) {
+                resultDiv.innerHTML = `Error: ${error.message}`;
+            }
+        });
+    </script>
+</body>
+</html>

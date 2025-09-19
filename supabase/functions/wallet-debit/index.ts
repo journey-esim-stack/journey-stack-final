@@ -111,7 +111,27 @@ serve(async (req) => {
         try {
           console.log(`Creating eSIM for order ${order.id} with plan ${item.planId}`);
           
-          const { data: esimData, error: esimError } = await supabase.functions.invoke('create-esim', {
+          // Get plan details to determine supplier
+          const { data: planData, error: planError } = await supabase
+            .from("esim_plans")
+            .select("supplier_name")
+            .eq("id", item.planId)
+            .single();
+          
+          if (planError) {
+            console.error(`Failed to fetch plan for order ${order.id}:`, planError);
+            await supabase
+              .from("orders")
+              .update({ status: "failed" })
+              .eq("id", order.id);
+            continue;
+          }
+          
+          // Route to appropriate eSIM creation function based on supplier
+          const functionName = planData.supplier_name === 'maya' ? 'create-maya-esim' : 'create-esim';
+          console.log(`Using function ${functionName} for supplier ${planData.supplier_name}`);
+          
+          const { data: esimData, error: esimError } = await supabase.functions.invoke(functionName, {
             body: {
               plan_id: item.planId,
               order_id: order.id

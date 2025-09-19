@@ -161,6 +161,8 @@ export default function AdminSuppliers() {
             setting_key: 'country_activation',
             setting_value: JSON.stringify(countryActivation),
             description: 'JSON configuration for active suppliers per country'
+          }, {
+            onConflict: 'setting_key'
           }),
         supabase
           .from('system_settings')
@@ -168,6 +170,8 @@ export default function AdminSuppliers() {
             setting_key: 'region_activation',
             setting_value: JSON.stringify(regionActivation),
             description: 'JSON configuration for active Maya regions'
+          }, {
+            onConflict: 'setting_key'
           }),
         supabase
           .from('system_settings')
@@ -175,6 +179,8 @@ export default function AdminSuppliers() {
             setting_key: 'supplier_configs',
             setting_value: JSON.stringify(supplierConfigs),
             description: 'JSON configuration for supplier settings and priorities'
+          }, {
+            onConflict: 'setting_key'
           })
       ]);
 

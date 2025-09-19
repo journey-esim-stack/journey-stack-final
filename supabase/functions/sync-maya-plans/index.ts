@@ -39,20 +39,22 @@ Deno.serve(async (req) => {
 
     // Get Maya API credentials
     const mayaApiKey = Deno.env.get('MAYA_API_KEY');
+    const mayaApiSecret = Deno.env.get('MAYA_API_SECRET');
     const mayaApiUrl = Deno.env.get('MAYA_API_URL');
 
-    if (!mayaApiKey || !mayaApiUrl) {
+    if (!mayaApiKey || !mayaApiSecret || !mayaApiUrl) {
       throw new Error('Maya API credentials not configured');
     }
 
     console.log('Maya credentials configured: true');
     console.log('Fetching data from Maya API...');
 
-    // Fetch plans from Maya API
+    // Fetch plans from Maya API - using API key and secret
     const response = await fetch(`${mayaApiUrl}/plans`, {
       method: 'GET',
       headers: {
-        'Authorization': `Bearer ${mayaApiKey}`,
+        'X-API-Key': mayaApiKey,
+        'X-API-Secret': mayaApiSecret,
         'Content-Type': 'application/json',
       },
     });

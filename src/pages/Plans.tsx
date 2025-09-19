@@ -92,8 +92,8 @@ export default function Plans() {
       throw new Error("User not authenticated");
     }
 
-    // Fetch agent markup settings and supplier routing in parallel
-    const [agentProfileResponse, supplierRoutingResponse] = await Promise.all([
+    // Fetch agent markup settings, country activation, and region activation in parallel
+    const [agentProfileResponse, countryActivationResponse, regionActivationResponse] = await Promise.all([
       supabase
         .from("agent_profiles")
         .select("markup_type, markup_value")
@@ -102,13 +102,20 @@ export default function Plans() {
       supabase
         .from("system_settings")
         .select("setting_value")
-        .eq("setting_key", "supplier_routing")
+        .eq("setting_key", "country_activation")
+        .single(),
+      supabase
+        .from("system_settings")
+        .select("setting_value")
+        .eq("setting_key", "region_activation")
         .single()
     ]);
 
     const agentProfile = agentProfileResponse.data;
-    const supplierRouting = supplierRoutingResponse.data ? 
-      JSON.parse(supplierRoutingResponse.data.setting_value) : {};
+    const countryActivation = countryActivationResponse.data ? 
+      JSON.parse(countryActivationResponse.data.setting_value) : {};
+    const regionActivation = regionActivationResponse.data ? 
+      JSON.parse(regionActivationResponse.data.setting_value) : {};
 
     // Fetch all plans in batches to overcome 1000 row limit
     let allPlans: EsimPlan[] = [];
@@ -142,19 +149,51 @@ export default function Plans() {
       }
     }
 
-    // Filter plans based on supplier routing (if configured)
-    let filteredPlans = allPlans;
-    if (Object.keys(supplierRouting).length > 0) {
-      filteredPlans = allPlans.filter(plan => {
-        // Check if country/region routing is configured
-        const countrySupplier = supplierRouting[plan.country_code] || 
-                               supplierRouting[plan.country_name] || 
-                               supplierRouting.default;
+    // Filter plans based on supplier activation settings
+    let filteredPlans = allPlans.filter(plan => {
+      // Always show eSIM Access plans
+      if (plan.supplier_name === 'esim_access') {
+        return true;
+      }
+      
+      // For Maya plans, check both country and region activation
+      if (plan.supplier_name === 'maya') {
+        // Check country-level activation
+        const countrySuppliers = countryActivation[plan.country_code];
+        if (countrySuppliers && countrySuppliers.includes('maya')) {
+          return true;
+        }
         
-        // If no routing rule exists, show all plans. If routing exists, filter by supplier
-        return !countrySupplier || plan.supplier_name === countrySupplier;
-      });
-    }
+        // Check region-level activation for regional plans
+        if (plan.country_code === 'RG') {
+          // Map plan regions to our region codes
+          const planTitle = plan.title?.toLowerCase() || '';
+          const planDescription = plan.description?.toLowerCase() || '';
+          
+          const regionMappings = {
+            'europe': ['europe', 'european'],
+            'apac': ['asia', 'pacific', 'apac'],
+            'latam': ['latin', 'america', 'latam'],
+            'caribbean': ['caribbean'],
+            'mena': ['middle east', 'north africa', 'mena'],
+            'balkans': ['balkans'],
+            'caucasus': ['caucasus']
+          };
+          
+          for (const [regionCode, keywords] of Object.entries(regionMappings)) {
+            if (regionActivation[regionCode] && 
+                keywords.some(keyword => planTitle.includes(keyword) || planDescription.includes(keyword))) {
+              return true;
+            }
+          }
+        }
+        
+        return false;
+      }
+      
+      // For other suppliers, show all plans (fallback)
+      return true;
+    });
     
     // Calculate agent prices for each plan using the fetched markup
     const currentMarkup = agentProfile ? {

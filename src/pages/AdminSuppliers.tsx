@@ -413,54 +413,6 @@ export default function AdminSuppliers() {
           </CardContent>
         </Card>
 
-        {/* Maya Region Sync */}
-        <Card className="glass-card">
-          <CardHeader>
-            <CardTitle>Maya Plans Sync</CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Sync Maya plans for specific regions. Plans will appear alongside eSIM Access plans.
-            </p>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {mayaRegions.map(region => (
-                <div key={region.code} className="p-4 border rounded-lg space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-medium">{region.name}</h3>
-                    <Badge variant={selectedRegion === region.code ? "default" : "outline"}>
-                      {region.code.toUpperCase()}
-                    </Badge>
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    Countries: {region.countries.slice(0, 3).join(', ')}
-                    {region.countries.length > 3 && ` +${region.countries.length - 3} more`}
-                  </p>
-                  <Button
-                    variant={selectedRegion === region.code ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setSelectedRegion(region.code)}
-                    className="w-full"
-                  >
-                    Select {region.name}
-                  </Button>
-                </div>
-              ))}
-            </div>
-            
-            <Separator />
-            
-            <div className="flex gap-4">
-              <Button 
-                onClick={syncMayaPlans} 
-                disabled={syncingMaya || !selectedRegion}
-                className="flex-1"
-              >
-                {syncingMaya ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                Sync Selected Region Plans
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
 
         {/* Actions */}
         <Card className="glass-card">

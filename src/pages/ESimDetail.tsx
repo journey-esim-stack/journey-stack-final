@@ -176,7 +176,8 @@ const ESimDetail = () => {
               country_name,
               country_code,
               data_amount,
-              validity_days
+              validity_days,
+              supplier_name
             )
           `)
           .eq("esim_iccid", iccid)
@@ -480,221 +481,139 @@ Instructions:
                     </Badge>
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Network</p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <div className={`w-3 h-3 rounded-full ${esimDetails.network.connected ? 'bg-green-500' : 'bg-gray-500'}`}></div>
-                      <span className="text-sm font-medium">{esimDetails.network.operator}</span>
-                    </div>
-                    <p className="text-xs text-muted-foreground">{esimDetails.network.country}</p>
+                    <p className="text-sm text-muted-foreground">Data Plan</p>
+                    <p className="text-sm font-medium">{esimDetails.plan.name}</p>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Network Details Card */}
+            {/* Data Usage Card */}
             <Card className="glass-card">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Signal className="h-5 w-5 text-primary" />
-                  Network Details
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className={`glass-intense p-4 rounded-lg border ${esimDetails.network.connected ? 'border-green-500/20' : 'border-gray-500/20'}`}>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className={`w-3 h-3 rounded-full ${esimDetails.network.connected ? 'bg-green-500 animate-pulse' : 'bg-gray-500'}`}></div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <Globe className="h-4 w-4 text-primary" />
-                          <span className="font-medium">
-                            {esimDetails.network.operator}
-                          </span>
-                        </div>
-                        <p className="text-sm text-muted-foreground">
-                          {esimDetails.network.connected 
-                            ? `Signal: ${esimDetails.network.signal_strength}% • Last seen: ${format(new Date(), "MMM dd, HH:mm")}`
-                            : "Not connected to any network"
-                          }
-                        </p>
-                      </div>
-                    </div>
-                    <Badge className={`${esimDetails.network.connected ? 'bg-green-500/10 text-green-600 border-green-500/20' : 'bg-gray-500/10 text-gray-600 border-gray-500/20'}`}>
-                      {esimDetails.network.connected ? "Connected" : "Not Connected"}
-                    </Badge>
+                <CardTitle className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Wifi className="h-5 w-5 text-primary" />
+                    Data Usage
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Data Usage Component - Enhanced with Progress Bar */}
-            <Card className="glass-card">
-               <CardHeader>
-                 <CardTitle className="flex items-center justify-between">
-                   <div className="flex items-center gap-2">
-                     <Activity className="h-5 w-5 text-primary" />
-                     Data Usage
-                   </div>
-                   <Button 
-                     variant="ghost" 
-                     size="sm" 
-                     onClick={handleManualRefresh}
-                     disabled={isRefreshing}
-                     className="hover:bg-white/10"
-                   >
-                     <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-                   </Button>
-                 </CardTitle>
-               </CardHeader>
-              <CardContent className="space-y-4">
-                {/* Top-up History - Show newest first */}
-                {topupHistory.length > 0 && topupHistory.map((topup) => (
-                  <div key={topup.id} className="grid grid-cols-1 md:grid-cols-6 gap-4 items-center p-4 bg-orange-500/10 rounded-lg border border-orange-500/20">
-                    {/* Status */}
-                    <div className="text-center">
-                      <p className="text-sm text-muted-foreground mb-2">Status</p>
-                      <Badge className="bg-green-500/10 text-green-600 border-green-500/20">
-                        {topup.status}
-                      </Badge>
-                    </div>
-
-                    {/* Data Usage */}
-                    <div className="text-center">
-                      <p className="text-sm text-muted-foreground mb-2">Data Usage</p>
-                      <div className="text-sm font-semibold">
-                        0 GB Used / {topup.data_amount}
-                      </div>
-                    </div>
-
-                    {/* Data Progress */}
-                    <div className="text-center">
-                      <p className="text-sm text-muted-foreground mb-2">Data Progress</p>
-                      <div className="flex flex-col items-center gap-1">
-                        <div className="text-xs text-muted-foreground">
-                          {topup.data_amount} left
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Validity */}
-                    <div className="text-center">
-                      <p className="text-sm text-muted-foreground mb-2">Validity</p>
-                      <div className="text-sm font-semibold">
-                        {topup.validity_days} Days
-                      </div>
-                    </div>
-
-                    {/* Created */}
-                    <div className="text-center">
-                      <p className="text-sm text-muted-foreground mb-2">Created</p>
-                      <div className="text-sm">
-                        {format(new Date(topup.created_at), "yyyy-MM-dd")}
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {format(new Date(topup.created_at), "HH:mm:ss")}
-                      </div>
-                    </div>
-
-                    {/* Expiration (show only when connected) */}
-                    {esimDetails.network.connected && (
-                      <div className="text-center">
-                        <p className="text-sm text-muted-foreground mb-2">Expiration</p>
-                        <div className="text-sm">
-                          {format(new Date(new Date(topup.created_at).getTime() + topup.validity_days * 24 * 60 * 60 * 1000), "yyyy-MM-dd")}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {format(new Date(new Date(topup.created_at).getTime() + topup.validity_days * 24 * 60 * 60 * 1000), "HH:mm:ss")}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ))}
-
-                {/* Original Plan - Always show at bottom */}
-                <div className="grid grid-cols-1 md:grid-cols-6 gap-4 items-center p-4 bg-background/50 rounded-lg border">
-                  {/* Status */}
-                  <div className="text-center">
-                    <p className="text-sm text-muted-foreground mb-2">Status</p>
-                    <Badge className="bg-blue-500/10 text-blue-600 border-blue-500/20">
-                      {esimDetails.status}
-                    </Badge>
-                  </div>
-
-                  {/* Data Usage */}
-                  <div className="text-center">
-                    <p className="text-sm text-muted-foreground mb-2">Data Usage</p>
-                    <div className="text-sm font-semibold">
-                      {esimDetails.data_usage.used} {esimDetails.data_usage.unit} Used / {esimDetails.data_usage.total} {esimDetails.data_usage.unit}
-                    </div>
-                  </div>
-
-                  {/* Data Progress */}
-                  <div className="text-center">
-                    <p className="text-sm text-muted-foreground mb-2">Data Progress</p>
-                    <div className="flex flex-col items-center gap-1">
-                      <div className="w-24 bg-secondary/30 rounded-full h-2 overflow-hidden border border-border">
-                        <div 
-                          className={`h-full bg-gradient-to-r from-orange-500 to-orange-600 rounded-full transition-all duration-500 ease-out ${usagePercentage === 0 ? 'w-0' : ''}`}
-                          style={{ width: `${Math.max(usagePercentage, 0)}%` }}
-                        />
-                      </div>
-                      <span className="text-xs text-muted-foreground">
-                        {remainingData.toFixed(2)} {esimDetails.data_usage.unit} left
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Validity */}
-                  <div className="text-center">
-                    <p className="text-sm text-muted-foreground mb-2">Validity</p>
-                    <div className="text-sm font-semibold">
-                      {esimDetails.plan.validity} Days
-                    </div>
-                  </div>
-
-                  {/* Created */}
-                  <div className="text-center">
-                    <p className="text-sm text-muted-foreground mb-2">Created</p>
-                    <div className="text-sm">
-                      {format(new Date(orderInfo.created_at), "yyyy-MM-dd")}
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      {format(new Date(orderInfo.created_at), "HH:mm:ss")}
-                    </div>
-                  </div>
-
-                  {/* Expiration (show only when connected) */}
-                  {esimDetails.network.connected && (
-                    <div className="text-center">
-                      <p className="text-sm text-muted-foreground mb-2">Expiration</p>
-                      <div className="text-sm">
-                        {format(new Date(esimDetails.plan.expires_at), "yyyy-MM-dd")}
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {format(new Date(esimDetails.plan.expires_at), "HH:mm:ss")}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Top-up Button Row */}
-                <div className="flex justify-end pt-4 border-t border-white/10 mt-4">
                   <Button 
                     variant="outline" 
                     size="sm" 
-                    className="bg-orange-500 text-white hover:bg-orange-600 border-orange-500 h-8 px-4"
+                    onClick={handleManualRefresh}
+                    disabled={isRefreshing}
+                    className="glass-intense border-0 hover:bg-white/10"
+                  >
+                    <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+                    {isRefreshing ? 'Refreshing...' : 'Refresh'}
+                  </Button>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between text-sm">
+                  <span>Used: {esimDetails.data_usage.used.toFixed(2)} {esimDetails.data_usage.unit}</span>
+                  <span>Remaining: {remainingData.toFixed(2)} {esimDetails.data_usage.unit}</span>
+                </div>
+                <Progress value={usagePercentage} className="h-3" />
+                <div className="text-xs text-muted-foreground text-center">
+                  {usagePercentage.toFixed(1)}% of {esimDetails.data_usage.total} {esimDetails.data_usage.unit} used
+                </div>
+
+                <Separator className="bg-white/10" />
+
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <p className="text-muted-foreground">Plan Expires</p>
+                    <p className="font-medium">{format(new Date(esimDetails.plan.expires_at), "MMM dd, yyyy")}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Validity</p>
+                    <p className="font-medium">{esimDetails.plan.validity} days</p>
+                  </div>
+                </div>
+
+                <div className="flex gap-2">
+                  <Button 
+                    variant="outline" 
+                    className="flex-1 glass-intense border-0 hover:bg-white/10"
                     onClick={() => setShowTopupModal(true)}
                   >
-                    <Plus className="h-3 w-3 mr-1" />
-                    Top-up
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Top-Up
                   </Button>
                 </div>
               </CardContent>
             </Card>
+
+            {/* Network Info Card */}
+            <Card className="glass-card">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Signal className="h-5 w-5 text-primary" />
+                  Network Information
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Country</p>
+                    <p className="text-sm font-medium">{esimDetails.network.country}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Operator</p>
+                    <p className="text-sm font-medium">{esimDetails.network.operator}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Signal Strength</p>
+                    <p className="text-sm font-medium">{esimDetails.network.signal_strength}%</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Top-up History */}
+            {topupHistory.length > 0 && (
+              <Card className="glass-card">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Activity className="h-5 w-5 text-primary" />
+                    Top-up History
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Package</TableHead>
+                        <TableHead>Data Amount</TableHead>
+                        <TableHead>Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {topupHistory.map((topup) => (
+                        <TableRow key={topup.id}>
+                          <TableCell>{format(new Date(topup.created_at), "MMM dd, yyyy")}</TableCell>
+                          <TableCell>{topup.package_code}</TableCell>
+                          <TableCell>{topup.data_amount}</TableCell>
+                          <TableCell>
+                            <Badge className={`${
+                              topup.status === 'completed' ? 'bg-green-500/10 text-green-600 border-green-500/20' : 
+                              'bg-yellow-500/10 text-yellow-600 border-yellow-500/20'
+                            }`}>
+                              {topup.status}
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
 
           <TabsContent value="activation" className="space-y-6">
-            <div className="grid md:grid-cols-2 gap-6">
+            <div className="grid lg:grid-cols-2 gap-6">
               {/* QR Code Card */}
               <Card className="glass-card">
                 <CardHeader>
@@ -755,28 +674,25 @@ Instructions:
                          src={esimDetails.activation.qr_code} 
                          alt="eSIM QR Code"
                          className="w-full h-full object-contain p-4"
-                         onError={(e) => {
-                           // If Maya eSIM QR image fails, generate QR from manual code
-                           if (orderInfo?.esim_plans?.supplier_name === 'maya' && esimDetails.activation.manual_code) {
-                             const qrText = `LPA:1$${esimDetails.activation.sm_dp_address}$${esimDetails.activation.manual_code}`;
-                             QRCode.toDataURL(qrText, {
+                         onError={async (e) => {
+                           // Generate QR code from manual code when image fails
+                           const qrText = `LPA:1$${esimDetails.activation.sm_dp_address}$${esimDetails.activation.manual_code}`;
+                           try {
+                             const dataUrl = await QRCode.toDataURL(qrText, {
                                margin: 1,
                                scale: 6,
                                color: { dark: '#000000', light: '#FFFFFF' }
-                             }).then(dataUrl => {
-                               (e.target as HTMLImageElement).src = dataUrl;
-                             }).catch(() => {
-                               console.error('Failed to generate QR code for Maya eSIM');
                              });
+                             (e.target as HTMLImageElement).src = dataUrl;
+                           } catch (error) {
+                             console.error('Failed to generate QR code:', error);
                            }
                          }}
                        />
                      ) : (
                        <div className="text-center">
                          <QrCode className="h-12 w-12 mx-auto mb-2 text-primary" />
-                         <p className="text-sm text-muted-foreground">
-                           {orderInfo?.esim_plans?.supplier_name === 'maya' ? 'Generating QR Code...' : 'QR Code'}
-                         </p>
+                         <p className="text-sm text-muted-foreground">QR Code</p>
                        </div>
                      )}
                    </div>
@@ -857,87 +773,96 @@ Instructions:
             {/* Manual Activation Card */}
             <Card className="glass-card">
               <CardHeader>
-                <CardTitle className="text-primary">Manual Activation</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  <Smartphone className="h-5 w-5 text-primary" />
+                  Manual Activation
+                </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                 <div className="grid gap-4">
-                   <div>
-                     <div className="flex items-center justify-between">
-                       <div className="flex items-center gap-2">
-                         <div className="w-6 h-6 bg-blue-500 rounded flex items-center justify-center">
-                           <span className="text-white text-xs font-bold">🍎</span>
-                         </div>
-                         <p className="text-sm font-medium">iPhone / iOS</p>
-                       </div>
-                     </div>
-                     <p className="text-sm text-muted-foreground mb-2">Activation Code</p>
-                     <div className="flex items-center gap-2">
-                       <code className="glass-intense p-2 rounded font-mono text-sm flex-1 border border-white/10">
-                         {orderInfo?.esim_plans?.supplier_name === 'maya' && orderInfo?.manual_code ? 
-                           orderInfo.manual_code : esimDetails.activation.manual_code}
-                       </code>
-                       <Button 
-                         variant="outline" 
-                         size="sm"
-                         onClick={() => copyToClipboard(
-                           orderInfo?.esim_plans?.supplier_name === 'maya' && orderInfo?.manual_code ? 
-                           orderInfo.manual_code : esimDetails.activation.manual_code
-                         )}
-                         className="glass-intense border-0 hover:bg-white/10"
-                       >
-                         <Copy className="h-4 w-4" />
-                       </Button>
-                     </div>
-                   </div>
-
+              <CardContent className="space-y-6">
+                {/* iPhone/iOS Section */}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-6 h-6 bg-blue-500 rounded flex items-center justify-center">
+                      <Smartphone className="h-3.5 w-3.5 text-white" />
+                    </div>
+                    <span className="text-sm font-medium text-blue-500">iPhone / iOS</span>
+                  </div>
+                  
                   <div>
-                    <p className="text-sm text-muted-foreground mb-2">SM-DP Address</p>
-                    <div className="flex items-center gap-2">
-                      <code className="glass-intense p-2 rounded font-mono text-sm flex-1 border border-white/10">
-                        {esimDetails.activation.sm_dp_address}
+                    <p className="text-sm text-muted-foreground mb-2">Activation Code</p>
+                    <div className="bg-gray-50 dark:bg-gray-800/50 p-3 rounded-lg border">
+                      <code className="font-mono text-sm break-all">
+                        {orderInfo?.esim_plans?.supplier_name === 'maya' && orderInfo?.manual_code ? 
+                          orderInfo.manual_code : esimDetails.activation.manual_code}
                       </code>
                       <Button 
-                        variant="outline" 
+                        variant="ghost" 
                         size="sm"
-                        onClick={() => copyToClipboard(esimDetails.activation.sm_dp_address)}
-                        className="glass-intense border-0 hover:bg-white/10"
+                        onClick={() => copyToClipboard(
+                          orderInfo?.esim_plans?.supplier_name === 'maya' && orderInfo?.manual_code ? 
+                          orderInfo.manual_code : esimDetails.activation.manual_code
+                        )}
+                        className="ml-2 h-8 px-2"
                       >
-                        <Copy className="h-4 w-4" />
+                        <Copy className="h-3.5 w-3.5" />
                       </Button>
                     </div>
                   </div>
 
-                   <div>
-                     <div className="flex items-center gap-2 mb-2">
-                       <div className="w-6 h-6 bg-green-500 rounded flex items-center justify-center">
-                         <span className="text-white text-xs font-bold">A</span>
-                       </div>
-                       <p className="text-sm font-medium">Android</p>
-                     </div>
-                     <p className="text-sm text-muted-foreground mb-2">Activation Code</p>
-                     <div className="flex items-center gap-2">
-                       <code className="glass-intense p-2 rounded font-mono text-sm flex-1 border border-white/10">
-                         {orderInfo?.esim_plans?.supplier_name === 'maya' ? 
-                           (orderInfo?.activation_code || `LPA:1$${esimDetails.activation.sm_dp_address}$${esimDetails.activation.manual_code}`) :
-                           `LPA:1$${esimDetails.activation.sm_dp_address}$${esimDetails.activation.manual_code}`}
-                       </code>
-                       <Button 
-                         variant="outline" 
-                         size="sm"
-                         onClick={() => copyToClipboard(
-                           orderInfo?.esim_plans?.supplier_name === 'maya' ? 
-                           (orderInfo?.activation_code || `LPA:1$${esimDetails.activation.sm_dp_address}$${esimDetails.activation.manual_code}`) :
-                           `LPA:1$${esimDetails.activation.sm_dp_address}$${esimDetails.activation.manual_code}`
-                         )}
-                         className="glass-intense border-0 hover:bg-white/10"
-                       >
-                         <Copy className="h-4 w-4" />
-                       </Button>
-                     </div>
-                   </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground mb-2">SM-DP Address</p>
+                    <div className="bg-gray-50 dark:bg-gray-800/50 p-3 rounded-lg border">
+                      <code className="font-mono text-sm break-all">
+                        {esimDetails.activation.sm_dp_address}
+                      </code>
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => copyToClipboard(esimDetails.activation.sm_dp_address)}
+                        className="ml-2 h-8 px-2"
+                      >
+                        <Copy className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </div>
                 </div>
 
-                <div className="glass-intense p-4 rounded-lg border border-blue-500/20">
+                <Separator className="bg-white/10" />
+
+                {/* Android Section */}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-6 h-6 bg-green-500 rounded flex items-center justify-center">
+                      <span className="text-white text-xs font-bold">A</span>
+                    </div>
+                    <span className="text-sm font-medium text-green-500">Android</span>
+                  </div>
+                  
+                  <div>
+                    <p className="text-sm text-muted-foreground mb-2">Activation Code</p>
+                    <div className="bg-gray-50 dark:bg-gray-800/50 p-3 rounded-lg border">
+                      <code className="font-mono text-sm break-all">
+                        {orderInfo?.esim_plans?.supplier_name === 'maya' ? 
+                          (orderInfo?.activation_code || `LPA:1$${esimDetails.activation.sm_dp_address}$${esimDetails.activation.manual_code}`) :
+                          `LPA:1$${esimDetails.activation.sm_dp_address}$${esimDetails.activation.manual_code}`}
+                      </code>
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => copyToClipboard(
+                          orderInfo?.esim_plans?.supplier_name === 'maya' ? 
+                          (orderInfo?.activation_code || `LPA:1$${esimDetails.activation.sm_dp_address}$${esimDetails.activation.manual_code}`) :
+                          `LPA:1$${esimDetails.activation.sm_dp_address}$${esimDetails.activation.manual_code}`
+                        )}
+                        className="ml-2 h-8 px-2"
+                      >
+                        <Copy className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="glass-intense p-4 rounded-lg border border-blue-500/20 mt-4">
                   <h4 className="font-semibold text-sm mb-2 text-blue-300">Tips & Reminders</h4>
                   <ul className="text-sm space-y-1 text-muted-foreground">
                     <li>✓ Set the eSIM plan as your cellular data plan when you arrive at your destination. Find this in Settings → Cellular Data → Cellular Data.</li>

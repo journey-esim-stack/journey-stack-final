@@ -100,6 +100,7 @@ const ESimDetail = () => {
     contactInfo: ""
   });
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (iccid) {
@@ -159,6 +160,33 @@ const ESimDetail = () => {
     };
   }, [iccid]);
 
+  // Generate QR image for Maya eSIMs or use provided image URL
+  useEffect(() => {
+    const generate = async () => {
+      if (!esimDetails) { setQrDataUrl(null); return; }
+      const supplier = orderInfo?.esim_plans?.supplier_name;
+      try {
+        if (supplier === 'maya') {
+          const text = (esimDetails.activation.qr_code && esimDetails.activation.qr_code.startsWith('LPA'))
+            ? esimDetails.activation.qr_code
+            : `LPA:1$${esimDetails.activation.sm_dp_address}$${esimDetails.activation.manual_code}`;
+          if (text) {
+            const url = await QRCode.toDataURL(text, { margin: 1, scale: 6, color: { dark: '#000000', light: '#FFFFFF' } });
+            setQrDataUrl(url);
+          } else {
+            setQrDataUrl(null);
+          }
+        } else {
+          setQrDataUrl(esimDetails.activation.qr_code || null);
+        }
+      } catch (e) {
+        console.error('QR generation failed', e);
+        setQrDataUrl(null);
+      }
+    };
+    generate();
+  }, [esimDetails, orderInfo]);
+
   const fetchESIMDetails = async (isManualRefresh = false) => {
     if (isManualRefresh) {
       setIsRefreshing(true);
@@ -176,7 +204,8 @@ const ESimDetail = () => {
               country_name,
               country_code,
               data_amount,
-              validity_days
+              validity_days,
+              supplier_name
             )
           `)
           .eq("esim_iccid", iccid)
@@ -749,55 +778,20 @@ Instructions:
                   </div>
                 </CardHeader>
                 <CardContent className="text-center">
-                   <div className="w-64 h-64 mx-auto mb-4 glass-intense rounded-lg flex items-center justify-center border border-white/10">
-                     {esimDetails.activation.qr_code ? (
-                       // Check if it's a Maya eSIM (text QR code) vs eSIM Access (image QR code)
-                       orderInfo?.esim_plans?.supplier_name === 'maya' ? (
-                         // For Maya eSIMs, generate QR code from text
-                         <div className="w-full h-full p-4 flex items-center justify-center">
-                           <img 
-                             src={`data:image/svg+xml;base64,${btoa(`
-                               <svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200">
-                                 <rect width="200" height="200" fill="white"/>
-                                 <foreignObject width="200" height="200">
-                                   <div xmlns="http://www.w3.org/1999/xhtml" style="padding: 10px; font-family: monospace; font-size: 8px; word-break: break-all; display: flex; align-items: center; justify-content: center; height: 100%; text-align: center;">
-                                     ${esimDetails.activation.qr_code}
-                                   </div>
-                                 </foreignObject>
-                               </svg>
-                             `)}`}
-                             alt="eSIM QR Code"
-                             className="w-full h-full object-contain"
-                             onError={async (e) => {
-                               // Fallback: Generate actual QR code using QRCode library
-                               try {
-                                 const qrDataUrl = await QRCode.toDataURL(esimDetails.activation.qr_code, {
-                                   margin: 1,
-                                   scale: 6,
-                                   color: { dark: '#000000', light: '#FFFFFF' }
-                                 });
-                                 (e.target as HTMLImageElement).src = qrDataUrl;
-                               } catch (error) {
-                                 console.error('Failed to generate QR code:', error);
-                               }
-                             }}
-                           />
-                         </div>
-                       ) : (
-                         // For eSIM Access, use the image URL directly
-                         <img 
-                           src={esimDetails.activation.qr_code} 
-                           alt="eSIM QR Code"
-                           className="w-full h-full object-contain p-4"
-                         />
-                       )
-                     ) : (
-                       <div className="text-center">
-                         <QrCode className="h-12 w-12 mx-auto mb-2 text-primary" />
-                         <p className="text-sm text-muted-foreground">QR Code</p>
-                       </div>
-                     )}
-                   </div>
+                  <div className="w-64 h-64 mx-auto mb-4 glass-intense rounded-lg flex items-center justify-center border border-white/10">
+                    {qrDataUrl ? (
+                      <img 
+                        src={qrDataUrl} 
+                        alt="eSIM QR Code"
+                        className="w-full h-full object-contain p-4"
+                      />
+                    ) : (
+                      <div className="text-center">
+                        <QrCode className="h-12 w-12 mx-auto mb-2 text-primary" />
+                        <p className="text-sm text-muted-foreground">QR Code</p>
+                      </div>
+                    )}
+                  </div>
                   
                   {/* Copy QR Code Image Button */}
                   <Button 

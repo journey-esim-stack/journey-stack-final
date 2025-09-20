@@ -26,7 +26,8 @@ import {
   Share2,
   MessageSquare,
   Mail,
-  RefreshCw
+  RefreshCw,
+  Key
 } from "lucide-react";
 import TopupModal from "@/components/TopupModal";
 import { format } from "date-fns";
@@ -38,6 +39,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import QRCode from "qrcode";
+import QRCodeGenerator from "@/components/QRCodeGenerator";
 
 interface ESIMDetails {
   iccid: string;
@@ -72,6 +74,7 @@ interface ESIMDetails {
     data_used: number;
     status: string;
   }>;
+  supplier_name?: string;
 }
 
 interface TopupHistory {
@@ -176,7 +179,8 @@ const ESimDetail = () => {
               country_name,
               country_code,
               data_amount,
-              validity_days
+              validity_days,
+              supplier_name
             )
           `)
           .eq("esim_iccid", iccid)
@@ -248,10 +252,11 @@ const ESimDetail = () => {
           },
           activation: {
             qr_code: orderData.esim_qr_code || "",
-            manual_code: orderData.activation_code || "",
-            sm_dp_address: "consumer.e-sim.global"
+            manual_code: orderData.manual_code || orderData.activation_code || "",
+            sm_dp_address: orderData.smdp_address || "consumer.e-sim.global"
           },
-          sessions: []
+          sessions: [],
+          supplier_name: orderData.esim_plans?.supplier_name || ""
         };
         setEsimDetails(basicDetails);
       } else {
@@ -286,10 +291,11 @@ const ESimDetail = () => {
           },
           activation: {
             qr_code: orderData.esim_qr_code || "",
-            manual_code: orderData.activation_code || "",
-            sm_dp_address: "consumer.e-sim.global"
+            manual_code: orderData.manual_code || orderData.activation_code || "",
+            sm_dp_address: orderData.smdp_address || "consumer.e-sim.global"
           },
-          sessions: apiData.obj?.sessions || []
+          sessions: apiData.obj?.sessions || [],
+          supplier_name: orderData.esim_plans?.supplier_name || ""
         };
         setEsimDetails(transformedData);
       }
@@ -310,9 +316,9 @@ const ESimDetail = () => {
     fetchESIMDetails(true);
   };
 
-  const copyToClipboard = (text: string) => {
+  const copyToClipboard = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
-    toast.success("Copied to clipboard");
+    toast.success(`${label} copied to clipboard`);
   };
 
   const generateShareMessage = () => {
@@ -344,7 +350,7 @@ Instructions:
     
     switch (method) {
       case 'copy':
-        copyToClipboard(shareText);
+        copyToClipboard(shareText, "Share message");
         break;
       case 'whatsapp':
         const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(shareText)}`;
@@ -480,438 +486,218 @@ Instructions:
                     </Badge>
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Network</p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <div className={`w-3 h-3 rounded-full ${esimDetails.network.connected ? 'bg-green-500' : 'bg-gray-500'}`}></div>
-                      <span className="text-sm font-medium">{esimDetails.network.operator}</span>
-                    </div>
-                    <p className="text-xs text-muted-foreground">{esimDetails.network.country}</p>
+                    <p className="text-sm text-muted-foreground">Data Usage</p>
+                    <p className="text-sm font-medium">{esimDetails.data_usage.used.toFixed(2)} / {esimDetails.data_usage.total} {esimDetails.data_usage.unit}</p>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Network Details Card */}
+            {/* Data Usage Progress */}
             <Card className="glass-card">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Signal className="h-5 w-5 text-primary" />
-                  Network Details
+                  <Activity className="h-5 w-5 text-primary" />
+                  Data Usage Overview
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className={`glass-intense p-4 rounded-lg border ${esimDetails.network.connected ? 'border-green-500/20' : 'border-gray-500/20'}`}>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className={`w-3 h-3 rounded-full ${esimDetails.network.connected ? 'bg-green-500 animate-pulse' : 'bg-gray-500'}`}></div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <Globe className="h-4 w-4 text-primary" />
-                          <span className="font-medium">
-                            {esimDetails.network.operator}
-                          </span>
-                        </div>
-                        <p className="text-sm text-muted-foreground">
-                          {esimDetails.network.connected 
-                            ? `Signal: ${esimDetails.network.signal_strength}% • Last seen: ${format(new Date(), "MMM dd, HH:mm")}`
-                            : "Not connected to any network"
-                          }
-                        </p>
-                      </div>
-                    </div>
-                    <Badge className={`${esimDetails.network.connected ? 'bg-green-500/10 text-green-600 border-green-500/20' : 'bg-gray-500/10 text-gray-600 border-gray-500/20'}`}>
-                      {esimDetails.network.connected ? "Connected" : "Not Connected"}
-                    </Badge>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Data Usage Component - Enhanced with Progress Bar */}
-            <Card className="glass-card">
-               <CardHeader>
-                 <CardTitle className="flex items-center justify-between">
-                   <div className="flex items-center gap-2">
-                     <Activity className="h-5 w-5 text-primary" />
-                     Data Usage
-                   </div>
-                   <Button 
-                     variant="ghost" 
-                     size="sm" 
-                     onClick={handleManualRefresh}
-                     disabled={isRefreshing}
-                     className="hover:bg-white/10"
-                   >
-                     <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-                   </Button>
-                 </CardTitle>
-               </CardHeader>
               <CardContent className="space-y-4">
-                {/* Top-up History - Show newest first */}
-                {topupHistory.length > 0 && topupHistory.map((topup) => (
-                  <div key={topup.id} className="grid grid-cols-1 md:grid-cols-6 gap-4 items-center p-4 bg-orange-500/10 rounded-lg border border-orange-500/20">
-                    {/* Status */}
-                    <div className="text-center">
-                      <p className="text-sm text-muted-foreground mb-2">Status</p>
-                      <Badge className="bg-green-500/10 text-green-600 border-green-500/20">
-                        {topup.status}
-                      </Badge>
-                    </div>
-
-                    {/* Data Usage */}
-                    <div className="text-center">
-                      <p className="text-sm text-muted-foreground mb-2">Data Usage</p>
-                      <div className="text-sm font-semibold">
-                        0 GB Used / {topup.data_amount}
-                      </div>
-                    </div>
-
-                    {/* Data Progress */}
-                    <div className="text-center">
-                      <p className="text-sm text-muted-foreground mb-2">Data Progress</p>
-                      <div className="flex flex-col items-center gap-1">
-                        <div className="text-xs text-muted-foreground">
-                          {topup.data_amount} left
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Validity */}
-                    <div className="text-center">
-                      <p className="text-sm text-muted-foreground mb-2">Validity</p>
-                      <div className="text-sm font-semibold">
-                        {topup.validity_days} Days
-                      </div>
-                    </div>
-
-                    {/* Created */}
-                    <div className="text-center">
-                      <p className="text-sm text-muted-foreground mb-2">Created</p>
-                      <div className="text-sm">
-                        {format(new Date(topup.created_at), "yyyy-MM-dd")}
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {format(new Date(topup.created_at), "HH:mm:ss")}
-                      </div>
-                    </div>
-
-                    {/* Expiration (show only when connected) */}
-                    {esimDetails.network.connected && (
-                      <div className="text-center">
-                        <p className="text-sm text-muted-foreground mb-2">Expiration</p>
-                        <div className="text-sm">
-                          {format(new Date(new Date(topup.created_at).getTime() + topup.validity_days * 24 * 60 * 60 * 1000), "yyyy-MM-dd")}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {format(new Date(new Date(topup.created_at).getTime() + topup.validity_days * 24 * 60 * 60 * 1000), "HH:mm:ss")}
-                        </div>
-                      </div>
-                    )}
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span>Used: {esimDetails.data_usage.used.toFixed(2)} {esimDetails.data_usage.unit}</span>
+                    <span>Remaining: {remainingData.toFixed(2)} {esimDetails.data_usage.unit}</span>
                   </div>
-                ))}
-
-                {/* Original Plan - Always show at bottom */}
-                <div className="grid grid-cols-1 md:grid-cols-6 gap-4 items-center p-4 bg-background/50 rounded-lg border">
-                  {/* Status */}
-                  <div className="text-center">
-                    <p className="text-sm text-muted-foreground mb-2">Status</p>
-                    <Badge className="bg-blue-500/10 text-blue-600 border-blue-500/20">
-                      {esimDetails.status}
-                    </Badge>
-                  </div>
-
-                  {/* Data Usage */}
-                  <div className="text-center">
-                    <p className="text-sm text-muted-foreground mb-2">Data Usage</p>
-                    <div className="text-sm font-semibold">
-                      {esimDetails.data_usage.used} {esimDetails.data_usage.unit} Used / {esimDetails.data_usage.total} {esimDetails.data_usage.unit}
-                    </div>
-                  </div>
-
-                  {/* Data Progress */}
-                  <div className="text-center">
-                    <p className="text-sm text-muted-foreground mb-2">Data Progress</p>
-                    <div className="flex flex-col items-center gap-1">
-                      <div className="w-24 bg-secondary/30 rounded-full h-2 overflow-hidden border border-border">
-                        <div 
-                          className={`h-full bg-gradient-to-r from-orange-500 to-orange-600 rounded-full transition-all duration-500 ease-out ${usagePercentage === 0 ? 'w-0' : ''}`}
-                          style={{ width: `${Math.max(usagePercentage, 0)}%` }}
-                        />
-                      </div>
-                      <span className="text-xs text-muted-foreground">
-                        {remainingData.toFixed(2)} {esimDetails.data_usage.unit} left
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Validity */}
-                  <div className="text-center">
-                    <p className="text-sm text-muted-foreground mb-2">Validity</p>
-                    <div className="text-sm font-semibold">
-                      {esimDetails.plan.validity} Days
-                    </div>
-                  </div>
-
-                  {/* Created */}
-                  <div className="text-center">
-                    <p className="text-sm text-muted-foreground mb-2">Created</p>
-                    <div className="text-sm">
-                      {format(new Date(orderInfo.created_at), "yyyy-MM-dd")}
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      {format(new Date(orderInfo.created_at), "HH:mm:ss")}
-                    </div>
-                  </div>
-
-                  {/* Expiration (show only when connected) */}
-                  {esimDetails.network.connected && (
-                    <div className="text-center">
-                      <p className="text-sm text-muted-foreground mb-2">Expiration</p>
-                      <div className="text-sm">
-                        {format(new Date(esimDetails.plan.expires_at), "yyyy-MM-dd")}
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {format(new Date(esimDetails.plan.expires_at), "HH:mm:ss")}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Top-up Button Row */}
-                <div className="flex justify-end pt-4 border-t border-white/10 mt-4">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="bg-orange-500 text-white hover:bg-orange-600 border-orange-500 h-8 px-4"
-                    onClick={() => setShowTopupModal(true)}
-                  >
-                    <Plus className="h-3 w-3 mr-1" />
-                    Top-up
-                  </Button>
+                  <Progress value={usagePercentage} className="h-3" />
+                  <p className="text-xs text-muted-foreground">
+                    {usagePercentage.toFixed(1)}% of your data plan has been used
+                  </p>
                 </div>
               </CardContent>
             </Card>
           </TabsContent>
 
           <TabsContent value="activation" className="space-y-6">
-            <div className="grid md:grid-cols-2 gap-6">
-              {/* QR Code Card */}
-              <Card className="glass-card">
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="flex items-center gap-2">
-                      <QrCode className="h-5 w-5 text-primary" />
-                      QR Code
-                    </CardTitle>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button variant="outline" size="sm" className="glass-intense border-0 hover:bg-white/10">
-                          <Share2 className="h-4 w-4 mr-2" />
-                          Share
-                          <span className="ml-2 flex items-center gap-1 opacity-80">
-                            <MessageSquare className="h-3.5 w-3.5" />
-                            <Mail className="h-3.5 w-3.5" />
-                          </span>
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-80 glass-intense border-white/10">
-                        <div className="space-y-4">
-                          <h4 className="font-semibold">Share eSIM Details</h4>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* QR Code Section */}
+              <div className="bg-card p-6 rounded-lg border">
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                  <QrCode className="h-5 w-5" />
+                  QR Code
+                </h3>
+                <div className="flex flex-col items-center space-y-4">
+                  {esimDetails.activation.qr_code ? (
+                    <div className="flex flex-col items-center space-y-4">
+                      {esimDetails.supplier_name === 'maya' ? (
+                        <QRCodeGenerator value={esimDetails.activation.qr_code} />
+                      ) : (
+                        <img 
+                          src={esimDetails.activation.qr_code} 
+                          alt="eSIM QR Code" 
+                          className="w-48 h-48 border rounded-lg"
+                        />
+                      )}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => copyToClipboard(esimDetails.activation.qr_code, "QR Code")}
+                        className="flex items-center gap-2"
+                      >
+                        <Copy className="h-4 w-4" />
+                        Copy QR Code
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="text-center text-muted-foreground">
+                      <QrCode className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                      <p>QR Code not available</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Manual Activation Section */}
+              <div className="bg-card p-6 rounded-lg border">
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                  <Key className="h-5 w-5" />
+                  Manual Activation
+                </h3>
+                <div className="space-y-4">
+                  {esimDetails.supplier_name === 'maya' ? (
+                    // Maya-specific activation codes
+                    <div className="space-y-6">
+                      <div className="space-y-2">
+                        <label className="text-sm font-semibold text-primary">
+                          For iOS Devices
+                        </label>
+                        {esimDetails.activation.manual_code && esimDetails.activation.sm_dp_address ? (
                           <div className="space-y-3">
-                            <Button 
-                              variant="outline" 
-                              className="w-full justify-start glass-intense border-0 hover:bg-white/10"
-                              onClick={() => setShowShareModal(true)}
-                            >
-                              <Copy className="h-4 w-4 mr-2" />
-                              Copy to Clipboard
-                            </Button>
-                             <Button 
-                               variant="outline" 
-                               className="w-full justify-start glass-intense border-0 hover:bg-white/10"
-                               onClick={() => setShowShareModal(true)}
-                             >
-                               <MessageSquare className="h-4 w-4 mr-2" />
-                               WhatsApp
-                             </Button>
-                             <Button 
-                               variant="outline" 
-                               className="w-full justify-start glass-intense border-0 hover:bg-white/10"
-                               onClick={() => setShowShareModal(true)}
-                             >
-                               <Mail className="h-4 w-4 mr-2" />
-                               Email
-                             </Button>
-                           </div>
-                         </div>
-                       </PopoverContent>
-                     </Popover>
-                  </div>
-                </CardHeader>
-                <CardContent className="text-center">
-                  <div className="w-64 h-64 mx-auto mb-4 glass-intense rounded-lg flex items-center justify-center border border-white/10">
-                    {esimDetails.activation.qr_code ? (
-                      <img 
-                        src={esimDetails.activation.qr_code} 
-                        alt="eSIM QR Code"
-                        className="w-full h-full object-contain p-4"
-                      />
-                    ) : (
-                      <div className="text-center">
-                        <QrCode className="h-12 w-12 mx-auto mb-2 text-primary" />
-                        <p className="text-sm text-muted-foreground">QR Code</p>
+                            <div>
+                              <label className="text-xs font-medium text-muted-foreground">
+                                SM-DP+ Address
+                              </label>
+                              <div className="flex items-center gap-2">
+                                <code className="flex-1 p-2 bg-muted rounded text-sm font-mono">
+                                  {esimDetails.activation.sm_dp_address}
+                                </code>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => copyToClipboard(esimDetails.activation.sm_dp_address, "SM-DP+ Address")}
+                                >
+                                  <Copy className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </div>
+                            <div>
+                              <label className="text-xs font-medium text-muted-foreground">
+                                Activation Code
+                              </label>
+                              <div className="flex items-center gap-2">
+                                <code className="flex-1 p-2 bg-muted rounded text-sm font-mono">
+                                  {esimDetails.activation.manual_code}
+                                </code>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => copyToClipboard(esimDetails.activation.manual_code, "iOS Activation Code")}
+                                >
+                                  <Copy className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <p className="text-sm text-muted-foreground">iOS activation codes not available</p>
+                        )}
                       </div>
-                    )}
-                  </div>
-                  
-                  {/* Copy QR Code Image Button */}
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={async () => {
-                      try {
-                        const qrText = `LPA:1$${esimDetails.activation.sm_dp_address}$${esimDetails.activation.manual_code}`;
-                        const dataUrl = await QRCode.toDataURL(qrText, {
-                          margin: 1,
-                          scale: 6,
-                          color: { dark: '#000000', light: '#FFFFFF' }
-                        });
-                        const res = await fetch(dataUrl);
-                        const blob = await res.blob();
-                        await navigator.clipboard.write([
-                          new ClipboardItem({ [blob.type]: blob })
-                        ]);
-                        toast.success('QR Code image copied to clipboard');
-                      } catch (error) {
-                        try {
-                          const fallbackText = `LPA:1$${esimDetails.activation.sm_dp_address}$${esimDetails.activation.manual_code}`;
-                          await navigator.clipboard.writeText(fallbackText);
-                          toast.success('Manual activation string copied');
-                        } catch {
-                          toast.error('Failed to copy QR code');
-                        }
-                      }
-                    }}
-                    className="glass-intense border-0 hover:bg-white/10"
-                  >
-                    <Copy className="h-4 w-4 mr-2" />
-                    Copy QR Code
-                  </Button>
-                </CardContent>
-              </Card>
-
-              {/* Activation Instructions Card */}
-              <Card className="glass-card">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Smartphone className="h-5 w-5 text-primary" />
-                    Activation Instructions
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <h4 className="font-semibold text-sm mb-2">QR Code Installation</h4>
-                    <ul className="text-sm space-y-1 text-muted-foreground">
-                      <li>• Scan the QR code with the Camera app.</li>
-                      <li>• Follow the prompts on screen to add a new Data Plan.</li>
-                    </ul>
-                  </div>
-
-                  <div>
-                    <h4 className="font-semibold text-sm mb-2">Apple iOS Devices</h4>
-                    <ul className="text-sm space-y-1 text-muted-foreground">
-                      <li>• Once complete, go to Settings → Cellular (Mobile or Mobile Service).</li>
-                      <li>• Select the new eSIM plan under Cellular Data Plans, and set Data Roaming to ON.</li>
-                    </ul>
-                  </div>
-
-                  <div>
-                    <h4 className="font-semibold text-sm mb-2">Android Devices</h4>
-                    <ul className="text-sm space-y-1 text-muted-foreground">
-                      <li>• Once complete, go to Settings → Network and Internet.</li>
-                      <li>• Turn on Data Roaming.</li>
-                      <li>• Set the eSIM as the Mobile Data SIM.</li>
-                    </ul>
-                  </div>
-                </CardContent>
-              </Card>
+                      
+                      <div className="space-y-2">
+                        <label className="text-sm font-semibold text-primary">
+                          For Android Devices
+                        </label>
+                        {esimDetails.activation.qr_code ? (
+                          <div>
+                            <label className="text-xs font-medium text-muted-foreground">
+                              LPA String
+                            </label>
+                            <div className="flex items-center gap-2">
+                              <code className="flex-1 p-2 bg-muted rounded text-sm font-mono break-all">
+                                {esimDetails.activation.qr_code}
+                              </code>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => copyToClipboard(esimDetails.activation.qr_code, "Android LPA String")}
+                              >
+                                <Copy className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <p className="text-sm text-muted-foreground">Android activation code not available</p>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    // Standard activation code for other providers
+                    esimDetails.activation.manual_code ? (
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-muted-foreground">
+                          Activation Code
+                        </label>
+                        <div className="flex items-center gap-2">
+                          <code className="flex-1 p-3 bg-muted rounded-lg text-sm font-mono break-all">
+                            {esimDetails.activation.manual_code}
+                          </code>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => copyToClipboard(esimDetails.activation.manual_code, "Activation Code")}
+                          >
+                            <Copy className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-center text-muted-foreground">
+                        <Key className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                        <p>Activation code not available</p>
+                      </div>
+                    )
+                  )}
+                </div>
+              </div>
             </div>
 
-            {/* Manual Activation Card */}
+            {/* Installation Instructions */}
             <Card className="glass-card">
               <CardHeader>
-                <CardTitle className="text-primary">Manual Activation</CardTitle>
+                <CardTitle>Installation Instructions</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-medium">iPhone / iOS</p>
-                    </div>
-                    <p className="text-sm text-muted-foreground mb-2">Activation Code</p>
-                    <div className="flex items-center gap-2">
-                      <code className="glass-intense p-2 rounded font-mono text-sm flex-1 border border-white/10">
-                        {esimDetails.activation.manual_code}
-                      </code>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => copyToClipboard(esimDetails.activation.manual_code)}
-                        className="glass-intense border-0 hover:bg-white/10"
-                      >
-                        <Copy className="h-4 w-4" />
-                      </Button>
-                    </div>
+                    <h4 className="font-semibold text-primary mb-3">📱 For iOS Devices</h4>
+                    <ol className="list-decimal list-inside space-y-2 text-sm">
+                      <li>Go to Settings → Cellular → Add eSIM</li>
+                      <li>Scan the QR code with your camera</li>
+                      <li>Or manually enter the SM-DP+ address and activation code</li>
+                      <li>Follow the on-screen prompts</li>
+                      <li>Label your new eSIM plan</li>
+                      <li>Turn on Data Roaming for the new eSIM</li>
+                    </ol>
                   </div>
-
                   <div>
-                    <p className="text-sm text-muted-foreground mb-2">SM-DP Address</p>
-                    <div className="flex items-center gap-2">
-                      <code className="glass-intense p-2 rounded font-mono text-sm flex-1 border border-white/10">
-                        {esimDetails.activation.sm_dp_address}
-                      </code>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => copyToClipboard(esimDetails.activation.sm_dp_address)}
-                        className="glass-intense border-0 hover:bg-white/10"
-                      >
-                        <Copy className="h-4 w-4" />
-                      </Button>
-                    </div>
+                    <h4 className="font-semibold text-primary mb-3">🤖 For Android Devices</h4>
+                    <ol className="list-decimal list-inside space-y-2 text-sm">
+                      <li>Go to Settings → Network & Internet → Mobile Network</li>
+                      <li>Tap "Add carrier" or "Add eSIM"</li>
+                      <li>Scan the QR code with your camera</li>
+                      <li>Or use "Enter manually" and paste the LPA string</li>
+                      <li>Follow the setup prompts</li>
+                      <li>Enable Data Roaming for the new eSIM</li>
+                    </ol>
                   </div>
-
-                  <div>
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className="w-6 h-6 bg-primary rounded flex items-center justify-center">
-                        <span className="text-primary-foreground text-xs font-bold">A</span>
-                      </div>
-                      <p className="text-sm font-medium">Android</p>
-                    </div>
-                    <p className="text-sm text-muted-foreground mb-2">Activation Code</p>
-                    <div className="flex items-center gap-2">
-                      <code className="glass-intense p-2 rounded font-mono text-sm flex-1 border border-white/10">
-                        LPA:1${esimDetails.activation.sm_dp_address}${esimDetails.activation.manual_code}
-                      </code>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => copyToClipboard(`LPA:1$${esimDetails.activation.sm_dp_address}$${esimDetails.activation.manual_code}`)}
-                        className="glass-intense border-0 hover:bg-white/10"
-                      >
-                        <Copy className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="glass-intense p-4 rounded-lg border border-blue-500/20">
-                  <h4 className="font-semibold text-sm mb-2 text-blue-300">Tips & Reminders</h4>
-                  <ul className="text-sm space-y-1 text-muted-foreground">
-                    <li>✓ Set the eSIM plan as your cellular data plan when you arrive at your destination. Find this in Settings → Cellular Data → Cellular Data.</li>
-                    <li>✓ Turn off Data Roaming on your main SIM card to avoid any unexpected charges.</li>
-                    <li>✓ Turn on Low Data Mode (iOS) or Data Saver mode (Android) to conserve data.</li>
-                  </ul>
                 </div>
               </CardContent>
             </Card>
@@ -922,103 +708,108 @@ Instructions:
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Activity className="h-5 w-5 text-primary" />
-                  Data Usage Logs
+                  Detailed Usage Logs
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-center py-8">
-                  <Activity className="h-12 w-12 mx-auto mb-4 text-primary opacity-50" />
-                  <h3 className="text-lg font-semibold mb-2">Usage History</h3>
-                  <p className="text-muted-foreground">
-                    Detailed data usage logs and session history will appear here as your eSIM is used.
-                  </p>
-                </div>
+                <p className="text-muted-foreground mb-4">
+                  Detailed usage analytics and session history will appear here once the eSIM is activated and starts consuming data.
+                </p>
+                {esimDetails.sessions && esimDetails.sessions.length > 0 ? (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Session Start</TableHead>
+                        <TableHead>Duration</TableHead>
+                        <TableHead>Data Used</TableHead>
+                        <TableHead>Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {esimDetails.sessions.map((session) => (
+                        <TableRow key={session.id}>
+                          <TableCell>{format(new Date(session.start_time), "yyyy-MM-dd HH:mm")}</TableCell>
+                          <TableCell>
+                            {session.end_time 
+                              ? Math.round((new Date(session.end_time).getTime() - new Date(session.start_time).getTime()) / (1000 * 60)) + " min"
+                              : "Ongoing"
+                            }
+                          </TableCell>
+                          <TableCell>{session.data_used} MB</TableCell>
+                          <TableCell>
+                            <Badge variant={session.status === 'active' ? 'default' : 'secondary'}>
+                              {session.status}
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                ) : (
+                  <div className="text-center py-8">
+                    <Activity className="h-12 w-12 mx-auto mb-4 opacity-50 text-muted-foreground" />
+                    <p className="text-muted-foreground">No usage data available yet</p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
         </Tabs>
 
-        {/* Top-up Modal */}
+        {/* Top-up History Modal */}
         <TopupModal
           isOpen={showTopupModal}
           onClose={() => setShowTopupModal(false)}
           iccid={iccid || ""}
-          packageCode={esimDetails?.plan?.plan_id}
-          onTopupComplete={() => {
-            setShowTopupModal(false);
-            fetchESIMDetails(); // Refresh to show new top-up
-          }}
         />
 
         {/* Share Modal */}
         <Dialog open={showShareModal} onOpenChange={setShowShareModal}>
-          <DialogContent className="glass-intense border-white/10 max-w-md">
+          <DialogContent className="sm:max-w-md">
             <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <Share2 className="h-5 w-5 text-primary" />
-                Share eSIM Details
-              </DialogTitle>
+              <DialogTitle>Share eSIM Details</DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="companyName">Company Name (Optional)</Label>
+                <Label htmlFor="company">Company Name (Optional)</Label>
                 <Input
-                  id="companyName"
+                  id="company"
+                  placeholder="Your Company Name"
                   value={agentBranding.companyName}
                   onChange={(e) => setAgentBranding(prev => ({ ...prev, companyName: e.target.value }))}
-                  placeholder="Your Travel Agency Name"
-                  className="glass-intense border-white/10"
                 />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="message">Custom Message (Optional)</Label>
                 <Textarea
                   id="message"
+                  placeholder="Here are your eSIM activation details..."
                   value={agentBranding.message}
                   onChange={(e) => setAgentBranding(prev => ({ ...prev, message: e.target.value }))}
-                  placeholder={`Here is your ${esimDetails?.plan?.name || 'eSIM Plan'} activation details:`}
-                  className="glass-intense border-white/10"
-                  rows={3}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="contactInfo">Contact Information (Optional)</Label>
+                <Label htmlFor="contact">Contact Info (Optional)</Label>
                 <Input
-                  id="contactInfo"
+                  id="contact"
+                  placeholder="support@company.com or +1-555-0123"
                   value={agentBranding.contactInfo}
                   onChange={(e) => setAgentBranding(prev => ({ ...prev, contactInfo: e.target.value }))}
-                  placeholder="support@yourcompany.com or +1-234-567-8900"
-                  className="glass-intense border-white/10"
                 />
               </div>
-              <div className="space-y-2">
-                <Label>Share Options</Label>
-                <div className="space-y-2">
-                  <Button 
-                    variant="outline" 
-                    className="w-full justify-start glass-intense border-0 hover:bg-white/10"
-                    onClick={() => handleShare('copy')}
-                  >
-                    <Copy className="h-4 w-4 mr-2" />
-                    Copy to Clipboard
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    className="w-full justify-start glass-intense border-0 hover:bg-white/10"
-                    onClick={() => handleShare('whatsapp')}
-                  >
-                    <MessageSquare className="h-4 w-4 mr-2" />
-                    WhatsApp
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    className="w-full justify-start glass-intense border-0 hover:bg-white/10"
-                    onClick={() => handleShare('email')}
-                  >
-                    <Mail className="h-4 w-4 mr-2" />
-                    Email
-                  </Button>
-                </div>
+              <div className="flex gap-2">
+                <Button onClick={() => handleShare('copy')} className="flex-1">
+                  <Copy className="h-4 w-4 mr-2" />
+                  Copy
+                </Button>
+                <Button onClick={() => handleShare('whatsapp')} variant="outline" className="flex-1">
+                  <MessageSquare className="h-4 w-4 mr-2" />
+                  WhatsApp
+                </Button>
+                <Button onClick={() => handleShare('email')} variant="outline" className="flex-1">
+                  <Mail className="h-4 w-4 mr-2" />
+                  Email
+                </Button>
               </div>
             </div>
           </DialogContent>

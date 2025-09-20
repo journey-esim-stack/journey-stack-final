@@ -761,6 +761,10 @@ Instructions:
           isOpen={showTopupModal}
           onClose={() => setShowTopupModal(false)}
           iccid={iccid || ""}
+          onTopupComplete={() => {
+            setShowTopupModal(false);
+            fetchESIMDetails(); // Refresh data after topup
+          }}
         />
 
         {/* Share Modal */}

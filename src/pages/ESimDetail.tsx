@@ -249,7 +249,7 @@ const ESimDetail = () => {
           activation: {
             qr_code: orderData.esim_qr_code || "",
             manual_code: orderData.activation_code || "",
-            sm_dp_address: "consumer.e-sim.global"
+            sm_dp_address: (orderData as any).smdp_address || "consumer.e-sim.global"
           },
           sessions: []
         };
@@ -287,7 +287,7 @@ const ESimDetail = () => {
           activation: {
             qr_code: orderData.esim_qr_code || "",
             manual_code: orderData.activation_code || "",
-            sm_dp_address: "consumer.e-sim.global"
+            sm_dp_address: (orderData as any).smdp_address || "consumer.e-sim.global"
           },
           sessions: apiData.obj?.sessions || []
         };
@@ -749,20 +749,37 @@ Instructions:
                   </div>
                 </CardHeader>
                 <CardContent className="text-center">
-                  <div className="w-64 h-64 mx-auto mb-4 glass-intense rounded-lg flex items-center justify-center border border-white/10">
-                    {esimDetails.activation.qr_code ? (
-                      <img 
-                        src={esimDetails.activation.qr_code} 
-                        alt="eSIM QR Code"
-                        className="w-full h-full object-contain p-4"
-                      />
-                    ) : (
-                      <div className="text-center">
-                        <QrCode className="h-12 w-12 mx-auto mb-2 text-primary" />
-                        <p className="text-sm text-muted-foreground">QR Code</p>
-                      </div>
-                    )}
-                  </div>
+                   <div className="w-64 h-64 mx-auto mb-4 glass-intense rounded-lg flex items-center justify-center border border-white/10">
+                     {esimDetails.activation.qr_code ? (
+                       <img 
+                         src={esimDetails.activation.qr_code} 
+                         alt="eSIM QR Code"
+                         className="w-full h-full object-contain p-4"
+                         onError={(e) => {
+                           // If Maya eSIM QR image fails, generate QR from manual code
+                           if (orderInfo?.esim_plans?.supplier_name === 'maya' && esimDetails.activation.manual_code) {
+                             const qrText = `LPA:1$${esimDetails.activation.sm_dp_address}$${esimDetails.activation.manual_code}`;
+                             QRCode.toDataURL(qrText, {
+                               margin: 1,
+                               scale: 6,
+                               color: { dark: '#000000', light: '#FFFFFF' }
+                             }).then(dataUrl => {
+                               (e.target as HTMLImageElement).src = dataUrl;
+                             }).catch(() => {
+                               console.error('Failed to generate QR code for Maya eSIM');
+                             });
+                           }
+                         }}
+                       />
+                     ) : (
+                       <div className="text-center">
+                         <QrCode className="h-12 w-12 mx-auto mb-2 text-primary" />
+                         <p className="text-sm text-muted-foreground">
+                           {orderInfo?.esim_plans?.supplier_name === 'maya' ? 'Generating QR Code...' : 'QR Code'}
+                         </p>
+                       </div>
+                     )}
+                   </div>
                   
                   {/* Copy QR Code Image Button */}
                   <Button 
@@ -843,26 +860,35 @@ Instructions:
                 <CardTitle className="text-primary">Manual Activation</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid gap-4">
-                  <div>
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-medium">iPhone / iOS</p>
-                    </div>
-                    <p className="text-sm text-muted-foreground mb-2">Activation Code</p>
-                    <div className="flex items-center gap-2">
-                      <code className="glass-intense p-2 rounded font-mono text-sm flex-1 border border-white/10">
-                        {esimDetails.activation.manual_code}
-                      </code>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => copyToClipboard(esimDetails.activation.manual_code)}
-                        className="glass-intense border-0 hover:bg-white/10"
-                      >
-                        <Copy className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
+                 <div className="grid gap-4">
+                   <div>
+                     <div className="flex items-center justify-between">
+                       <div className="flex items-center gap-2">
+                         <div className="w-6 h-6 bg-blue-500 rounded flex items-center justify-center">
+                           <span className="text-white text-xs font-bold">🍎</span>
+                         </div>
+                         <p className="text-sm font-medium">iPhone / iOS</p>
+                       </div>
+                     </div>
+                     <p className="text-sm text-muted-foreground mb-2">Activation Code</p>
+                     <div className="flex items-center gap-2">
+                       <code className="glass-intense p-2 rounded font-mono text-sm flex-1 border border-white/10">
+                         {orderInfo?.esim_plans?.supplier_name === 'maya' && orderInfo?.manual_code ? 
+                           orderInfo.manual_code : esimDetails.activation.manual_code}
+                       </code>
+                       <Button 
+                         variant="outline" 
+                         size="sm"
+                         onClick={() => copyToClipboard(
+                           orderInfo?.esim_plans?.supplier_name === 'maya' && orderInfo?.manual_code ? 
+                           orderInfo.manual_code : esimDetails.activation.manual_code
+                         )}
+                         className="glass-intense border-0 hover:bg-white/10"
+                       >
+                         <Copy className="h-4 w-4" />
+                       </Button>
+                     </div>
+                   </div>
 
                   <div>
                     <p className="text-sm text-muted-foreground mb-2">SM-DP Address</p>
@@ -881,28 +907,34 @@ Instructions:
                     </div>
                   </div>
 
-                  <div>
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className="w-6 h-6 bg-primary rounded flex items-center justify-center">
-                        <span className="text-primary-foreground text-xs font-bold">A</span>
-                      </div>
-                      <p className="text-sm font-medium">Android</p>
-                    </div>
-                    <p className="text-sm text-muted-foreground mb-2">Activation Code</p>
-                    <div className="flex items-center gap-2">
-                      <code className="glass-intense p-2 rounded font-mono text-sm flex-1 border border-white/10">
-                        LPA:1${esimDetails.activation.sm_dp_address}${esimDetails.activation.manual_code}
-                      </code>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => copyToClipboard(`LPA:1$${esimDetails.activation.sm_dp_address}$${esimDetails.activation.manual_code}`)}
-                        className="glass-intense border-0 hover:bg-white/10"
-                      >
-                        <Copy className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
+                   <div>
+                     <div className="flex items-center gap-2 mb-2">
+                       <div className="w-6 h-6 bg-green-500 rounded flex items-center justify-center">
+                         <span className="text-white text-xs font-bold">A</span>
+                       </div>
+                       <p className="text-sm font-medium">Android</p>
+                     </div>
+                     <p className="text-sm text-muted-foreground mb-2">Activation Code</p>
+                     <div className="flex items-center gap-2">
+                       <code className="glass-intense p-2 rounded font-mono text-sm flex-1 border border-white/10">
+                         {orderInfo?.esim_plans?.supplier_name === 'maya' ? 
+                           (orderInfo?.activation_code || `LPA:1$${esimDetails.activation.sm_dp_address}$${esimDetails.activation.manual_code}`) :
+                           `LPA:1$${esimDetails.activation.sm_dp_address}$${esimDetails.activation.manual_code}`}
+                       </code>
+                       <Button 
+                         variant="outline" 
+                         size="sm"
+                         onClick={() => copyToClipboard(
+                           orderInfo?.esim_plans?.supplier_name === 'maya' ? 
+                           (orderInfo?.activation_code || `LPA:1$${esimDetails.activation.sm_dp_address}$${esimDetails.activation.manual_code}`) :
+                           `LPA:1$${esimDetails.activation.sm_dp_address}$${esimDetails.activation.manual_code}`
+                         )}
+                         className="glass-intense border-0 hover:bg-white/10"
+                       >
+                         <Copy className="h-4 w-4" />
+                       </Button>
+                     </div>
+                   </div>
                 </div>
 
                 <div className="glass-intense p-4 rounded-lg border border-blue-500/20">

@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import './index.css'
 import App from './App.tsx'
+import { supabase } from '@/integrations/supabase/client'
 
 // Create a client
 const queryClient = new QueryClient({
@@ -16,6 +17,12 @@ const queryClient = new QueryClient({
     },
   },
 })
+
+if (typeof window !== 'undefined') {
+  // Expose Supabase on window for console testing
+  // @ts-ignore
+  (window as any).supabase = supabase;
+}
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

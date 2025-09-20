@@ -233,9 +233,29 @@ serve(async (req) => {
       console.log(`[${correlationId}] Using Basic Auth fallback`);
     }
 
-    // Working endpoints observed previously
+    // Determine which endpoints exist (probe products endpoints to avoid 404s)
+    const accountProductsEndpoint = `${mayaApiUrl}/connectivity/v1/account/products`;
+    const directProductsEndpoint = `${mayaApiUrl}/connectivity/v1/products`;
+
+    let useAccountEndpoints = true;
+    try {
+      const [acctProbe, directProbe] = await Promise.all([
+        fetch(accountProductsEndpoint, { method: 'GET', headers: { 'Authorization': headers['Authorization'], 'Accept': 'application/json' } }),
+        fetch(directProductsEndpoint, { method: 'GET', headers: { 'Authorization': headers['Authorization'], 'Accept': 'application/json' } })
+      ]);
+      // If account probe is 404 but direct is not 404, prefer direct; otherwise default to account
+      const acct404 = acctProbe.status === 404;
+      const direct404 = directProbe.status === 404;
+      useAccountEndpoints = !(acct404 && !direct404);
+      await logTrace(supabaseClient, 'maya_probe', { acct_status: acctProbe.status, direct_status: directProbe.status }, correlationId);
+    } catch (probeErr) {
+      console.log(`[${correlationId}] Probe error (non-fatal):`, probeErr);
+    }
+
+    // Working endpoints observed previously (choose based on probe)
     const accountOrdersEndpoint = `${mayaApiUrl}/connectivity/v1/account/orders`;
     const directOrdersEndpoint = `${mayaApiUrl}/connectivity/v1/orders`;
+    const orderEndpoints = useAccountEndpoints ? [accountOrdersEndpoint] : [directOrdersEndpoint];
 
     // Working payload format
     const payload = {
@@ -249,8 +269,8 @@ serve(async (req) => {
     let mayaResponse: Response | null = null;
     let mayaResponseData: any = null;
 
-    // Try account-scoped orders first, then direct orders as fallback
-    for (const endpoint of [accountOrdersEndpoint, directOrdersEndpoint]) {
+    // Try the selected orders endpoint (based on probe)
+    for (const endpoint of orderEndpoints) {
       try {
         console.log(`[${correlationId}] Creating order at: ${endpoint}`);
         mayaResponse = await fetch(endpoint, {
@@ -279,18 +299,20 @@ serve(async (req) => {
         }
 
         if (status === 404) {
-          console.log(`[${correlationId}] 404 at ${endpoint}, trying next endpoint if available...`);
-          // continue to next endpoint
-          continue;
+          console.log(`[${correlationId}] 404 at ${endpoint}`);
         }
 
-        // Non-404 errors: stop trying
+        // Non-OK response: stop (we only try one endpoint based on probe)
         console.error(`[${correlationId}] Provider error at ${endpoint}:`, mayaResponseData);
         break;
       } catch (err) {
         console.error(`[${correlationId}] Request error at ${endpoint}:`, err);
-        // Try next endpoint
-        continue;
+        // As a last resort, if we chose account and it failed at network level, try direct once
+        if (orderEndpoints.length === 1 && orderEndpoints[0] === accountOrdersEndpoint) {
+          orderEndpoints.push(directOrdersEndpoint);
+          continue;
+        }
+        break;
       }
     }
 

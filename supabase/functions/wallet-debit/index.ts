@@ -96,6 +96,22 @@ if (profileErr) throw profileErr;
     // Create orders if cart_items provided
     let orderIds = [];
     if (cart_items && Array.isArray(cart_items) && cart_items.length > 0) {
+      // Pre-flight: if any selected plans are Maya, refresh Maya catalog to avoid stale product UIDs
+      try {
+        const planIds = cart_items.map((i: any) => i.planId);
+        const { data: planSuppliers } = await supabase
+          .from('esim_plans')
+          .select('id, supplier_name')
+          .in('id', planIds);
+        const hasMaya = (planSuppliers || []).some((p: any) => p.supplier_name === 'maya');
+        if (hasMaya) {
+          await logTrace(supabase, 'pre_sync_maya_plans', { correlationId, plan_ids: planIds }, user.id);
+          // Best-effort sync; ignore errors
+          await supabase.functions.invoke('sync-maya-plans');
+        }
+      } catch (e) {
+        console.log('Maya pre-sync skipped/failed', e);
+      }
       if (!customer_info?.name || !customer_info?.email) {
         throw new Error("customer_info with name and email required for cart checkout");
       }

@@ -189,6 +189,32 @@ serve(async (req) => {
       );
     }
 
+    // Ensure we use the latest active Maya plan (in case product UID rotated)
+    let planToUse = plan;
+    if (plan.supplier_name === 'maya') {
+      try {
+        const { data: latestList } = await supabaseClient
+          .from('esim_plans')
+          .select('*')
+          .eq('supplier_name', 'maya')
+          .eq('title', plan.title)
+          .eq('validity_days', plan.validity_days)
+          .eq('country_code', plan.country_code)
+          .eq('is_active', true)
+          .order('updated_at', { ascending: false })
+          .limit(1);
+        const latest = latestList && latestList.length > 0 ? latestList[0] : null;
+        if (latest && latest.id !== plan.id) {
+          planToUse = latest;
+          console.log(`[${correlationId}] Switched to latest Maya plan id ${latest.id} (product ${latest.supplier_plan_id})`);
+          // Update order to reference the latest plan id
+          await supabaseClient.from('orders').update({ plan_id: latest.id }).eq('id', order_id);
+        }
+      } catch (e) {
+        console.log(`[${correlationId}] Latest plan lookup skipped/failed:`, e);
+      }
+    }
+
     // Get Maya API credentials
     const mayaApiKey = Deno.env.get('MAYA_API_KEY');
     const mayaApiSecret = Deno.env.get('MAYA_API_SECRET');
@@ -217,7 +243,7 @@ serve(async (req) => {
     const mayaRequestPayload = {
       items: [
         {
-          product_uid: plan.supplier_plan_id.replace('maya_', ''), // Remove maya_ prefix
+          product_uid: planToUse.supplier_plan_id.replace('maya_', ''), // Remove maya_ prefix
           quantity: 1
         }
       ],

@@ -7,7 +7,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Persist diagnostics even if functions logs UI lags
+// Persist diagnostics even if functions logs UI lags - Updated 2025-09-20
 async function logTrace(supabaseClient: any, action: string, details: any, correlationId?: string) {
   try {
     await supabaseClient.from('audit_logs').insert({

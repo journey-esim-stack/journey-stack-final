@@ -245,40 +245,62 @@ serve(async (req) => {
     let mayaResponse: Response | null = null;
     let mayaResponseData: any = null;
 
-    // Use account-scoped endpoint as required by Maya integration tier
-    const orderEndpoint = `${mayaApiUrl}/connectivity/v1/account/orders`;
-    
+    // Try account-scoped endpoint first, then fallback to direct endpoint on 404
+    const orderEndpoints = [
+      `${mayaApiUrl}/connectivity/v1/account/orders`,
+      `${mayaApiUrl}/connectivity/v1/orders`
+    ];
+
     try {
-      console.log(`[${correlationId}] Creating order at: ${orderEndpoint}`);
-      console.log(`[${correlationId}] Payload:`, JSON.stringify(payload, null, 2));
-      console.log(`[${correlationId}] Headers:`, JSON.stringify(headers, null, 2));
-      
-      mayaResponse = await fetch(orderEndpoint, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(payload)
-      });
+      for (const orderEndpoint of orderEndpoints) {
+        console.log(`[${correlationId}] Creating order at: ${orderEndpoint}`);
+        console.log(`[${correlationId}] Payload:`, JSON.stringify(payload, null, 2));
+        console.log(`[${correlationId}] Headers:`, JSON.stringify(headers, null, 2));
 
-      const status = mayaResponse.status;
-      console.log(`[${correlationId}] Order response status ${status} from ${orderEndpoint}`);
-      console.log(`[${correlationId}] Response headers:`, Object.fromEntries(mayaResponse.headers.entries()));
+        const resp = await fetch(orderEndpoint, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(payload)
+        });
 
-      const responseText = await mayaResponse.text();
-      console.log(`[${correlationId}] Raw response:`, responseText);
+        const status = resp.status;
+        console.log(`[${correlationId}] Order response status ${status} from ${orderEndpoint}`);
+        console.log(`[${correlationId}] Response headers:`, Object.fromEntries(resp.headers.entries()));
 
-      try {
-        mayaResponseData = responseText ? JSON.parse(responseText) : {};
-      } catch (parseError) {
-        console.error(`[${correlationId}] Failed to parse response as JSON:`, parseError);
-        mayaResponseData = { error: 'Invalid JSON response', raw_response: responseText };
-      }
+        const responseText = await resp.text();
+        console.log(`[${correlationId}] Raw response:`, responseText);
 
-      if (!mayaResponse.ok) {
-        console.error(`[${correlationId}] Provider error at ${orderEndpoint}:`, mayaResponseData);
+        let parsed: any = {};
+        try {
+          parsed = responseText ? JSON.parse(responseText) : {};
+        } catch (parseError) {
+          console.error(`[${correlationId}] Failed to parse response as JSON:`, parseError);
+          parsed = { error: 'Invalid JSON response', raw_response: responseText };
+        }
+
+        // If OK, set and break
+        if (resp.ok) {
+          mayaResponse = resp;
+          mayaResponseData = parsed;
+          console.log(`[${correlationId}] Order created successfully at: ${orderEndpoint}`);
+          break;
+        }
+
+        // If first (account) endpoint 404s, try the direct endpoint next
+        if (orderEndpoint.includes('/account/') && status === 404) {
+          console.log(`[${correlationId}] Account endpoint returned 404, falling back to direct orders endpoint.`);
+          continue;
+        }
+
+        // Otherwise, keep the latest response data and break
+        mayaResponse = resp;
+        mayaResponseData = parsed;
+        console.error(`[${correlationId}] Provider error at ${orderEndpoint}:`, parsed);
+        break;
       }
     } catch (err) {
-      console.error(`[${correlationId}] Request error at ${orderEndpoint}:`, err);
-      mayaResponseData = { error: 'Network request failed', details: err };
+      console.error(`[${correlationId}] Request error during order creation:`, err);
+      mayaResponseData = { error: 'Network request failed', details: String(err) };
     }
 
     if (!mayaResponse || !mayaResponse.ok) {

@@ -749,20 +749,55 @@ Instructions:
                   </div>
                 </CardHeader>
                 <CardContent className="text-center">
-                  <div className="w-64 h-64 mx-auto mb-4 glass-intense rounded-lg flex items-center justify-center border border-white/10">
-                    {esimDetails.activation.qr_code ? (
-                      <img 
-                        src={esimDetails.activation.qr_code} 
-                        alt="eSIM QR Code"
-                        className="w-full h-full object-contain p-4"
-                      />
-                    ) : (
-                      <div className="text-center">
-                        <QrCode className="h-12 w-12 mx-auto mb-2 text-primary" />
-                        <p className="text-sm text-muted-foreground">QR Code</p>
-                      </div>
-                    )}
-                  </div>
+                   <div className="w-64 h-64 mx-auto mb-4 glass-intense rounded-lg flex items-center justify-center border border-white/10">
+                     {esimDetails.activation.qr_code ? (
+                       // Check if it's a Maya eSIM (text QR code) vs eSIM Access (image QR code)
+                       orderInfo?.esim_plans?.supplier_name === 'maya' ? (
+                         // For Maya eSIMs, generate QR code from text
+                         <div className="w-full h-full p-4 flex items-center justify-center">
+                           <img 
+                             src={`data:image/svg+xml;base64,${btoa(`
+                               <svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200">
+                                 <rect width="200" height="200" fill="white"/>
+                                 <foreignObject width="200" height="200">
+                                   <div xmlns="http://www.w3.org/1999/xhtml" style="padding: 10px; font-family: monospace; font-size: 8px; word-break: break-all; display: flex; align-items: center; justify-content: center; height: 100%; text-align: center;">
+                                     ${esimDetails.activation.qr_code}
+                                   </div>
+                                 </foreignObject>
+                               </svg>
+                             `)}`}
+                             alt="eSIM QR Code"
+                             className="w-full h-full object-contain"
+                             onError={async (e) => {
+                               // Fallback: Generate actual QR code using QRCode library
+                               try {
+                                 const qrDataUrl = await QRCode.toDataURL(esimDetails.activation.qr_code, {
+                                   margin: 1,
+                                   scale: 6,
+                                   color: { dark: '#000000', light: '#FFFFFF' }
+                                 });
+                                 (e.target as HTMLImageElement).src = qrDataUrl;
+                               } catch (error) {
+                                 console.error('Failed to generate QR code:', error);
+                               }
+                             }}
+                           />
+                         </div>
+                       ) : (
+                         // For eSIM Access, use the image URL directly
+                         <img 
+                           src={esimDetails.activation.qr_code} 
+                           alt="eSIM QR Code"
+                           className="w-full h-full object-contain p-4"
+                         />
+                       )
+                     ) : (
+                       <div className="text-center">
+                         <QrCode className="h-12 w-12 mx-auto mb-2 text-primary" />
+                         <p className="text-sm text-muted-foreground">QR Code</p>
+                       </div>
+                     )}
+                   </div>
                   
                   {/* Copy QR Code Image Button */}
                   <Button 

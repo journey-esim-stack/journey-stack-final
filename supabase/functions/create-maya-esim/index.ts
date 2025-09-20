@@ -32,11 +32,51 @@ async function getMayaAccessToken(apiKey: string, apiSecret: string, apiUrl: str
     `${apiUrl}/connectivity/v1/oauth/token`
   ];
 
+  // Try multiple auth strategies for maximum compatibility
   for (const endpoint of authEndpoints) {
     try {
-      console.log(`[${correlationId}] Attempting OAuth at: ${endpoint}`);
-      
-      const tokenResponse = await fetch(endpoint, {
+      console.log(`[${correlationId}] Attempting OAuth (form-encoded, body creds) at: ${endpoint}`);
+      let tokenResponse = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Accept': 'application/json'
+        },
+        body: new URLSearchParams({
+          grant_type: 'client_credentials',
+          client_id: apiKey,
+          client_secret: apiSecret,
+        }).toString(),
+      });
+
+      console.log(`[${correlationId}] OAuth response status: ${tokenResponse.status}`);
+      if (tokenResponse.ok) {
+        const tokenData = await tokenResponse.json();
+        console.log(`[${correlationId}] OAuth success (form-encoded body creds) at: ${endpoint}`);
+        return tokenData.access_token;
+      }
+
+      console.log(`[${correlationId}] Attempting OAuth (form-encoded + Basic header) at: ${endpoint}`);
+      const basicAuth = `Basic ${btoa(`${apiKey}:${apiSecret}`)}`;
+      tokenResponse = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Accept': 'application/json',
+          'Authorization': basicAuth,
+        },
+        body: new URLSearchParams({ grant_type: 'client_credentials' }).toString(),
+      });
+
+      console.log(`[${correlationId}] OAuth response status: ${tokenResponse.status}`);
+      if (tokenResponse.ok) {
+        const tokenData = await tokenResponse.json();
+        console.log(`[${correlationId}] OAuth success (form-encoded + Basic) at: ${endpoint}`);
+        return tokenData.access_token;
+      }
+
+      console.log(`[${correlationId}] Attempting OAuth (JSON body creds) at: ${endpoint}`);
+      tokenResponse = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -50,14 +90,16 @@ async function getMayaAccessToken(apiKey: string, apiSecret: string, apiUrl: str
       });
 
       console.log(`[${correlationId}] OAuth response status: ${tokenResponse.status}`);
-      
       if (tokenResponse.ok) {
         const tokenData = await tokenResponse.json();
-        console.log(`[${correlationId}] OAuth success at: ${endpoint}`);
+        console.log(`[${correlationId}] OAuth success (JSON body) at: ${endpoint}`);
         return tokenData.access_token;
       }
+
+      const errText = await tokenResponse.text();
+      console.log(`[${correlationId}] OAuth failed at ${endpoint}: ${errText}`);
     } catch (error) {
-      console.log(`[${correlationId}] OAuth failed at ${endpoint}:`, error);
+      console.log(`[${correlationId}] OAuth error at ${endpoint}:`, error);
     }
   }
 

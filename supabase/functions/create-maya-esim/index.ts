@@ -201,72 +201,53 @@ serve(async (req) => {
     // Build Basic Auth header
     const basicAuth = 'Basic ' + btoa(`${mayaApiKey}:${mayaApiSecret}`);
 
-    // Normalize base URL and define endpoints (try account first, then legacy)
+    // Use the correct Maya eSIM creation endpoint
     const baseUrl = (mayaApiUrl || 'https://api.maya.net').replace(/\/+$/,'');
-    const endpoints = [
-      `${baseUrl}/connectivity/v1/account/orders`,
-      `${baseUrl}/connectivity/v1/orders`,
-    ];
+    const esimEndpoint = `${baseUrl}/connectivity/v1/esim`;
 
-    // Create eSIM order via Maya API
-    const orderPayload = {
-      product_uid: mayaProductUid,
-      product_id: mayaProductUid,
-      uid: mayaProductUid,
-      quantity: 1,
-      external_reference: order_id, // use our DB order id as reference
+    // Create eSIM with plan_type_id (Maya's recommended approach)
+    const esimPayload = {
+      plan_type_id: mayaProductUid,
+      tag: order_id, // use our DB order id for tracking
     };
-    console.log('Maya Order Request payload:', orderPayload);
-    await logTrace(supabaseClient, 'order_request', { primary_url: endpoints[0], fallback_url: endpoints[1], payload: orderPayload }, correlationId);
+    console.log('Maya eSIM Request payload:', esimPayload);
+    await logTrace(supabaseClient, 'esim_request', { endpoint: esimEndpoint, payload: esimPayload }, correlationId);
 
-    // Try endpoints with graceful fallback
-    let orderRes: Response | null = null;
-    let usedEndpoint = '';
-    for (const ep of endpoints) {
-      try {
-        const res = await fetch(ep, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'Authorization': basicAuth,
-          },
-          body: JSON.stringify(orderPayload),
-        });
-        const ct = res.headers.get('content-type') || '';
-        const htmlLike = ct.includes('text/html');
-        if ((res.status === 404 || htmlLike) && ep !== endpoints[endpoints.length - 1]) {
-          await logTrace(supabaseClient, 'order_endpoint_fallback', { from: ep, status: res.status, contentType: ct }, correlationId);
-          continue; // try next endpoint
-        }
-        orderRes = res;
-        usedEndpoint = ep;
-        break;
-      } catch (e) {
-        await logTrace(supabaseClient, 'order_endpoint_error', { endpoint: ep, error: e.message }, correlationId);
-        continue;
-      }
+    // Call Maya eSIM creation endpoint
+    let esimRes: Response | null = null;
+    try {
+      esimRes = await fetch(esimEndpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': basicAuth,
+        },
+        body: JSON.stringify(esimPayload),
+      });
+    } catch (e) {
+      await logTrace(supabaseClient, 'esim_endpoint_error', { endpoint: esimEndpoint, error: e.message }, correlationId);
     }
 
-    if (!orderRes) {
-      console.error('All Maya order endpoints failed');
+    if (!esimRes) {
+      console.error('Maya eSIM endpoint failed');
       await supabaseClient
         .from('orders')
         .update({ status: 'failed', updated_at: new Date().toISOString() })
         .eq('id', order_id);
-      await issueRefund(supabaseClient, order_id, 'Maya order endpoints unreachable');
+      await issueRefund(supabaseClient, order_id, 'Maya eSIM endpoint unreachable');
       return new Response(JSON.stringify({ error: 'Maya API unreachable' }), {
         status: 502,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    console.log('Maya Order API Response status:', orderRes.status);
-    console.log('Maya Order API Response headers:', Object.fromEntries(orderRes.headers.entries()));
-    await logTrace(supabaseClient, 'order_response_headers', { usedEndpoint, status: orderRes.status, headers: Object.fromEntries(orderRes.headers.entries()) }, correlationId);
+    console.log('Maya eSIM API Response status:', esimRes.status);
+    console.log('Maya eSIM API Response headers:', Object.fromEntries(esimRes.headers.entries()));
+    await logTrace(supabaseClient, 'esim_response_headers', { endpoint: esimEndpoint, status: esimRes.status, headers: Object.fromEntries(esimRes.headers.entries()) }, correlationId);
 
     // Check if response is HTML (404 error page) instead of JSON
-    const contentType = orderRes.headers.get('content-type');
+    const contentType = esimRes.headers.get('content-type');
     if (contentType?.includes('text/html')) {
       console.error('Maya API returned HTML instead of JSON - likely 404 or service down');
       
@@ -285,30 +266,30 @@ serve(async (req) => {
       return new Response(JSON.stringify({
         error: 'Maya API service is currently unavailable',
         details: 'The Maya eSIM provider service is down. Your payment has been refunded.',
-        status: orderRes.status,
+        status: esimRes.status,
       }), {
         status: 503,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    let orderJson;
+    let esimJson;
     try {
-      orderJson = await orderRes.json();
-      await logTrace(supabaseClient, 'order_response_body', { ok: orderRes.ok, keys: Object.keys(orderJson || {}), data_keys: Object.keys(orderJson?.data || {}) }, correlationId);
+      esimJson = await esimRes.json();
+      await logTrace(supabaseClient, 'esim_response_body', { ok: esimRes.ok, keys: Object.keys(esimJson || {}), esim_keys: Object.keys(esimJson?.esim || {}) }, correlationId);
     } catch (parseError) {
       console.error('Failed to parse Maya API response as JSON:', parseError);
       
       // Capture raw response text for debugging
       try {
-        const rawText = await orderRes.text();
-        await logTrace(supabaseClient, 'order_response_parse_error', { 
+        const rawText = await esimRes.text();
+        await logTrace(supabaseClient, 'esim_response_parse_error', { 
           parseError: parseError.message, 
           rawTextSnippet: rawText.substring(0, 500),
           contentType 
         }, correlationId);
       } catch (textError) {
-        await logTrace(supabaseClient, 'order_response_parse_error', { 
+        await logTrace(supabaseClient, 'esim_response_parse_error', { 
           parseError: parseError.message, 
           textError: textError.message,
           contentType 
@@ -335,215 +316,87 @@ serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
-    console.log('Maya Order API Response data:', orderJson);
+    console.log('Maya eSIM API Response data:', esimJson);
 
-    // If provider returned eSIM immediately in the create response, finish here
-    const simsFromCreate = orderJson?.data?.sims || orderJson?.sims || orderJson?.data?.sim_list;
-    if (Array.isArray(simsFromCreate) && simsFromCreate.length > 0 && simsFromCreate[0]?.iccid) {
-      const esim = simsFromCreate[0];
-      console.log('Maya eSIM returned on create:', { iccid: esim.iccid, hasActivationCode: !!esim.activation_code });
+    // Check if Maya returned eSIM immediately (success case)
+    if (esimRes.ok && esimJson?.esim?.iccid) {
+      const esim = esimJson.esim;
+      console.log('Maya eSIM created successfully:', { 
+        iccid: esim.iccid, 
+        hasActivationCode: !!esim.activation_code,
+        uid: esim.uid 
+      });
 
-      const { error: updateOnCreateErr } = await supabaseClient
+      const { error: updateErr } = await supabaseClient
         .from('orders')
         .update({
           status: 'completed',
           esim_iccid: esim.iccid,
-          esim_qr_code: esim.qr_code || null,
-          activation_code: esim.activation_code || null,
-          supplier_order_id: orderJson?.data?.order_id || orderJson?.order_id || null,
+          esim_qr_code: esim.activation_code || null, // Maya uses activation_code as QR
+          activation_code: esim.activation_code || esim.manual_code || null,
+          supplier_order_id: esim.uid || null,
           updated_at: new Date().toISOString(),
         })
         .eq('id', order_id);
 
-      if (updateOnCreateErr) {
-        console.error('Failed to update order from create response:', updateOnCreateErr);
-        return new Response(JSON.stringify({ error: 'Failed to update order', details: updateOnCreateErr }), {
+      if (updateErr) {
+        console.error('Failed to update order with eSIM details:', updateErr);
+        return new Response(JSON.stringify({ error: 'Failed to update order', details: updateErr }), {
           status: 500,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
 
+      await logTrace(supabaseClient, 'esim_success', { 
+        iccid: esim.iccid, 
+        uid: esim.uid,
+        order_id 
+      }, correlationId);
+
       return new Response(JSON.stringify({
         success: true,
         iccid: esim.iccid,
         order_id: order_id,
-        supplier_order_id: orderJson?.data?.order_id || orderJson?.order_id || null,
+        supplier_order_id: esim.uid,
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    // Consider response successful if we have an order id in any known place or headers
-    const locationHeader = orderRes.headers.get('location') || orderRes.headers.get('Location');
-    const orderIdFromHeader = locationHeader ? locationHeader.split('/').pop() : undefined;
-    const orderId = orderJson?.data?.order_id || orderJson?.order_id || orderJson?.data?.id || orderJson?.data?.order_uid || orderJson?.uid || orderJson?.data?.order?.id || orderJson?.order?.uid || orderIdFromHeader;
-
-    if (!orderRes.ok || !orderId) {
-      const errMsg = orderJson?.message || orderJson?.developer_message || orderJson?.error || 'Maya service temporarily unavailable';
-      console.error('Maya Order API error - Status:', orderRes.status);
-      console.error('Maya Order API error response:', orderJson);
-      
-      // Update order status to failed
-      await supabaseClient
-        .from('orders')
-        .update({ 
-          status: 'failed',
-          updated_at: new Date().toISOString() 
-        })
-        .eq('id', order_id);
-
-      // Issue automatic refund to agent's wallet
-      await issueRefund(supabaseClient, order_id, errMsg);
-
-      return new Response(JSON.stringify({
-        error: 'Failed to place Maya eSIM order',
-        details: `${errMsg}. Your payment has been refunded.`,
-        status: orderRes.status,
-        supplier_plan_id: plan.supplier_plan_id,
-      }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    console.log('Maya order placed successfully. order_id:', orderId, 'Now polling for eSIM details...');
-
-    // Poll the Maya order status until eSIM is ready (up to ~30s)
-    const maxAttempts = 10; // 10 * 3s = 30s
-    const delay = (ms: number) => new Promise((res) => setTimeout(res, ms));
-
-    let esimData: any | null = null;
-    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-      console.log(`Status check attempt ${attempt}/${maxAttempts} for Maya order:`, orderId);
-      
-      const baseUrl = (mayaApiUrl || 'https://api.maya.net').replace(/\/+$/,'');
-      const statusEndpoints = [
-        `${baseUrl}/connectivity/v1/account/orders/${orderId}`,
-        `${baseUrl}/connectivity/v1/orders/${orderId}`,
-      ];
-      let statusRes: Response | null = null;
-      let statusJson: any = null;
-      for (const ep of statusEndpoints) {
-        try {
-          const res = await fetch(ep, {
-            method: 'GET',
-            headers: {
-              'Authorization': basicAuth,
-              'Accept': 'application/json',
-            },
-          });
-          const ct = res.headers.get('content-type') || '';
-          const htmlLike = ct.includes('text/html');
-          if ((res.status === 404 || htmlLike) && ep !== statusEndpoints[statusEndpoints.length - 1]) {
-            await logTrace(supabaseClient, 'status_endpoint_fallback', { from: ep, status: res.status, contentType: ct }, correlationId);
-            continue;
-          }
-          statusRes = res;
-          try { statusJson = await res.json(); } catch { statusJson = {}; }
-          break;
-        } catch (e) {
-          await logTrace(supabaseClient, 'status_endpoint_error', { endpoint: ep, error: e.message }, correlationId);
-          continue;
-        }
-      }
-
-      if (!statusRes) {
-        await delay(3000);
-        continue;
-      }
-
-      console.log('Maya Status API Response status:', statusRes.status);
-      console.log('Maya Status API Response data:', statusJson);
-
-      // Check if order is completed and has eSIM data
-      const sims = statusJson?.data?.sims || statusJson?.data?.sim_list || statusJson?.sims;
-      if (Array.isArray(sims) && sims.length > 0 && sims[0]?.iccid) {
-        esimData = sims[0];
-        break;
-      }
-      const statusVal = statusJson?.data?.status || statusJson?.data?.order_status || statusJson?.status;
-      if (statusRes.ok && (statusVal === 'completed' || statusVal === 'fulfilled' || statusVal === 'success')) {
-        if (Array.isArray(sims) && sims.length > 0) {
-          esimData = sims[0];
-          break;
-        }
-      }
-
-      // If still processing, wait and retry
-      if (statusJson?.data?.status === 'processing' || statusJson?.data?.status === 'pending') {
-        await delay(3000);
-        continue;
-      }
-
-      // If failed, stop trying
-      if (statusJson?.data?.status === 'failed') {
-        console.error('Maya order failed:', statusJson);
-        break;
-      }
-
-      // For other statuses, continue polling
-      await delay(3000);
-    }
-
-    if (!esimData) {
-      console.error('Maya eSIM not ready in time for order:', orderId);
-      
-      // Update order status to failed due to timeout
-      await supabaseClient
-        .from('orders')
-        .update({ 
-          status: 'failed',
-          updated_at: new Date().toISOString() 
-        })
-        .eq('id', order_id);
-
-      // Issue automatic refund to agent's wallet
-      await issueRefund(supabaseClient, order_id, 'Maya eSIM allocation timeout');
-
-      return new Response(JSON.stringify({
-        error: 'Maya eSIM allocation timeout',
-        details: 'eSIM not ready in time. Your payment has been refunded.',
-        orderId,
-      }), {
-        status: 502,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    console.log('Maya eSIM allocated:', {
-      iccid: esimData.iccid,
-      hasActivationCode: !!esimData.activation_code,
-      orderId,
-    });
-
-    // Update the order with eSIM details
-    const { error: updateError } = await supabaseClient
+    // If we reach here, Maya API call failed
+    const errMsg = esimJson?.message || esimJson?.developer_message || esimJson?.error || 'Maya eSIM creation failed';
+    console.error('Maya eSIM API error - Status:', esimRes.status);
+    console.error('Maya eSIM API error response:', esimJson);
+    
+    // Update order status to failed
+    await supabaseClient
       .from('orders')
-      .update({
-        status: 'completed',
-        esim_iccid: esimData.iccid,
-        esim_qr_code: esimData.qr_code || null,
-        activation_code: esimData.activation_code,
-        supplier_order_id: orderId,
-        updated_at: new Date().toISOString(),
+      .update({ 
+        status: 'failed',
+        updated_at: new Date().toISOString() 
       })
       .eq('id', order_id);
 
-    if (updateError) {
-      console.error('Failed to update order with Maya eSIM details:', updateError);
-      return new Response(JSON.stringify({ error: 'Failed to update order', details: updateError }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
+    // Issue automatic refund to agent's wallet
+    await issueRefund(supabaseClient, order_id, errMsg);
 
-    console.log('Order updated successfully with Maya eSIM details');
     return new Response(JSON.stringify({
-      success: true,
-      iccid: esimData.iccid,
-      order_id: order_id,
-      supplier_order_id: orderId,
+      error: 'Failed to create Maya eSIM',
+      details: `${errMsg}. Your payment has been refunded.`,
+      status: esimRes.status,
+      supplier_plan_id: plan.supplier_plan_id,
     }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+
+    // This code should not be reached since we handle success/failure above
+    console.warn('Unexpected code path reached in Maya eSIM function');
+    return new Response(JSON.stringify({
+      error: 'Unexpected response from Maya API',
+      details: 'Unable to process eSIM creation response',
+    }), {
+      status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 

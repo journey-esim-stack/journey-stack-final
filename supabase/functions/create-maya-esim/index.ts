@@ -245,8 +245,8 @@ serve(async (req) => {
     let mayaResponse: Response | null = null;
     let mayaResponseData: any = null;
 
-    // Use the exact working endpoint: direct orders without account prefix
-    const orderEndpoint = `${mayaApiUrl}/connectivity/v1/orders`;
+    // Use account-scoped endpoint as required by Maya integration tier
+    const orderEndpoint = `${mayaApiUrl}/connectivity/v1/account/orders`;
     
     try {
       console.log(`[${correlationId}] Creating order at: ${orderEndpoint}`);

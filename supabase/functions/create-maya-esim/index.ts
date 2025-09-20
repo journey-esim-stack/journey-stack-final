@@ -322,27 +322,80 @@ serve(async (req) => {
     if (!mayaResponse || !mayaResponse.ok) {
       console.error(`[${correlationId}] Maya API error response:`, mayaResponseData);
       console.error(`[${correlationId}] Maya API error - Status:`, mayaResponse?.status);
-      
-      const errorDetails = mayaResponseData?.developer_message || mayaResponseData?.message || mayaResponseData?.error || 'Unknown error';
-      
-      await logTrace(supabaseClient, 'maya_api_error', {
-        status: mayaResponse?.status,
-        response: mayaResponseData,
-        order_id,
-        error_details: errorDetails
-      }, correlationId);
 
-      // Issue refund for failed order
-      await issueRefund(supabaseClient, order_id, 'Service temporarily unavailable');
-      
-      return new Response(
-        JSON.stringify({ 
-          error: 'Failed to create eSIM', 
-          details: errorDetails,
-          correlation_id: correlationId
-        }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      // If 404, try a one-time fallback to a close alternative active Maya plan (same region/data)
+      let retried = false;
+      if (mayaResponse?.status === 404) {
+        try {
+          const basePrefix = (planToUse.title || '').split('-')[0].trim(); // e.g., "Caucasus+ 1GB"
+          const { data: candidates } = await supabaseClient
+            .from('esim_plans')
+            .select('*')
+            .eq('supplier_name', 'maya')
+            .eq('is_active', true)
+            .eq('country_code', planToUse.country_code)
+            .ilike('title', `${basePrefix}%`)
+            .order('updated_at', { ascending: false })
+            .limit(5);
+
+          const alternative = (candidates || []).find(c => c.id !== planToUse.id);
+          if (alternative) {
+            console.log(`[${correlationId}] Retrying with alternative Maya plan ${alternative.id} (${alternative.supplier_plan_id})`);
+            await supabaseClient.from('orders').update({ plan_id: alternative.id }).eq('id', order_id);
+            planToUse = alternative;
+
+            const retryPayload = {
+              items: [{ product_uid: alternative.supplier_plan_id.replace('maya_', ''), quantity: 1 }],
+              external_reference: order_id,
+              channel: 'api'
+            };
+
+            for (const endpoint of endpoints) {
+              try {
+                console.log(`[${correlationId}] Retry request to: ${endpoint}`);
+                const r = await fetch(endpoint, { method: 'POST', headers, body: JSON.stringify(retryPayload) });
+                const t = await r.text();
+                try { mayaResponseData = JSON.parse(t); } catch (_) { mayaResponseData = { raw_response: t }; }
+                if (r.ok) {
+                  mayaResponse = r;
+                  retried = true;
+                  console.log(`[${correlationId}] Retry succeeded at: ${endpoint}`);
+                  break;
+                }
+                if (r.status === 404 && endpoint === endpoints[0]) continue;
+              } catch (e) {
+                console.error(`[${correlationId}] Retry request failed:`, e);
+              }
+            }
+          }
+        } catch (fallbackErr) {
+          console.log(`[${correlationId}] Fallback plan search failed:`, fallbackErr);
+        }
+      }
+
+      if (!mayaResponse || !mayaResponse.ok) {
+        const errorDetails = mayaResponseData?.developer_message || mayaResponseData?.message || mayaResponseData?.error || 'Unknown error';
+
+        await logTrace(supabaseClient, 'maya_api_error', {
+          status: mayaResponse?.status,
+          response: mayaResponseData,
+          order_id,
+          error_details: errorDetails,
+          retried
+        }, correlationId);
+
+        // Issue refund for failed order
+        await issueRefund(supabaseClient, order_id, 'Service temporarily unavailable');
+
+        return new Response(
+          JSON.stringify({
+            error: 'Failed to create eSIM',
+            details: errorDetails,
+            correlation_id: correlationId
+          }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
     }
 
     // Log successful order creation

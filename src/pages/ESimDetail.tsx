@@ -773,96 +773,87 @@ Instructions:
             {/* Manual Activation Card */}
             <Card className="glass-card">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Smartphone className="h-5 w-5 text-primary" />
-                  Manual Activation
-                </CardTitle>
+                <CardTitle className="text-primary">Manual Activation</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-6">
-                {/* iPhone/iOS Section */}
-                <div className="space-y-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-6 h-6 bg-blue-500 rounded flex items-center justify-center">
-                      <Smartphone className="h-3.5 w-3.5 text-white" />
-                    </div>
-                    <span className="text-sm font-medium text-blue-500">iPhone / iOS</span>
-                  </div>
-                  
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-2">Activation Code</p>
-                    <div className="bg-gray-50 dark:bg-gray-800/50 p-3 rounded-lg border">
-                      <code className="font-mono text-sm break-all">
-                        {orderInfo?.esim_plans?.supplier_name === 'maya' && orderInfo?.manual_code ? 
-                          orderInfo.manual_code : esimDetails.activation.manual_code}
-                      </code>
-                      <Button 
-                        variant="ghost" 
-                        size="sm"
-                        onClick={() => copyToClipboard(
-                          orderInfo?.esim_plans?.supplier_name === 'maya' && orderInfo?.manual_code ? 
-                          orderInfo.manual_code : esimDetails.activation.manual_code
-                        )}
-                        className="ml-2 h-8 px-2"
-                      >
-                        <Copy className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  </div>
+              <CardContent className="space-y-4">
+                 <div className="grid gap-4">
+                   <div>
+                     <div className="flex items-center justify-between">
+                       <div className="flex items-center gap-2">
+                         <div className="w-6 h-6 bg-blue-500 rounded flex items-center justify-center">
+                           <span className="text-white text-xs font-bold">🍎</span>
+                         </div>
+                         <p className="text-sm font-medium">iPhone / iOS</p>
+                       </div>
+                     </div>
+                     <p className="text-sm text-muted-foreground mb-2">Activation Code</p>
+                     <div className="flex items-center gap-2">
+                       <code className="glass-intense p-2 rounded font-mono text-sm flex-1 border border-white/10">
+                         {orderInfo?.esim_plans?.supplier_name === 'maya' && orderInfo?.manual_code ? 
+                           orderInfo.manual_code : esimDetails.activation.manual_code}
+                       </code>
+                       <Button 
+                         variant="outline" 
+                         size="sm"
+                         onClick={() => copyToClipboard(
+                           orderInfo?.esim_plans?.supplier_name === 'maya' && orderInfo?.manual_code ? 
+                           orderInfo.manual_code : esimDetails.activation.manual_code
+                         )}
+                         className="glass-intense border-0 hover:bg-white/10"
+                       >
+                         <Copy className="h-4 w-4" />
+                       </Button>
+                     </div>
+                   </div>
 
                   <div>
                     <p className="text-sm text-muted-foreground mb-2">SM-DP Address</p>
-                    <div className="bg-gray-50 dark:bg-gray-800/50 p-3 rounded-lg border">
-                      <code className="font-mono text-sm break-all">
+                    <div className="flex items-center gap-2">
+                      <code className="glass-intense p-2 rounded font-mono text-sm flex-1 border border-white/10">
                         {esimDetails.activation.sm_dp_address}
                       </code>
                       <Button 
-                        variant="ghost" 
+                        variant="outline" 
                         size="sm"
                         onClick={() => copyToClipboard(esimDetails.activation.sm_dp_address)}
-                        className="ml-2 h-8 px-2"
+                        className="glass-intense border-0 hover:bg-white/10"
                       >
-                        <Copy className="h-3.5 w-3.5" />
+                        <Copy className="h-4 w-4" />
                       </Button>
                     </div>
                   </div>
+
+                   <div>
+                     <div className="flex items-center gap-2 mb-2">
+                       <div className="w-6 h-6 bg-green-500 rounded flex items-center justify-center">
+                         <span className="text-white text-xs font-bold">A</span>
+                       </div>
+                       <p className="text-sm font-medium">Android</p>
+                     </div>
+                     <p className="text-sm text-muted-foreground mb-2">Activation Code</p>
+                     <div className="flex items-center gap-2">
+                       <code className="glass-intense p-2 rounded font-mono text-sm flex-1 border border-white/10">
+                         {orderInfo?.esim_plans?.supplier_name === 'maya' ? 
+                           (orderInfo?.activation_code || `LPA:1$${esimDetails.activation.sm_dp_address}$${esimDetails.activation.manual_code}`) :
+                           `LPA:1$${esimDetails.activation.sm_dp_address}$${esimDetails.activation.manual_code}`}
+                       </code>
+                       <Button 
+                         variant="outline" 
+                         size="sm"
+                         onClick={() => copyToClipboard(
+                           orderInfo?.esim_plans?.supplier_name === 'maya' ? 
+                           (orderInfo?.activation_code || `LPA:1$${esimDetails.activation.sm_dp_address}$${esimDetails.activation.manual_code}`) :
+                           `LPA:1$${esimDetails.activation.sm_dp_address}$${esimDetails.activation.manual_code}`
+                         )}
+                         className="glass-intense border-0 hover:bg-white/10"
+                       >
+                         <Copy className="h-4 w-4" />
+                       </Button>
+                     </div>
+                   </div>
                 </div>
 
-                <Separator className="bg-white/10" />
-
-                {/* Android Section */}
-                <div className="space-y-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-6 h-6 bg-green-500 rounded flex items-center justify-center">
-                      <span className="text-white text-xs font-bold">A</span>
-                    </div>
-                    <span className="text-sm font-medium text-green-500">Android</span>
-                  </div>
-                  
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-2">Activation Code</p>
-                    <div className="bg-gray-50 dark:bg-gray-800/50 p-3 rounded-lg border">
-                      <code className="font-mono text-sm break-all">
-                        {orderInfo?.esim_plans?.supplier_name === 'maya' ? 
-                          (orderInfo?.activation_code || `LPA:1$${esimDetails.activation.sm_dp_address}$${esimDetails.activation.manual_code}`) :
-                          `LPA:1$${esimDetails.activation.sm_dp_address}$${esimDetails.activation.manual_code}`}
-                      </code>
-                      <Button 
-                        variant="ghost" 
-                        size="sm"
-                        onClick={() => copyToClipboard(
-                          orderInfo?.esim_plans?.supplier_name === 'maya' ? 
-                          (orderInfo?.activation_code || `LPA:1$${esimDetails.activation.sm_dp_address}$${esimDetails.activation.manual_code}`) :
-                          `LPA:1$${esimDetails.activation.sm_dp_address}$${esimDetails.activation.manual_code}`
-                        )}
-                        className="ml-2 h-8 px-2"
-                      >
-                        <Copy className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="glass-intense p-4 rounded-lg border border-blue-500/20 mt-4">
+                <div className="glass-intense p-4 rounded-lg border border-blue-500/20">
                   <h4 className="font-semibold text-sm mb-2 text-blue-300">Tips & Reminders</h4>
                   <ul className="text-sm space-y-1 text-muted-foreground">
                     <li>✓ Set the eSIM plan as your cellular data plan when you arrive at your destination. Find this in Settings → Cellular Data → Cellular Data.</li>

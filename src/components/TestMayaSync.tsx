@@ -5,8 +5,6 @@ import { supabase } from '@/integrations/supabase/client';
 
 export function TestMayaSync() {
   const [loading, setLoading] = useState(false);
-  const [healthLoading, setHealthLoading] = useState(false);
-  const [validatorLoading, setValidatorLoading] = useState(false);
 
   const syncMayaPlans = async () => {
     setLoading(true);
@@ -37,148 +35,16 @@ export function TestMayaSync() {
     }
   };
 
-  const runHealthCheck = async () => {
-    setHealthLoading(true);
-    try {
-      console.log('Starting Maya health check...');
-      const { data, error } = await supabase.functions.invoke('maya-health');
-      
-      if (error) {
-        console.error('Maya health check error:', error);
-        throw error;
-      }
-
-      console.log('Maya health check response:', data);
-      toast({
-        title: data.healthy ? "Maya API Healthy" : "Maya API Issues Detected",
-        description: `Completed ${data.checks?.length || 0} checks. ${data.healthy ? 'All systems operational.' : 'Check logs for details.'}`,
-        variant: data.healthy ? "default" : "destructive",
-      });
-    } catch (error: any) {
-      console.error('Error running Maya health check:', error);
-      const message = error?.message || error?.error || 'Failed to run health check';
-      toast({
-        title: "Error",
-        description: String(message).slice(0, 300),
-        variant: "destructive",
-      });
-    } finally {
-      setHealthLoading(false);
-    }
-  };
-
-  const retryFailedOrders = async () => {
-    setValidatorLoading(true);
-    try {
-      console.log('Starting provider retry service...');
-      const { data, error } = await supabase.functions.invoke('provider-retry');
-      
-      if (error) {
-        console.error('Provider retry service error:', error);
-        throw error;
-      }
-
-      console.log('Provider retry service response:', data);
-      toast({
-        title: "Retry Service Complete",
-        description: `Processed ${data.processed || 0} retry attempts. Check logs for details.`,
-      });
-    } catch (error: any) {
-      console.error('Error running provider retry service:', error);
-      const message = error?.message || error?.error || 'Failed to run retry service';
-      toast({
-        title: "Error",
-        description: String(message).slice(0, 300),
-        variant: "destructive",
-      });
-    } finally {
-      setValidatorLoading(false);
-    }
-  };
-
-  const validatePlans = async () => {
-    setValidatorLoading(true);
-    try {
-      console.log('Starting Maya plan validation...');
-      const { data, error } = await supabase.functions.invoke('maya-plan-validator', {
-        body: { plan_ids: [] } // Empty array means validate all active plans
-      });
-      
-      if (error) {
-        console.error('Maya plan validation error:', error);
-        throw error;
-      }
-
-      console.log('Maya plan validation response:', data);
-      const summary = data.summary;
-      toast({
-        title: "Plan Validation Complete",
-        description: `Validated ${summary.total_validated} plans. ${summary.invalid_plans} deactivated, ${summary.updated_plans} updated.`,
-      });
-    } catch (error: any) {
-      console.error('Error validating Maya plans:', error);
-      const message = error?.message || error?.error || 'Failed to validate plans';
-      toast({
-        title: "Error",
-        description: String(message).slice(0, 300),
-        variant: "destructive",
-      });
-    } finally {
-      setValidatorLoading(false);
-    }
-  };
-
   return (
-    <div className="p-4 border rounded-lg space-y-4">
-      <h3 className="text-lg font-semibold mb-4">Maya API Management & Provider Stability</h3>
-      
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-        <Button 
-          onClick={runHealthCheck} 
-          disabled={healthLoading}
-          variant="outline"
-          className="w-full"
-        >
-          {healthLoading ? 'Checking Health...' : 'Health Check'}
-        </Button>
-        
-        <Button 
-          onClick={retryFailedOrders} 
-          disabled={validatorLoading}
-          variant="outline"
-          className="w-full"
-        >
-          {validatorLoading ? 'Retrying...' : 'Retry Failed Orders'}
-        </Button>
-        
-        <Button 
-          onClick={validatePlans} 
-          disabled={validatorLoading}
-          variant="outline"
-          className="w-full"
-        >
-          {validatorLoading ? 'Validating...' : 'Validate Plans'}
-        </Button>
-        
-        <Button 
-          onClick={syncMayaPlans} 
-          disabled={loading}
-          className="w-full"
-        >
-          {loading ? 'Syncing...' : 'Sync Plans'}
-        </Button>
-      </div>
-      
-      <div className="text-xs text-muted-foreground mt-2 grid grid-cols-1 md:grid-cols-2 gap-2">
-        <div>
-          <p><strong>Health Check:</strong> Verifies Maya API connectivity</p>
-          <p><strong>Retry Failed:</strong> Retries orders stuck due to provider busy errors</p>
-        </div>
-        <div>
-          <p><strong>Validate Plans:</strong> Checks for invalid/outdated plans and fixes pricing</p>
-          <p><strong>Sync Plans:</strong> Fetches latest plans from Maya API</p>
-        </div>
-      </div>
+    <div className="p-4 border rounded-lg">
+      <h3 className="text-lg font-semibold mb-4">Test Maya Regional Plans Sync</h3>
+      <Button 
+        onClick={syncMayaPlans} 
+        disabled={loading}
+        className="w-full"
+      >
+        {loading ? 'Syncing Maya Plans...' : 'Sync Maya Regional Plans'}
+      </Button>
     </div>
   );
 }

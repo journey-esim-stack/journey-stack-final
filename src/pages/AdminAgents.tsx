@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Database } from "@/integrations/supabase/types";
-// import { TestMayaSync } from "@/components/TestMayaSync";
 
 interface AgentProfileRow {
   id: string;

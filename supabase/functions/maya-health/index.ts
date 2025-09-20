@@ -1,210 +1,177 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import "https://deno.land/x/xhr@0.1.0/mod.ts";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.3';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+};
 
-// Function to log health check results
+// Log diagnostic information to audit_logs
 async function logTrace(supabaseClient: any, action: string, details: any) {
   try {
-    await supabaseClient
-      .from('audit_logs')
-      .insert({
-        table_name: 'maya_health',
-        action: action,
-        new_values: details,
-        user_id: null,
-        created_at: new Date().toISOString()
-      });
-  } catch (error) {
-    console.error('Failed to log trace:', error);
+    await supabaseClient.from('audit_logs').insert({
+      table_name: 'maya_health',
+      action,
+      new_values: details,
+    });
+  } catch (e) {
+    console.error('audit log insert failed', e);
   }
 }
 
-Deno.serve(async (req) => {
+serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    console.log('=== Maya Health Check Started ===');
+    console.log('Maya Health Check starting...');
     
     // Initialize Supabase client
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    
+    if (!supabaseUrl || !supabaseServiceKey) {
+      throw new Error('Missing Supabase credentials');
+    }
+
+    const supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
+    
+    await logTrace(supabaseClient, 'health_check_start', { timestamp: new Date().toISOString() });
 
     // Get Maya API credentials
     const mayaApiKey = Deno.env.get('MAYA_API_KEY');
     const mayaApiSecret = Deno.env.get('MAYA_API_SECRET');
     const mayaApiUrl = Deno.env.get('MAYA_API_URL');
 
-    if (!mayaApiKey || !mayaApiSecret || !mayaApiUrl) {
-      const error = 'Maya API credentials not configured';
-      await logTrace(supabase, 'health_check_failed', { error, reason: 'missing_credentials' });
-      return new Response(
-        JSON.stringify({ 
-          healthy: false, 
-          error,
-          checks: []
-        }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const results = {
-      healthy: true,
-      timestamp: new Date().toISOString(),
-      checks: [] as any[]
-    };
-
-    // Test OAuth authentication
-    console.log('Testing OAuth authentication...');
-    const oauthResult = { name: 'oauth_auth', status: 'failed', details: '' };
-    
-    const authEndpoints = [
-      `${mayaApiUrl}/oauth/token`,
-      `${mayaApiUrl}/connectivity/v1/oauth/token`
-    ];
-
-    let accessToken = null;
-    for (const endpoint of authEndpoints) {
-      try {
-        const tokenResponse = await fetch(endpoint, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-          },
-          body: JSON.stringify({
-            grant_type: 'client_credentials',
-            client_id: mayaApiKey,
-            client_secret: mayaApiSecret
-          })
-        });
-
-        if (tokenResponse.ok) {
-          const tokenData = await tokenResponse.json();
-          accessToken = tokenData.access_token;
-          oauthResult.status = 'success';
-          oauthResult.details = `OAuth successful at ${endpoint}`;
-          break;
-        }
-      } catch (error) {
-        oauthResult.details = `OAuth failed: ${error.message}`;
-      }
-    }
-    results.checks.push(oauthResult);
-
-    // Set up authentication headers
-    const headers: Record<string, string> = {
-      'Accept': 'application/json'
-    };
-
-    if (accessToken) {
-      headers['Authorization'] = `Bearer ${accessToken}`;
-      console.log('Using OAuth Bearer token for health checks');
-    } else {
-      const authString = btoa(`${mayaApiKey}:${mayaApiSecret}`);
-      headers['Authorization'] = `Basic ${authString}`;
-      console.log('Using Basic Auth for health checks');
-    }
-
-    // Test API endpoints
-    const endpointsToTest = [
-      { name: 'account_products', url: `${mayaApiUrl}/connectivity/v1/account/products` },
-      { name: 'direct_products', url: `${mayaApiUrl}/connectivity/v1/products` },
-      { name: 'account_orders', url: `${mayaApiUrl}/connectivity/v1/account/orders` },
-      { name: 'direct_orders', url: `${mayaApiUrl}/connectivity/v1/orders` }
-    ];
-
-    for (const endpoint of endpointsToTest) {
-      console.log(`Testing endpoint: ${endpoint.name}`);
-      const checkResult = { 
-        name: endpoint.name, 
-        status: 'failed' as 'success' | 'failed', 
-        details: '',
-        response_time: 0
-      };
-
-      try {
-        const startTime = Date.now();
-        const response = await fetch(endpoint.url, {
-          method: 'GET',
-          headers
-        });
-        const endTime = Date.now();
-        checkResult.response_time = endTime - startTime;
-
-        checkResult.status = response.ok ? 'success' : 'failed';
-        checkResult.details = `Status: ${response.status} ${response.statusText} (${checkResult.response_time}ms)`;
-        
-        if (!response.ok && response.status !== 404) {
-          results.healthy = false;
-        }
-      } catch (error) {
-        checkResult.details = `Network error: ${error.message}`;
-        results.healthy = false;
-      }
-
-      results.checks.push(checkResult);
-    }
-
-    // Test plan availability
-    console.log('Testing plan availability...');
-    const planCheck = { name: 'plan_availability', status: 'failed' as 'success' | 'failed', details: '' };
-    
-    try {
-      const { data: mayaPlans, error } = await supabase
-        .from('esim_plans')
-        .select('supplier_plan_id, title, is_active')
-        .eq('supplier_name', 'maya')
-        .eq('is_active', true)
-        .limit(5);
-
-      if (error) {
-        planCheck.details = `Database error: ${error.message}`;
-      } else {
-        planCheck.status = 'success';
-        planCheck.details = `Found ${mayaPlans?.length || 0} active Maya plans in database`;
-      }
-    } catch (error) {
-      planCheck.details = `Plan check error: ${error.message}`;
-    }
-    results.checks.push(planCheck);
-
-    // Log health check results
-    await logTrace(supabase, 'health_check_completed', {
-      healthy: results.healthy,
-      checks: results.checks,
-      duration: results.checks.reduce((sum, check) => sum + (check.response_time || 0), 0)
+    console.log('Maya credentials check:', {
+      hasMayaApiKey: !!mayaApiKey,
+      hasMayaApiSecret: !!mayaApiSecret,
+      hasMayaApiUrl: !!mayaApiUrl,
+      mayaApiUrl
     });
 
-    console.log('=== Maya Health Check Completed ===');
-    console.log('Overall health:', results.healthy ? 'HEALTHY' : 'UNHEALTHY');
+    await logTrace(supabaseClient, 'credentials_check', { 
+      hasMayaApiKey: !!mayaApiKey, 
+      hasMayaApiSecret: !!mayaApiSecret, 
+      hasMayaApiUrl: !!mayaApiUrl,
+      mayaApiUrl 
+    });
 
-    return new Response(
-      JSON.stringify(results),
-      { 
-        status: results.healthy ? 200 : 503,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+    if (!mayaApiKey || !mayaApiSecret || !mayaApiUrl) {
+      const error = 'Missing Maya API credentials';
+      await logTrace(supabaseClient, 'credentials_missing', { error });
+      return new Response(JSON.stringify({ 
+        success: false, 
+        error,
+        details: {
+          hasMayaApiKey: !!mayaApiKey,
+          hasMayaApiSecret: !!mayaApiSecret,
+          hasMayaApiUrl: !!mayaApiUrl
+        }
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Create Basic Auth header
+    const basicAuth = btoa(`${mayaApiKey}:${mayaApiSecret}`);
+    
+    // Test Maya API connectivity with a simple endpoint
+    const testUrl = `${mayaApiUrl}/connectivity/v1/products`;
+    console.log('Testing Maya API connectivity to:', testUrl);
+    
+    await logTrace(supabaseClient, 'api_request_start', { url: testUrl });
+
+    const response = await fetch(testUrl, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Basic ${basicAuth}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    const responseHeaders = Object.fromEntries(response.headers.entries());
+    console.log('Maya API Response:', {
+      status: response.status,
+      statusText: response.statusText,
+      headers: responseHeaders
+    });
+
+    await logTrace(supabaseClient, 'api_response_headers', { 
+      status: response.status, 
+      statusText: response.statusText,
+      headers: responseHeaders 
+    });
+
+    // Try to get response body (limit to first 500 chars for safety)
+    let responseBody = '';
+    let parseError = null;
+    
+    try {
+      const text = await response.text();
+      responseBody = text.substring(0, 500);
+      
+      // Try parsing as JSON if it looks like JSON
+      if (responseBody.trim().startsWith('{') || responseBody.trim().startsWith('[')) {
+        JSON.parse(responseBody);
       }
-    );
+    } catch (e) {
+      parseError = e.message;
+    }
+
+    await logTrace(supabaseClient, 'api_response_body', { 
+      responseBody, 
+      parseError,
+      contentType: response.headers.get('content-type')
+    });
+
+    const healthResult = {
+      success: response.ok,
+      status: response.status,
+      statusText: response.statusText,
+      headers: responseHeaders,
+      bodySnippet: responseBody,
+      parseError,
+      timestamp: new Date().toISOString(),
+      testUrl
+    };
+
+    await logTrace(supabaseClient, 'health_check_complete', healthResult);
+
+    console.log('Maya Health Check completed:', healthResult);
+
+    return new Response(JSON.stringify(healthResult), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
 
   } catch (error) {
-    console.error('Health check error:', error);
-    return new Response(
-      JSON.stringify({ 
-        healthy: false, 
-        error: error.message,
-        checks: []
-      }),
-      { 
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+    console.error('Maya Health Check failed:', error);
+    
+    try {
+      const supabaseUrl = Deno.env.get('SUPABASE_URL');
+      const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+      
+      if (supabaseUrl && supabaseServiceKey) {
+        const supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
+        await logTrace(supabaseClient, 'health_check_error', { 
+          error: error.message,
+          stack: error.stack 
+        });
       }
-    );
+    } catch (logError) {
+      console.error('Failed to log error:', logError);
+    }
+
+    return new Response(JSON.stringify({ 
+      success: false, 
+      error: error.message,
+      timestamp: new Date().toISOString()
+    }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   }
 });

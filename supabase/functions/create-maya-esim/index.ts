@@ -239,11 +239,60 @@ serve(async (req) => {
     // Try OAuth 2.0 authentication first
     const accessToken = await getMayaAccessToken(mayaApiKey, mayaApiSecret, mayaApiUrl, correlationId);
     
+    // Resolve current Maya product UID from products API to avoid stale IDs
+    const authHeader = accessToken
+      ? `Bearer ${accessToken}`
+      : `Basic ${btoa(`${mayaApiKey}:${mayaApiSecret}`)}`;
+
+    let resolvedProductUid = planToUse.supplier_plan_id.replace('maya_', '');
+    try {
+      const regionSlug = (planToUse.country_name || '').toLowerCase().split(' ')[0]; // e.g., "caucasus", "europe"
+      if (regionSlug) {
+        const productsUrl = `${mayaApiUrl}/connectivity/v1/account/products?region=${regionSlug}`;
+        console.log(`[${correlationId}] Fetching Maya products for region: ${regionSlug} -> ${productsUrl}`);
+        const prodRes = await fetch(productsUrl, {
+          method: 'GET',
+          headers: { 'Authorization': authHeader, 'Accept': 'application/json' }
+        });
+        const prodText = await prodRes.text();
+        let prodJson: any = {};
+        try { prodJson = JSON.parse(prodText); } catch { prodJson = { raw: prodText }; }
+        const products = Array.isArray(prodJson?.products) ? prodJson.products : [];
+        // Try exact name match first
+        let match = products.find((p: any) => (p?.name || '').trim() === (planToUse.title || '').trim());
+        // Fallback: match by validity and data quota
+        if (!match) {
+          const parseMb = (s: string) => {
+            if (!s) return 0;
+            const m = s.toLowerCase().trim();
+            if (m.includes('gb')) return Math.round(parseFloat(m) * 1024);
+            const n = parseInt(m);
+            return isNaN(n) ? 0 : n;
+          };
+          const targetMb = parseMb(String(planToUse.data_amount));
+          const targetValidity = Number(planToUse.validity_days) || 0;
+          match = products.find((p: any) => {
+            const mb = Number(p?.data_quota_mb) || 0;
+            const vd = Number(p?.validity_days) || 0;
+            return vd === targetValidity && (targetMb === 0 || Math.abs(mb - targetMb) <= 50);
+          });
+        }
+        if (match?.uid) {
+          resolvedProductUid = match.uid;
+          console.log(`[${correlationId}] Resolved product UID: ${resolvedProductUid} for title ${planToUse.title}`);
+        } else {
+          console.log(`[${correlationId}] No matching product found, using plan UID ${resolvedProductUid}`);
+        }
+      }
+    } catch (e) {
+      console.log(`[${correlationId}] Product UID resolution failed, using plan UID ${resolvedProductUid}:`, e);
+    }
+
     // Create the Maya API request with correct structure
     const mayaRequestPayload = {
       items: [
         {
-          product_uid: planToUse.supplier_plan_id.replace('maya_', ''), // Remove maya_ prefix
+          product_uid: resolvedProductUid,
           quantity: 1
         }
       ],
@@ -256,15 +305,13 @@ serve(async (req) => {
     // Set up authentication headers
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      'Accept': 'application/json'
+      'Accept': 'application/json',
+      'Authorization': authHeader
     };
 
     if (accessToken) {
-      headers['Authorization'] = `Bearer ${accessToken}`;
       console.log(`[${correlationId}] Using OAuth Bearer token`);
     } else {
-      const authString = btoa(`${mayaApiKey}:${mayaApiSecret}`);
-      headers['Authorization'] = `Basic ${authString}`;
       console.log(`[${correlationId}] Using Basic Auth fallback`);
     }
 

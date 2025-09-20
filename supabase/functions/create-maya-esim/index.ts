@@ -255,7 +255,10 @@ serve(async (req) => {
     // Working endpoints observed previously (choose based on probe)
     const accountOrdersEndpoint = `${mayaApiUrl}/connectivity/v1/account/orders`;
     const directOrdersEndpoint = `${mayaApiUrl}/connectivity/v1/orders`;
-    const orderEndpoints = useAccountEndpoints ? [accountOrdersEndpoint] : [directOrdersEndpoint];
+    // Try both endpoints in a preferred order based on probe
+    const orderEndpoints = useAccountEndpoints 
+      ? [accountOrdersEndpoint, directOrdersEndpoint]
+      : [directOrdersEndpoint, accountOrdersEndpoint];
 
     // Working payload format
     const payload = {

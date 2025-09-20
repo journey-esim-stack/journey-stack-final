@@ -189,32 +189,6 @@ serve(async (req) => {
       );
     }
 
-    // Ensure we use the latest active Maya plan (in case product UID rotated)
-    let planToUse = plan;
-    if (plan.supplier_name === 'maya') {
-      try {
-        const { data: latestList } = await supabaseClient
-          .from('esim_plans')
-          .select('*')
-          .eq('supplier_name', 'maya')
-          .eq('title', plan.title)
-          .eq('validity_days', plan.validity_days)
-          .eq('country_code', plan.country_code)
-          .eq('is_active', true)
-          .order('updated_at', { ascending: false })
-          .limit(1);
-        const latest = latestList && latestList.length > 0 ? latestList[0] : null;
-        if (latest && latest.id !== plan.id) {
-          planToUse = latest;
-          console.log(`[${correlationId}] Switched to latest Maya plan id ${latest.id} (product ${latest.supplier_plan_id})`);
-          // Update order to reference the latest plan id
-          await supabaseClient.from('orders').update({ plan_id: latest.id }).eq('id', order_id);
-        }
-      } catch (e) {
-        console.log(`[${correlationId}] Latest plan lookup skipped/failed:`, e);
-      }
-    }
-
     // Get Maya API credentials
     const mayaApiKey = Deno.env.get('MAYA_API_KEY');
     const mayaApiSecret = Deno.env.get('MAYA_API_SECRET');
@@ -239,60 +213,11 @@ serve(async (req) => {
     // Try OAuth 2.0 authentication first
     const accessToken = await getMayaAccessToken(mayaApiKey, mayaApiSecret, mayaApiUrl, correlationId);
     
-    // Resolve current Maya product UID from products API to avoid stale IDs
-    const authHeader = accessToken
-      ? `Bearer ${accessToken}`
-      : `Basic ${btoa(`${mayaApiKey}:${mayaApiSecret}`)}`;
-
-    let resolvedProductUid = planToUse.supplier_plan_id.replace('maya_', '');
-    try {
-      const regionSlug = (planToUse.country_name || '').toLowerCase().split(' ')[0]; // e.g., "caucasus", "europe"
-      if (regionSlug) {
-        const productsUrl = `${mayaApiUrl}/connectivity/v1/account/products?region=${regionSlug}`;
-        console.log(`[${correlationId}] Fetching Maya products for region: ${regionSlug} -> ${productsUrl}`);
-        const prodRes = await fetch(productsUrl, {
-          method: 'GET',
-          headers: { 'Authorization': authHeader, 'Accept': 'application/json' }
-        });
-        const prodText = await prodRes.text();
-        let prodJson: any = {};
-        try { prodJson = JSON.parse(prodText); } catch { prodJson = { raw: prodText }; }
-        const products = Array.isArray(prodJson?.products) ? prodJson.products : [];
-        // Try exact name match first
-        let match = products.find((p: any) => (p?.name || '').trim() === (planToUse.title || '').trim());
-        // Fallback: match by validity and data quota
-        if (!match) {
-          const parseMb = (s: string) => {
-            if (!s) return 0;
-            const m = s.toLowerCase().trim();
-            if (m.includes('gb')) return Math.round(parseFloat(m) * 1024);
-            const n = parseInt(m);
-            return isNaN(n) ? 0 : n;
-          };
-          const targetMb = parseMb(String(planToUse.data_amount));
-          const targetValidity = Number(planToUse.validity_days) || 0;
-          match = products.find((p: any) => {
-            const mb = Number(p?.data_quota_mb) || 0;
-            const vd = Number(p?.validity_days) || 0;
-            return vd === targetValidity && (targetMb === 0 || Math.abs(mb - targetMb) <= 50);
-          });
-        }
-        if (match?.uid) {
-          resolvedProductUid = match.uid;
-          console.log(`[${correlationId}] Resolved product UID: ${resolvedProductUid} for title ${planToUse.title}`);
-        } else {
-          console.log(`[${correlationId}] No matching product found, using plan UID ${resolvedProductUid}`);
-        }
-      }
-    } catch (e) {
-      console.log(`[${correlationId}] Product UID resolution failed, using plan UID ${resolvedProductUid}:`, e);
-    }
-
     // Create the Maya API request with correct structure
     const mayaRequestPayload = {
       items: [
         {
-          product_uid: resolvedProductUid,
+          product_uid: plan.supplier_plan_id.replace('maya_', ''), // Remove maya_ prefix
           quantity: 1
         }
       ],
@@ -305,13 +230,15 @@ serve(async (req) => {
     // Set up authentication headers
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      'Accept': 'application/json',
-      'Authorization': authHeader
+      'Accept': 'application/json'
     };
 
     if (accessToken) {
+      headers['Authorization'] = `Bearer ${accessToken}`;
       console.log(`[${correlationId}] Using OAuth Bearer token`);
     } else {
+      const authString = btoa(`${mayaApiKey}:${mayaApiSecret}`);
+      headers['Authorization'] = `Basic ${authString}`;
       console.log(`[${correlationId}] Using Basic Auth fallback`);
     }
 
@@ -369,80 +296,27 @@ serve(async (req) => {
     if (!mayaResponse || !mayaResponse.ok) {
       console.error(`[${correlationId}] Maya API error response:`, mayaResponseData);
       console.error(`[${correlationId}] Maya API error - Status:`, mayaResponse?.status);
+      
+      const errorDetails = mayaResponseData?.developer_message || mayaResponseData?.message || mayaResponseData?.error || 'Unknown error';
+      
+      await logTrace(supabaseClient, 'maya_api_error', {
+        status: mayaResponse?.status,
+        response: mayaResponseData,
+        order_id,
+        error_details: errorDetails
+      }, correlationId);
 
-      // If 404, try a one-time fallback to a close alternative active Maya plan (same region/data)
-      let retried = false;
-      if (mayaResponse?.status === 404) {
-        try {
-          const basePrefix = (planToUse.title || '').split('-')[0].trim(); // e.g., "Caucasus+ 1GB"
-          const { data: candidates } = await supabaseClient
-            .from('esim_plans')
-            .select('*')
-            .eq('supplier_name', 'maya')
-            .eq('is_active', true)
-            .eq('country_code', planToUse.country_code)
-            .ilike('title', `${basePrefix}%`)
-            .order('updated_at', { ascending: false })
-            .limit(5);
-
-          const alternative = (candidates || []).find(c => c.id !== planToUse.id);
-          if (alternative) {
-            console.log(`[${correlationId}] Retrying with alternative Maya plan ${alternative.id} (${alternative.supplier_plan_id})`);
-            await supabaseClient.from('orders').update({ plan_id: alternative.id }).eq('id', order_id);
-            planToUse = alternative;
-
-            const retryPayload = {
-              items: [{ product_uid: alternative.supplier_plan_id.replace('maya_', ''), quantity: 1 }],
-              external_reference: order_id,
-              channel: 'api'
-            };
-
-            for (const endpoint of endpoints) {
-              try {
-                console.log(`[${correlationId}] Retry request to: ${endpoint}`);
-                const r = await fetch(endpoint, { method: 'POST', headers, body: JSON.stringify(retryPayload) });
-                const t = await r.text();
-                try { mayaResponseData = JSON.parse(t); } catch (_) { mayaResponseData = { raw_response: t }; }
-                if (r.ok) {
-                  mayaResponse = r;
-                  retried = true;
-                  console.log(`[${correlationId}] Retry succeeded at: ${endpoint}`);
-                  break;
-                }
-                if (r.status === 404 && endpoint === endpoints[0]) continue;
-              } catch (e) {
-                console.error(`[${correlationId}] Retry request failed:`, e);
-              }
-            }
-          }
-        } catch (fallbackErr) {
-          console.log(`[${correlationId}] Fallback plan search failed:`, fallbackErr);
-        }
-      }
-
-      if (!mayaResponse || !mayaResponse.ok) {
-        const errorDetails = mayaResponseData?.developer_message || mayaResponseData?.message || mayaResponseData?.error || 'Unknown error';
-
-        await logTrace(supabaseClient, 'maya_api_error', {
-          status: mayaResponse?.status,
-          response: mayaResponseData,
-          order_id,
-          error_details: errorDetails,
-          retried
-        }, correlationId);
-
-        // Issue refund for failed order
-        await issueRefund(supabaseClient, order_id, 'Service temporarily unavailable');
-
-        return new Response(
-          JSON.stringify({
-            error: 'Failed to create eSIM',
-            details: errorDetails,
-            correlation_id: correlationId
-          }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
+      // Issue refund for failed order
+      await issueRefund(supabaseClient, order_id, 'Service temporarily unavailable');
+      
+      return new Response(
+        JSON.stringify({ 
+          error: 'Failed to create eSIM', 
+          details: errorDetails,
+          correlation_id: correlationId
+        }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     // Log successful order creation

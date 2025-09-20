@@ -176,34 +176,16 @@ Deno.serve(async (req) => {
 
     // Deactivate plans that are no longer in the API response
     try {
-      // Fetch existing Maya plans
-      const { data: existingMayaPlans, error: fetchErr } = await supabase
+      const { error: deactivateError } = await supabase
         .from('esim_plans')
-        .select('id, supplier_plan_id, is_active')
-        .eq('supplier_name', 'maya');
+        .update({ is_active: false })
+        .eq('supplier_name', 'maya')
+        .not('supplier_plan_id', 'in', `(${currentMayaPlanIds.map(id => `"${id}"`).join(',')})`);
 
-      if (fetchErr) {
-        console.error('Error fetching existing Maya plans:', fetchErr);
+      if (deactivateError) {
+        console.error('Error deactivating old Maya plans:', deactivateError);
       } else {
-        const stalePlanIds = (existingMayaPlans || [])
-          .filter(p => !currentMayaPlanIds.includes(p.supplier_plan_id))
-          .map(p => p.supplier_plan_id);
-
-        if (stalePlanIds.length > 0) {
-          const { error: deactivateError } = await supabase
-            .from('esim_plans')
-            .update({ is_active: false })
-            .in('supplier_plan_id', stalePlanIds)
-            .eq('supplier_name', 'maya');
-
-          if (deactivateError) {
-            console.error('Error deactivating old Maya plans:', deactivateError);
-          } else {
-            console.log(`Successfully deactivated ${stalePlanIds.length} old Maya plans`);
-          }
-        } else {
-          console.log('No stale Maya plans to deactivate');
-        }
+        console.log('Successfully deactivated old Maya plans');
       }
     } catch (deactivateErr) {
       console.error('Error deactivating old Maya plans:', deactivateErr);

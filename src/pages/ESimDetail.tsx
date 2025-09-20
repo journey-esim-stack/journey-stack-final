@@ -100,7 +100,6 @@ const ESimDetail = () => {
     contactInfo: ""
   });
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (iccid) {
@@ -160,34 +159,6 @@ const ESimDetail = () => {
     };
   }, [iccid]);
 
-  // Generate QR image for Maya eSIMs or use provided image URL
-  useEffect(() => {
-    const generate = async () => {
-      if (!esimDetails) { setQrDataUrl(null); return; }
-      const supplier = orderInfo?.esim_plans?.supplier_name;
-      try {
-        if (supplier === 'maya') {
-          const text = (esimDetails.activation.qr_code && esimDetails.activation.qr_code.startsWith('LPA'))
-            ? esimDetails.activation.qr_code
-            : `LPA:1$${esimDetails.activation.sm_dp_address}$${esimDetails.activation.manual_code}`;
-          if (text) {
-            console.log('Generating QR for supplier', supplier, 'text prefix', text.slice(0, 20));
-            const url = await QRCode.toDataURL(text, { margin: 1, scale: 6, color: { dark: '#000000', light: '#FFFFFF' } });
-            setQrDataUrl(url);
-          } else {
-            setQrDataUrl(null);
-          }
-        } else {
-          setQrDataUrl(esimDetails.activation.qr_code || null);
-        }
-      } catch (e) {
-        console.error('QR generation failed', e);
-        setQrDataUrl(null);
-      }
-    };
-    generate();
-  }, [esimDetails, orderInfo]);
-
   const fetchESIMDetails = async (isManualRefresh = false) => {
     if (isManualRefresh) {
       setIsRefreshing(true);
@@ -205,8 +176,7 @@ const ESimDetail = () => {
               country_name,
               country_code,
               data_amount,
-              validity_days,
-              supplier_name
+              validity_days
             )
           `)
           .eq("esim_iccid", iccid)
@@ -278,8 +248,8 @@ const ESimDetail = () => {
           },
           activation: {
             qr_code: orderData.esim_qr_code || "",
-            manual_code: (orderData as any).manual_code || orderData.activation_code || "",
-            sm_dp_address: (orderData as any).smdp_address || "consumer.e-sim.global"
+            manual_code: orderData.activation_code || "",
+            sm_dp_address: "consumer.e-sim.global"
           },
           sessions: []
         };
@@ -316,8 +286,8 @@ const ESimDetail = () => {
           },
           activation: {
             qr_code: orderData.esim_qr_code || "",
-            manual_code: (orderData as any).manual_code || orderData.activation_code || "",
-            sm_dp_address: (orderData as any).smdp_address || "consumer.e-sim.global"
+            manual_code: orderData.activation_code || "",
+            sm_dp_address: "consumer.e-sim.global"
           },
           sessions: apiData.obj?.sessions || []
         };
@@ -780,9 +750,9 @@ Instructions:
                 </CardHeader>
                 <CardContent className="text-center">
                   <div className="w-64 h-64 mx-auto mb-4 glass-intense rounded-lg flex items-center justify-center border border-white/10">
-                    {qrDataUrl ? (
+                    {esimDetails.activation.qr_code ? (
                       <img 
-                        src={qrDataUrl} 
+                        src={esimDetails.activation.qr_code} 
                         alt="eSIM QR Code"
                         className="w-full h-full object-contain p-4"
                       />
@@ -881,20 +851,12 @@ Instructions:
                     <p className="text-sm text-muted-foreground mb-2">Activation Code</p>
                     <div className="flex items-center gap-2">
                       <code className="glass-intense p-2 rounded font-mono text-sm flex-1 border border-white/10">
-                        {/* Show different activation codes based on supplier */}
-                        {orderInfo?.esim_plans?.supplier_name === 'maya' 
-                          ? esimDetails.activation.manual_code || esimDetails.activation.qr_code
-                          : esimDetails.activation.manual_code
-                        }
+                        {esimDetails.activation.manual_code}
                       </code>
                       <Button 
                         variant="outline" 
                         size="sm"
-                        onClick={() => copyToClipboard(
-                          orderInfo?.esim_plans?.supplier_name === 'maya' 
-                            ? esimDetails.activation.manual_code || esimDetails.activation.qr_code
-                            : esimDetails.activation.manual_code
-                        )}
+                        onClick={() => copyToClipboard(esimDetails.activation.manual_code)}
                         className="glass-intense border-0 hover:bg-white/10"
                       >
                         <Copy className="h-4 w-4" />
@@ -902,25 +864,22 @@ Instructions:
                     </div>
                   </div>
 
-                  {/* Only show SM-DP Address for eSIM Access */}
-                  {orderInfo?.esim_plans?.supplier_name !== 'maya' && (
-                    <div>
-                      <p className="text-sm text-muted-foreground mb-2">SM-DP Address</p>
-                      <div className="flex items-center gap-2">
-                        <code className="glass-intense p-2 rounded font-mono text-sm flex-1 border border-white/10">
-                          {esimDetails.activation.sm_dp_address}
-                        </code>
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => copyToClipboard(esimDetails.activation.sm_dp_address)}
-                          className="glass-intense border-0 hover:bg-white/10"
-                        >
-                          <Copy className="h-4 w-4" />
-                        </Button>
-                      </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground mb-2">SM-DP Address</p>
+                    <div className="flex items-center gap-2">
+                      <code className="glass-intense p-2 rounded font-mono text-sm flex-1 border border-white/10">
+                        {esimDetails.activation.sm_dp_address}
+                      </code>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => copyToClipboard(esimDetails.activation.sm_dp_address)}
+                        className="glass-intense border-0 hover:bg-white/10"
+                      >
+                        <Copy className="h-4 w-4" />
+                      </Button>
                     </div>
-                  )}
+                  </div>
 
                   <div>
                     <div className="flex items-center gap-2 mb-2">
@@ -932,20 +891,12 @@ Instructions:
                     <p className="text-sm text-muted-foreground mb-2">Activation Code</p>
                     <div className="flex items-center gap-2">
                       <code className="glass-intense p-2 rounded font-mono text-sm flex-1 border border-white/10">
-                        {/* Show different Android activation codes based on supplier */}
-                        {orderInfo?.esim_plans?.supplier_name === 'maya' 
-                          ? esimDetails.activation.manual_code || esimDetails.activation.qr_code
-                          : `LPA:1$${esimDetails.activation.sm_dp_address}$${esimDetails.activation.manual_code}`
-                        }
+                        LPA:1${esimDetails.activation.sm_dp_address}${esimDetails.activation.manual_code}
                       </code>
                       <Button 
                         variant="outline" 
                         size="sm"
-                        onClick={() => copyToClipboard(
-                          orderInfo?.esim_plans?.supplier_name === 'maya' 
-                            ? esimDetails.activation.manual_code || esimDetails.activation.qr_code
-                            : `LPA:1$${esimDetails.activation.sm_dp_address}$${esimDetails.activation.manual_code}`
-                        )}
+                        onClick={() => copyToClipboard(`LPA:1$${esimDetails.activation.sm_dp_address}$${esimDetails.activation.manual_code}`)}
                         className="glass-intense border-0 hover:bg-white/10"
                       >
                         <Copy className="h-4 w-4" />

@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/components/ui/use-toast";
 import { Eye, EyeOff, Shield, Users, Globe, CheckCircle, Smartphone, ArrowLeft } from "lucide-react";
-import { TestMayaSync } from "@/components/TestMayaSync";
+
 
 const setSEO = (title: string, description: string, canonical?: string) => {
   document.title = title;
@@ -386,8 +386,6 @@ const Auth = () => {
             </CardContent>
           </Card>
           
-          {/* Maya Test Component */}
-          <TestMayaSync />
         </div>
         </section>
 

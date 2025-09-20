@@ -213,19 +213,40 @@ serve(async (req) => {
     // Try OAuth 2.0 authentication first
     const accessToken = await getMayaAccessToken(mayaApiKey, mayaApiSecret, mayaApiUrl, correlationId);
     
-    // Create the Maya API request with correct structure
-    const mayaRequestPayload = {
-      items: [
-        {
-          product_uid: plan.supplier_plan_id.replace('maya_', ''), // Remove maya_ prefix
-          quantity: 1
-        }
-      ],
-      external_reference: order_id,
-      channel: 'api'
-    };
+    // Create the Maya API request with multiple compatible shapes and endpoints
+    const productUid = plan.supplier_plan_id.replace('maya_', '');
 
-    console.log(`[${correlationId}] Maya API Request payload:`, mayaRequestPayload);
+    const payloadVariants = [
+      {
+        name: 'items',
+        body: {
+          items: [
+            { product_uid: productUid, quantity: 1 }
+          ],
+          external_reference: order_id,
+          channel: 'api'
+        }
+      },
+      {
+        name: 'products',
+        body: {
+          products: [
+            { uid: productUid, quantity: 1 }
+          ],
+          external_reference: order_id
+        }
+      },
+      {
+        name: 'simple',
+        body: {
+          product_uid: productUid,
+          quantity: 1,
+          external_reference: order_id
+        }
+      }
+    ];
+
+    console.log(`[${correlationId}] Maya product UID:`, productUid);
 
     // Set up authentication headers
     const headers: Record<string, string> = {
@@ -242,53 +263,58 @@ serve(async (req) => {
       console.log(`[${correlationId}] Using Basic Auth fallback`);
     }
 
-    // Try account-scoped endpoint first, then fallback
+    // Try product-scoped endpoint first, then account/global with and without trailing slash
     const endpoints = [
+      `${mayaApiUrl}/connectivity/v1/account/products/${productUid}/orders`,
+      `${mayaApiUrl}/connectivity/v1/account/products/${productUid}/orders/`,
       `${mayaApiUrl}/connectivity/v1/account/orders`,
-      `${mayaApiUrl}/connectivity/v1/orders`
+      `${mayaApiUrl}/connectivity/v1/account/orders/`,
+      `${mayaApiUrl}/connectivity/v1/orders`,
+      `${mayaApiUrl}/connectivity/v1/orders/`
     ];
 
     let mayaResponse: Response | null = null;
     let mayaResponseData: any = null;
 
-    for (const endpoint of endpoints) {
-      try {
-        console.log(`[${correlationId}] Attempting request to: ${endpoint}`);
-        
-        mayaResponse = await fetch(endpoint, {
-          method: 'POST',
-          headers,
-          body: JSON.stringify(mayaRequestPayload)
-        });
-
-        console.log(`[${correlationId}] Response status: ${mayaResponse.status} from ${endpoint}`);
-        console.log(`[${correlationId}] Response headers:`, Object.fromEntries(mayaResponse.headers.entries()));
-
-        const responseText = await mayaResponse.text();
-        console.log(`[${correlationId}] Raw response:`, responseText);
-
+    outer: for (const endpoint of endpoints) {
+      for (const variant of payloadVariants) {
         try {
-          mayaResponseData = JSON.parse(responseText);
-          console.log(`[${correlationId}] Parsed response data:`, mayaResponseData);
-        } catch (parseError) {
-          console.error(`[${correlationId}] Failed to parse response as JSON:`, parseError);
-          mayaResponseData = { error: 'Invalid JSON response', raw_response: responseText };
-        }
+          console.log(`[${correlationId}] Attempting request to: ${endpoint} with payload variant: ${variant.name}`);
+          mayaResponse = await fetch(endpoint, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify(variant.body)
+          });
 
-        if (mayaResponse.ok) {
-          console.log(`[${correlationId}] Success with endpoint: ${endpoint}`);
-          break;
-        } else if (mayaResponse.status === 404 && endpoint === endpoints[0]) {
-          console.log(`[${correlationId}] 404 on account endpoint, trying direct endpoint`);
+          console.log(`[${correlationId}] Response status: ${mayaResponse.status} from ${endpoint}`);
+          console.log(`[${correlationId}] Response headers:`, Object.fromEntries(mayaResponse.headers.entries()));
+
+          const responseText = await mayaResponse.text();
+          console.log(`[${correlationId}] Raw response:`, responseText);
+
+          try {
+            mayaResponseData = responseText ? JSON.parse(responseText) : {};
+            console.log(`[${correlationId}] Parsed response data:`, mayaResponseData);
+          } catch (parseError) {
+            console.error(`[${correlationId}] Failed to parse response as JSON:`, parseError);
+            mayaResponseData = { error: 'Invalid JSON response', raw_response: responseText };
+          }
+
+          if (mayaResponse.ok) {
+            console.log(`[${correlationId}] Success with endpoint: ${endpoint} and payload variant: ${variant.name}`);
+            break outer;
+          } else if (mayaResponse.status === 404) {
+            console.log(`[${correlationId}] 404 on ${endpoint} with variant ${variant.name}, trying next combination`);
+            continue; // try next variant/endpoint combination
+          } else {
+            console.error(`[${correlationId}] Error with endpoint ${endpoint} (variant ${variant.name}):`, mayaResponseData);
+            // For non-404 errors, stop trying this endpoint and move to next
+            break;
+          }
+        } catch (error) {
+          console.error(`[${correlationId}] Request failed for ${endpoint} (variant ${variant.name}):`, error);
+          // try next endpoint if this was the last variant
           continue;
-        } else {
-          console.error(`[${correlationId}] Error with endpoint ${endpoint}:`, mayaResponseData);
-          break;
-        }
-      } catch (error) {
-        console.error(`[${correlationId}] Request failed for ${endpoint}:`, error);
-        if (endpoint === endpoints[endpoints.length - 1]) {
-          throw error;
         }
       }
     }

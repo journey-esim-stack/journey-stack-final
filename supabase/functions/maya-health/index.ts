@@ -20,6 +20,56 @@ async function logTrace(supabaseClient: any, action: string, details: any) {
   }
 }
 
+// Get Maya OAuth access token
+async function getMayaAccessToken(apiKey: string, apiSecret: string, apiUrl: string) {
+  const oauthEndpoints = [
+    `${apiUrl}/oauth/token`,
+    `${apiUrl}/connectivity/v1/oauth/token`
+  ];
+
+  for (const endpoint of oauthEndpoints) {
+    try {
+      console.log(`Testing OAuth at: ${endpoint}`);
+      
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Accept': 'application/json',
+        },
+        body: new URLSearchParams({
+          grant_type: 'client_credentials',
+          client_id: apiKey,
+          client_secret: apiSecret,
+        }),
+      });
+
+      console.log(`OAuth response status: ${response.status}`);
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.access_token) {
+          console.log('OAuth successful, got access token');
+          return { success: true, token: `Bearer ${data.access_token}`, method: 'OAuth', endpoint };
+        }
+      } else {
+        const errorText = await response.text();
+        console.log(`OAuth failed at ${endpoint}:`, errorText);
+      }
+    } catch (error) {
+      console.log(`OAuth attempt failed at ${endpoint}:`, error.message);
+    }
+  }
+
+  console.log('All OAuth attempts failed, using Basic Auth');
+  return { 
+    success: false, 
+    token: `Basic ${btoa(`${apiKey}:${apiSecret}`)}`, 
+    method: 'Basic Auth',
+    endpoint: 'fallback'
+  };
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -76,74 +126,108 @@ serve(async (req) => {
       });
     }
 
-    // Create Basic Auth header
-    const basicAuth = btoa(`${mayaApiKey}:${mayaApiSecret}`);
-    
-    // Test Maya API connectivity with a simple endpoint
-    const testUrl = `${mayaApiUrl}/connectivity/v1/products`;
-    console.log('Testing Maya API connectivity to:', testUrl);
-    
-    await logTrace(supabaseClient, 'api_request_start', { url: testUrl });
-
-    const response = await fetch(testUrl, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Basic ${basicAuth}`,
-        'Content-Type': 'application/json',
-      },
-    });
-
-    const responseHeaders = Object.fromEntries(response.headers.entries());
-    console.log('Maya API Response:', {
-      status: response.status,
-      statusText: response.statusText,
-      headers: responseHeaders
-    });
-
-    await logTrace(supabaseClient, 'api_response_headers', { 
-      status: response.status, 
-      statusText: response.statusText,
-      headers: responseHeaders 
-    });
-
-    // Try to get response body (limit to first 500 chars for safety)
-    let responseBody = '';
-    let parseError = null;
-    
-    try {
-      const text = await response.text();
-      responseBody = text.substring(0, 500);
-      
-      // Try parsing as JSON if it looks like JSON
-      if (responseBody.trim().startsWith('{') || responseBody.trim().startsWith('[')) {
-        JSON.parse(responseBody);
-      }
-    } catch (e) {
-      parseError = e.message;
-    }
-
-    await logTrace(supabaseClient, 'api_response_body', { 
-      responseBody, 
-      parseError,
-      contentType: response.headers.get('content-type')
-    });
-
-    const healthResult = {
-      success: response.ok,
-      status: response.status,
-      statusText: response.statusText,
-      headers: responseHeaders,
-      bodySnippet: responseBody,
-      parseError,
-      timestamp: new Date().toISOString(),
-      testUrl
+    const healthResults = {
+      credentials: 'OK',
+      auth: {},
+      endpoints: {},
+      products: {},
+      recommendations: []
     };
 
-    await logTrace(supabaseClient, 'health_check_complete', healthResult);
+    // Test authentication
+    const authResult = await getMayaAccessToken(mayaApiKey, mayaApiSecret, mayaApiUrl);
+    healthResults.auth = authResult;
+    await logTrace(supabaseClient, 'auth_test', authResult);
 
-    console.log('Maya Health Check completed:', healthResult);
+    // Test endpoints with the auth token
+    const testEndpoints = [
+      `${mayaApiUrl}/connectivity/v1/account/orders`,
+      `${mayaApiUrl}/connectivity/v1/orders`,
+      `${mayaApiUrl}/connectivity/v1/products`,
+      `${mayaApiUrl}/connectivity/v1/account/products`,
+    ];
 
-    return new Response(JSON.stringify(healthResult), {
+    for (const endpoint of testEndpoints) {
+      try {
+        console.log(`Testing endpoint: ${endpoint}`);
+        
+        const response = await fetch(endpoint, {
+          method: 'GET',
+          headers: {
+            'Authorization': authResult.token,
+            'Accept': 'application/json',
+          },
+        });
+
+        const responseText = await response.text();
+        
+        const endpointResult = {
+          status: response.status,
+          ok: response.ok,
+          contentType: response.headers.get('content-type'),
+          responsePreview: responseText.substring(0, 200)
+        };
+        
+        healthResults.endpoints[endpoint] = endpointResult;
+        await logTrace(supabaseClient, 'endpoint_test', { endpoint, result: endpointResult });
+
+        console.log(`${endpoint}: ${response.status} - ${response.ok ? 'OK' : 'FAILED'}`);
+
+        // If this is a products endpoint and it works, try to get products
+        if (response.ok && endpoint.includes('products')) {
+          try {
+            const products = JSON.parse(responseText);
+            const productInfo = {
+              count: products?.data?.length || products?.length || 0,
+              sampleProducts: (products?.data || products || []).slice(0, 3).map((p: any) => ({
+                uid: p.uid || p.product_uid || p.id,
+                name: p.name || p.title,
+                type: p.type
+              }))
+            };
+            healthResults.products[endpoint] = productInfo;
+            await logTrace(supabaseClient, 'products_found', { endpoint, productInfo });
+          } catch (parseError) {
+            healthResults.products[endpoint] = { error: 'Failed to parse products' };
+          }
+        }
+      } catch (error) {
+        const errorResult = { error: error.message };
+        healthResults.endpoints[endpoint] = errorResult;
+        await logTrace(supabaseClient, 'endpoint_error', { endpoint, error: error.message });
+        console.error(`Error testing ${endpoint}:`, error.message);
+      }
+    }
+
+    // Generate recommendations
+    if (!authResult.success) {
+      healthResults.recommendations.push('OAuth authentication failed - using Basic Auth fallback');
+    }
+
+    const workingEndpoints = Object.entries(healthResults.endpoints)
+      .filter(([_, result]: [string, any]) => result.ok)
+      .map(([endpoint, _]) => endpoint);
+
+    if (workingEndpoints.length === 0) {
+      healthResults.recommendations.push('No endpoints are accessible - check API credentials and base URL');
+    } else {
+      healthResults.recommendations.push(`Working endpoints found: ${workingEndpoints.join(', ')}`);
+      
+      const hasAccountEndpoints = workingEndpoints.some(ep => ep.includes('/account/'));
+      if (hasAccountEndpoints) {
+        healthResults.recommendations.push('Use account-scoped endpoints (/account/orders) for better reliability');
+      }
+    }
+
+    const hasProducts = Object.values(healthResults.products).some((p: any) => p.count > 0);
+    if (!hasProducts) {
+      healthResults.recommendations.push('No products found - check if account has access to eSIM products');
+    }
+
+    await logTrace(supabaseClient, 'health_check_complete', healthResults);
+    console.log('Maya Health Check completed:', healthResults);
+
+    return new Response(JSON.stringify(healthResults, null, 2), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 

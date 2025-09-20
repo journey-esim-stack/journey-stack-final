@@ -8,12 +8,12 @@ const corsHeaders = {
 };
 
 // Persist diagnostics even if functions logs UI lags
-async function logTrace(supabaseClient: any, action: string, details: any) {
+async function logTrace(supabaseClient: any, action: string, details: any, correlationId?: string) {
   try {
     await supabaseClient.from('audit_logs').insert({
       table_name: 'create_maya_esim',
       action,
-      new_values: details,
+      new_values: { ...details, correlationId },
     });
   } catch (e) {
     console.error('audit log insert failed', e);
@@ -132,9 +132,9 @@ serve(async (req) => {
       });
     }
 
-    const { plan_id, order_id } = requestBody;
+    const { plan_id, order_id, correlationId } = requestBody;
     
-    await logTrace(supabaseClient, 'start', { plan_id, order_id });
+    await logTrace(supabaseClient, 'start', { plan_id, order_id }, correlationId);
     
     if (!plan_id || !order_id) {
       console.error('Missing required fields:', { plan_id, order_id });
@@ -176,7 +176,7 @@ serve(async (req) => {
       hasMayaApiSecret: !!mayaApiSecret,
       hasMayaApiUrl: !!mayaApiUrl,
     });
-    await logTrace(supabaseClient, 'env_check', { hasMayaApiKey: !!mayaApiKey, hasMayaApiSecret: !!mayaApiSecret, hasMayaApiUrl: !!mayaApiUrl });
+    await logTrace(supabaseClient, 'env_check', { hasMayaApiKey: !!mayaApiKey, hasMayaApiSecret: !!mayaApiSecret, hasMayaApiUrl: !!mayaApiUrl }, correlationId);
 
     if (!mayaApiKey || !mayaApiSecret || !mayaApiUrl) {
       console.error('Missing Maya service credentials');
@@ -200,7 +200,7 @@ serve(async (req) => {
       external_reference: order_id, // use our DB order id as reference
     };
     console.log('Maya Order Request payload:', orderPayload);
-    await logTrace(supabaseClient, 'order_request', { url: `${mayaApiUrl}/connectivity/v1/orders`, payload: orderPayload });
+    await logTrace(supabaseClient, 'order_request', { url: `${mayaApiUrl}/connectivity/v1/orders`, payload: orderPayload }, correlationId);
 
     const orderRes = await fetch(`${mayaApiUrl}/connectivity/v1/orders`, {
       method: 'POST',
@@ -214,7 +214,7 @@ serve(async (req) => {
 
     console.log('Maya Order API Response status:', orderRes.status);
     console.log('Maya Order API Response headers:', Object.fromEntries(orderRes.headers.entries()));
-    await logTrace(supabaseClient, 'order_response_headers', { status: orderRes.status, headers: Object.fromEntries(orderRes.headers.entries()) });
+    await logTrace(supabaseClient, 'order_response_headers', { status: orderRes.status, headers: Object.fromEntries(orderRes.headers.entries()) }, correlationId);
 
     // Check if response is HTML (404 error page) instead of JSON
     const contentType = orderRes.headers.get('content-type');
@@ -246,9 +246,25 @@ serve(async (req) => {
     let orderJson;
     try {
       orderJson = await orderRes.json();
-      await logTrace(supabaseClient, 'order_response_body', { ok: orderRes.ok, keys: Object.keys(orderJson || {}), data_keys: Object.keys(orderJson?.data || {}) });
+      await logTrace(supabaseClient, 'order_response_body', { ok: orderRes.ok, keys: Object.keys(orderJson || {}), data_keys: Object.keys(orderJson?.data || {}) }, correlationId);
     } catch (parseError) {
       console.error('Failed to parse Maya API response as JSON:', parseError);
+      
+      // Capture raw response text for debugging
+      try {
+        const rawText = await orderRes.text();
+        await logTrace(supabaseClient, 'order_response_parse_error', { 
+          parseError: parseError.message, 
+          rawTextSnippet: rawText.substring(0, 500),
+          contentType 
+        }, correlationId);
+      } catch (textError) {
+        await logTrace(supabaseClient, 'order_response_parse_error', { 
+          parseError: parseError.message, 
+          textError: textError.message,
+          contentType 
+        }, correlationId);
+      }
       
       // Update order status to failed
       await supabaseClient

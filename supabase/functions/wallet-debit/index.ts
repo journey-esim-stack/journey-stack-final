@@ -26,6 +26,9 @@ serve(async (req) => {
   }
 
   try {
+    // Generate correlation ID for tracing across functions
+    const correlationId = crypto.randomUUID();
+    
     const { amount, description, reference_id, cart_items, customer_info, device_info } = await req.json();
     if (typeof amount !== "number" || amount <= 0) {
       throw new Error("amount must be a positive number");
@@ -53,7 +56,7 @@ serve(async (req) => {
       .single();
 if (profileErr) throw profileErr;
 
-    await logTrace(supabase, 'start', { amount, reference_id, cart_items_count: cart_items?.length || 0 }, user.id);
+    await logTrace(supabase, 'start', { correlationId, amount, reference_id, cart_items_count: cart_items?.length || 0 }, user.id);
 
     const currentBalance = Number(profile.wallet_balance);
     if (currentBalance < amount) {
@@ -178,10 +181,11 @@ orderIds = orderData?.map(o => o.id) || [];
           const functionName = supplierName === 'maya' ? 'create-maya-esim' : 'create-esim';
 console.log(`Using function ${functionName} for supplier ${supplierName}`);
 
-          await logTrace(supabase, 'invoke_create_esim', { function: functionName, plan_id: planIdToUse, order_id: order.id }, user.id);
+          await logTrace(supabase, 'invoke_create_esim', { correlationId, function: functionName, plan_id: planIdToUse, order_id: order.id }, user.id);
           
           const { data: esimData, error: esimError } = await supabase.functions.invoke(functionName, {
             body: {
+              correlationId,
               plan_id: planIdToUse,
               order_id: order.id
             }

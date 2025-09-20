@@ -135,10 +135,27 @@ export const CheckoutForm = ({ onSuccess, onCancel }: CheckoutFormProps) => {
             variant: 'destructive' 
           });
         } else {
-          // Show specific error message if available
-          const errorMessage = msg || errorData?.error || 'Something went wrong. Try again.';
+          // Enhanced error messaging with provider status codes
+          let errorTitle = 'Checkout failed';
+          let errorMessage = msg || errorData?.error || 'Something went wrong. Try again.';
+          
+          // Check for specific provider errors
+          if (msg.includes('401') || msg.includes('unauthorized')) {
+            errorTitle = 'Provider authentication failed';
+            errorMessage = 'Service provider credentials issue. Please contact support.';
+          } else if (msg.includes('404') || msg.includes('not found')) {
+            errorTitle = 'Service unavailable';
+            errorMessage = 'eSIM service temporarily unavailable. Please try again later.';
+          } else if (msg.includes('500') || msg.includes('502') || msg.includes('503')) {
+            errorTitle = 'Provider service error';
+            errorMessage = 'eSIM provider is experiencing issues. Please try again in a few minutes.';
+          } else if (msg.includes('timeout') || msg.includes('TIMEOUT')) {
+            errorTitle = 'Request timeout';
+            errorMessage = 'eSIM provisioning is taking longer than expected. Your order may still be processing.';
+          }
+          
           toast({ 
-            title: 'Checkout failed', 
+            title: errorTitle, 
             description: errorMessage, 
             variant: 'destructive' 
           });

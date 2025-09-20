@@ -881,12 +881,20 @@ Instructions:
                     <p className="text-sm text-muted-foreground mb-2">Activation Code</p>
                     <div className="flex items-center gap-2">
                       <code className="glass-intense p-2 rounded font-mono text-sm flex-1 border border-white/10">
-                        {esimDetails.activation.manual_code}
+                        {/* Show different activation codes based on supplier */}
+                        {orderInfo?.esim_plans?.supplier_name === 'maya' 
+                          ? esimDetails.activation.manual_code || esimDetails.activation.qr_code
+                          : esimDetails.activation.manual_code
+                        }
                       </code>
                       <Button 
                         variant="outline" 
                         size="sm"
-                        onClick={() => copyToClipboard(esimDetails.activation.manual_code)}
+                        onClick={() => copyToClipboard(
+                          orderInfo?.esim_plans?.supplier_name === 'maya' 
+                            ? esimDetails.activation.manual_code || esimDetails.activation.qr_code
+                            : esimDetails.activation.manual_code
+                        )}
                         className="glass-intense border-0 hover:bg-white/10"
                       >
                         <Copy className="h-4 w-4" />
@@ -894,22 +902,25 @@ Instructions:
                     </div>
                   </div>
 
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-2">SM-DP Address</p>
-                    <div className="flex items-center gap-2">
-                      <code className="glass-intense p-2 rounded font-mono text-sm flex-1 border border-white/10">
-                        {esimDetails.activation.sm_dp_address}
-                      </code>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => copyToClipboard(esimDetails.activation.sm_dp_address)}
-                        className="glass-intense border-0 hover:bg-white/10"
-                      >
-                        <Copy className="h-4 w-4" />
-                      </Button>
+                  {/* Only show SM-DP Address for eSIM Access */}
+                  {orderInfo?.esim_plans?.supplier_name !== 'maya' && (
+                    <div>
+                      <p className="text-sm text-muted-foreground mb-2">SM-DP Address</p>
+                      <div className="flex items-center gap-2">
+                        <code className="glass-intense p-2 rounded font-mono text-sm flex-1 border border-white/10">
+                          {esimDetails.activation.sm_dp_address}
+                        </code>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => copyToClipboard(esimDetails.activation.sm_dp_address)}
+                          className="glass-intense border-0 hover:bg-white/10"
+                        >
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
-                  </div>
+                  )}
 
                   <div>
                     <div className="flex items-center gap-2 mb-2">
@@ -921,12 +932,20 @@ Instructions:
                     <p className="text-sm text-muted-foreground mb-2">Activation Code</p>
                     <div className="flex items-center gap-2">
                       <code className="glass-intense p-2 rounded font-mono text-sm flex-1 border border-white/10">
-                        LPA:1${esimDetails.activation.sm_dp_address}${esimDetails.activation.manual_code}
+                        {/* Show different Android activation codes based on supplier */}
+                        {orderInfo?.esim_plans?.supplier_name === 'maya' 
+                          ? esimDetails.activation.manual_code || esimDetails.activation.qr_code
+                          : `LPA:1$${esimDetails.activation.sm_dp_address}$${esimDetails.activation.manual_code}`
+                        }
                       </code>
                       <Button 
                         variant="outline" 
                         size="sm"
-                        onClick={() => copyToClipboard(`LPA:1$${esimDetails.activation.sm_dp_address}$${esimDetails.activation.manual_code}`)}
+                        onClick={() => copyToClipboard(
+                          orderInfo?.esim_plans?.supplier_name === 'maya' 
+                            ? esimDetails.activation.manual_code || esimDetails.activation.qr_code
+                            : `LPA:1$${esimDetails.activation.sm_dp_address}$${esimDetails.activation.manual_code}`
+                        )}
                         className="glass-intense border-0 hover:bg-white/10"
                       >
                         <Copy className="h-4 w-4" />

@@ -212,7 +212,7 @@ serve(async (req) => {
     console.log('Maya Order Request payload:', orderPayload);
     await logTrace(supabaseClient, 'order_request', { url: `${mayaApiUrl}/connectivity/v1/orders`, payload: orderPayload }, correlationId);
 
-    const orderRes = await fetch(`${mayaApiUrl}/connectivity/v1/orders`, {
+    const orderRes = await fetch(`${mayaApiUrl}/connectivity/v1/account/orders`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -377,7 +377,7 @@ serve(async (req) => {
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       console.log(`Status check attempt ${attempt}/${maxAttempts} for Maya order:`, orderId);
       
-      const statusRes = await fetch(`${mayaApiUrl}/connectivity/v1/orders/${orderId}`, {
+      const statusRes = await fetch(`${mayaApiUrl}/connectivity/v1/account/orders/${orderId}`, {
         method: 'GET',
         headers: {
           'Authorization': basicAuth,

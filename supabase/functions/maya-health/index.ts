@@ -80,7 +80,7 @@ serve(async (req) => {
     const basicAuth = btoa(`${mayaApiKey}:${mayaApiSecret}`);
     
     // Test Maya API connectivity with a simple endpoint
-    const testUrl = `${mayaApiUrl}/connectivity/v1/products`;
+    const testUrl = `${mayaApiUrl}/connectivity/v1/account/products`;
     console.log('Testing Maya API connectivity to:', testUrl);
     
     await logTrace(supabaseClient, 'api_request_start', { url: testUrl });

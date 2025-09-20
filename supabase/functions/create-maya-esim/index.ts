@@ -27,41 +27,9 @@ async function logTrace(supabaseClient: any, action: string, details: any, corre
 
 // Function to get Maya OAuth 2.0 access token
 async function getMayaAccessToken(apiKey: string, apiSecret: string, apiUrl: string, correlationId: string): Promise<string | null> {
-  const authEndpoints = [
-    `${apiUrl}/oauth/token`,
-    `${apiUrl}/connectivity/v1/oauth/token`
-  ];
-
-  for (const endpoint of authEndpoints) {
-    try {
-      console.log(`[${correlationId}] Attempting OAuth at: ${endpoint}`);
-      
-      const tokenResponse = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        body: JSON.stringify({
-          grant_type: 'client_credentials',
-          client_id: apiKey,
-          client_secret: apiSecret
-        })
-      });
-
-      console.log(`[${correlationId}] OAuth response status: ${tokenResponse.status}`);
-      
-      if (tokenResponse.ok) {
-        const tokenData = await tokenResponse.json();
-        console.log(`[${correlationId}] OAuth success at: ${endpoint}`);
-        return tokenData.access_token;
-      }
-    } catch (error) {
-      console.log(`[${correlationId}] OAuth failed at ${endpoint}:`, error);
-    }
-  }
-
-  console.log(`[${correlationId}] All OAuth attempts failed, falling back to Basic Auth`);
+  // Skip OAuth for now since Maya endpoints are returning 404
+  // Go directly to Basic Auth which appears to be working
+  console.log(`[${correlationId}] Using Basic Auth (OAuth endpoints returning 404)`);
   return null;
 }
 

@@ -70,6 +70,9 @@ serve(async (req) => {
         ? {
             iccid: esim.iccid,
             status: esim.esimStatus,
+            // Add backward compatibility fields
+            dataAmount: Number(esim.totalVolume || 0) / (1024 * 1024 * 1024),
+            usedData: Number(esim.orderUsage || 0) / (1024 * 1024 * 1024),
             dataUsage: {
               used: (Number(esim.orderUsage || 0) / (1024 * 1024 * 1024)).toFixed(2),
               total: (Number(esim.totalVolume || 0) / (1024 * 1024 * 1024)).toFixed(2),

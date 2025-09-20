@@ -193,12 +193,12 @@ export default function Dashboard() {
           body: { iccid: order.esim_iccid }
         });
 
-        if (!error && eSimDetails?.success) {
+        if (!error && eSimDetails?.success && eSimDetails.obj) {
           const usage = eSimDetails.obj;
           // Calculate data usage percentage
-          const totalData = usage.dataAmount || 1;
-          const usedData = usage.usedData || 0;
-          const usagePercentage = (usedData / totalData) * 100;
+          const totalData = usage.dataAmount || usage.dataUsage?.total || 1;
+          const usedData = usage.usedData || usage.dataUsage?.used || 0;
+          const usagePercentage = (Number(usedData) / Number(totalData)) * 100;
 
           // Only include eSIMs with 80%+ usage
           if (usagePercentage >= 80) {

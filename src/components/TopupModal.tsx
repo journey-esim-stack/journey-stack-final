@@ -71,22 +71,9 @@ const TopupModal = ({ isOpen, onClose, iccid, packageCode, onTopupComplete }: To
   const fetchTopupPlans = async () => {
     setLoading(true);
     try {
-      // First, check if this is a Maya eSIM by looking up the order
-      const { data: orderData, error: orderError } = await supabase
-        .from('orders')
-        .select('plan_id, esim_plans(supplier_name)')
-        .eq('esim_iccid', iccid)
-        .single();
+      console.log(`Fetching topup plans for ICCID ${iccid}`);
 
-      let functionName = 'get-topup-plans'; // Default to eSIM Access
-      
-      if (!orderError && orderData?.esim_plans?.supplier_name === 'maya') {
-        functionName = 'get-maya-topup-plans';
-      }
-
-      console.log(`Using ${functionName} for ICCID ${iccid}`);
-
-      const { data, error } = await supabase.functions.invoke(functionName, {
+      const { data, error } = await supabase.functions.invoke('get-topup-plans', {
         body: { iccid, packageCode },
       });
 
@@ -96,29 +83,7 @@ const TopupModal = ({ isOpen, onClose, iccid, packageCode, onTopupComplete }: To
         throw new Error(data.error);
       }
 
-      // Handle different response formats
-      const plans = functionName === 'get-maya-topup-plans' ? data.data : data.plans;
-      
-      // Transform Maya plans to match expected format
-      const transformedPlans = plans?.map((plan: any) => {
-        if (functionName === 'get-maya-topup-plans') {
-          return {
-            packageCode: plan.package_code,
-            title: plan.name,
-            data_amount: plan.data_amount,
-            validity_days: plan.validity_days,
-            wholesale_price: plan.price,
-            retail_price: plan.price, // Maya plans already include markup
-            currency: plan.currency,
-            country_name: '',
-            country_code: '',
-            description: plan.description,
-          };
-        }
-        return plan;
-      }) || [];
-
-      setTopupPlans(transformedPlans);
+      setTopupPlans(data.plans || []);
     } catch (error) {
       console.error("Error fetching top-up plans:", error);
       toast.error("Failed to fetch top-up plans");
@@ -140,23 +105,17 @@ const TopupModal = ({ isOpen, onClose, iccid, packageCode, onTopupComplete }: To
 
     setProcessing(plan.packageCode);
     try {
-      // Check if this is a Maya eSIM by looking up the order
+      // Get order details for agent_id
       const { data: orderData, error: orderError } = await supabase
         .from('orders')
-        .select('plan_id, agent_id, esim_plans(supplier_name)')
+        .select('agent_id')
         .eq('esim_iccid', iccid)
         .single();
 
-      let functionName = 'process-topup'; // Default to eSIM Access
-      
-      if (!orderError && orderData?.esim_plans?.supplier_name === 'maya') {
-        functionName = 'process-maya-topup';
-      }
-
-      console.log(`Using ${functionName} for topup of ICCID ${iccid}`);
+      console.log(`Processing topup for ICCID ${iccid}`);
 
       const currentRetailPrice = Number(calculatePrice(plan.wholesale_price).toFixed(2));
-      const { data, error } = await supabase.functions.invoke(functionName, {
+      const { data, error } = await supabase.functions.invoke('process-topup', {
         body: {
           iccid,
           package_code: plan.packageCode,

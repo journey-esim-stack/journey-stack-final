@@ -23,15 +23,3 @@ verify_jwt = false
 
 [functions.sync-maya-plans]
 verify_jwt = false
-
-[functions.create-maya-esim]
-verify_jwt = false
-
-[functions.get-maya-topup-plans]
-verify_jwt = false
-
-[functions.process-maya-topup]
-verify_jwt = false
-
-[functions.maya-health]
-verify_jwt = false

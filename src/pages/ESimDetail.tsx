@@ -171,6 +171,7 @@ const ESimDetail = () => {
             ? esimDetails.activation.qr_code
             : `LPA:1$${esimDetails.activation.sm_dp_address}$${esimDetails.activation.manual_code}`;
           if (text) {
+            console.log('Generating QR for supplier', supplier, 'text prefix', text.slice(0, 20));
             const url = await QRCode.toDataURL(text, { margin: 1, scale: 6, color: { dark: '#000000', light: '#FFFFFF' } });
             setQrDataUrl(url);
           } else {
@@ -277,8 +278,8 @@ const ESimDetail = () => {
           },
           activation: {
             qr_code: orderData.esim_qr_code || "",
-            manual_code: orderData.activation_code || "",
-            sm_dp_address: "consumer.e-sim.global"
+            manual_code: (orderData as any).manual_code || orderData.activation_code || "",
+            sm_dp_address: (orderData as any).smdp_address || "consumer.e-sim.global"
           },
           sessions: []
         };
@@ -315,8 +316,8 @@ const ESimDetail = () => {
           },
           activation: {
             qr_code: orderData.esim_qr_code || "",
-            manual_code: orderData.activation_code || "",
-            sm_dp_address: "consumer.e-sim.global"
+            manual_code: (orderData as any).manual_code || orderData.activation_code || "",
+            sm_dp_address: (orderData as any).smdp_address || "consumer.e-sim.global"
           },
           sessions: apiData.obj?.sessions || []
         };

@@ -491,21 +491,9 @@ Instructions:
             {/* Data Usage Card */}
             <Card className="glass-card">
               <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Wifi className="h-5 w-5 text-primary" />
-                    Data Usage
-                  </div>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={handleManualRefresh}
-                    disabled={isRefreshing}
-                    className="glass-intense border-0 hover:bg-white/10"
-                  >
-                    <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
-                    {isRefreshing ? 'Refreshing...' : 'Refresh'}
-                  </Button>
+                <CardTitle className="flex items-center gap-2">
+                  <Wifi className="h-5 w-5 text-primary" />
+                  Data Usage
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">

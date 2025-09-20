@@ -213,38 +213,8 @@ serve(async (req) => {
     // Try OAuth 2.0 authentication first
     const accessToken = await getMayaAccessToken(mayaApiKey, mayaApiSecret, mayaApiUrl, correlationId);
     
-    // Create the Maya API request with multiple compatible shapes and endpoints
+    // Restore simple, working Maya order creation flow: single endpoint + single payload
     const productUid = plan.supplier_plan_id.replace('maya_', '');
-
-    const payloadVariants = [
-      {
-        name: 'items',
-        body: {
-          items: [
-            { product_uid: productUid, quantity: 1 }
-          ],
-          external_reference: order_id,
-          channel: 'api'
-        }
-      },
-      {
-        name: 'products',
-        body: {
-          products: [
-            { uid: productUid, quantity: 1 }
-          ],
-          external_reference: order_id
-        }
-      },
-      {
-        name: 'simple',
-        body: {
-          product_uid: productUid,
-          quantity: 1,
-          external_reference: order_id
-        }
-      }
-    ];
 
     console.log(`[${correlationId}] Maya product UID:`, productUid);
 
@@ -263,87 +233,94 @@ serve(async (req) => {
       console.log(`[${correlationId}] Using Basic Auth fallback`);
     }
 
-    // Try product-scoped endpoint first, then account/global with and without trailing slash
-    const endpoints = [
-      `${mayaApiUrl}/connectivity/v1/account/products/${productUid}/orders`,
-      `${mayaApiUrl}/connectivity/v1/account/products/${productUid}/orders/`,
-      `${mayaApiUrl}/connectivity/v1/account/orders`,
-      `${mayaApiUrl}/connectivity/v1/account/orders/`,
-      `${mayaApiUrl}/connectivity/v1/orders`,
-      `${mayaApiUrl}/connectivity/v1/orders/`
-    ];
+    // Working endpoints observed previously
+    const accountOrdersEndpoint = `${mayaApiUrl}/connectivity/v1/account/orders`;
+    const directOrdersEndpoint = `${mayaApiUrl}/connectivity/v1/orders`;
+
+    // Working payload format
+    const payload = {
+      items: [
+        { product_uid: productUid, quantity: 1 }
+      ],
+      external_reference: order_id,
+      channel: 'api'
+    };
 
     let mayaResponse: Response | null = null;
     let mayaResponseData: any = null;
 
-    outer: for (const endpoint of endpoints) {
-      for (const variant of payloadVariants) {
+    // Try account-scoped orders first, then direct orders as fallback
+    for (const endpoint of [accountOrdersEndpoint, directOrdersEndpoint]) {
+      try {
+        console.log(`[${correlationId}] Creating order at: ${endpoint}`);
+        mayaResponse = await fetch(endpoint, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(payload)
+        });
+
+        const status = mayaResponse.status;
+        console.log(`[${correlationId}] Order response status ${status} from ${endpoint}`);
+        console.log(`[${correlationId}] Response headers:`, Object.fromEntries(mayaResponse.headers.entries()));
+
+        const responseText = await mayaResponse.text();
+        console.log(`[${correlationId}] Raw response:`, responseText);
+
         try {
-          console.log(`[${correlationId}] Attempting request to: ${endpoint} with payload variant: ${variant.name}`);
-          mayaResponse = await fetch(endpoint, {
-            method: 'POST',
-            headers,
-            body: JSON.stringify(variant.body)
-          });
+          mayaResponseData = responseText ? JSON.parse(responseText) : {};
+        } catch (parseError) {
+          console.error(`[${correlationId}] Failed to parse response as JSON:`, parseError);
+          mayaResponseData = { error: 'Invalid JSON response', raw_response: responseText };
+        }
 
-          console.log(`[${correlationId}] Response status: ${mayaResponse.status} from ${endpoint}`);
-          console.log(`[${correlationId}] Response headers:`, Object.fromEntries(mayaResponse.headers.entries()));
+        if (mayaResponse.ok) {
+          console.log(`[${correlationId}] Order created successfully at ${endpoint}`);
+          break;
+        }
 
-          const responseText = await mayaResponse.text();
-          console.log(`[${correlationId}] Raw response:`, responseText);
-
-          try {
-            mayaResponseData = responseText ? JSON.parse(responseText) : {};
-            console.log(`[${correlationId}] Parsed response data:`, mayaResponseData);
-          } catch (parseError) {
-            console.error(`[${correlationId}] Failed to parse response as JSON:`, parseError);
-            mayaResponseData = { error: 'Invalid JSON response', raw_response: responseText };
-          }
-
-          if (mayaResponse.ok) {
-            console.log(`[${correlationId}] Success with endpoint: ${endpoint} and payload variant: ${variant.name}`);
-            break outer;
-          } else if (mayaResponse.status === 404) {
-            console.log(`[${correlationId}] 404 on ${endpoint} with variant ${variant.name}, trying next combination`);
-            continue; // try next variant/endpoint combination
-          } else {
-            console.error(`[${correlationId}] Error with endpoint ${endpoint} (variant ${variant.name}):`, mayaResponseData);
-            // For non-404 errors, stop trying this endpoint and move to next
-            break;
-          }
-        } catch (error) {
-          console.error(`[${correlationId}] Request failed for ${endpoint} (variant ${variant.name}):`, error);
-          // try next endpoint if this was the last variant
+        if (status === 404) {
+          console.log(`[${correlationId}] 404 at ${endpoint}, trying next endpoint if available...`);
+          // continue to next endpoint
           continue;
         }
+
+        // Non-404 errors: stop trying
+        console.error(`[${correlationId}] Provider error at ${endpoint}:`, mayaResponseData);
+        break;
+      } catch (err) {
+        console.error(`[${correlationId}] Request error at ${endpoint}:`, err);
+        // Try next endpoint
+        continue;
       }
     }
 
     if (!mayaResponse || !mayaResponse.ok) {
-      console.error(`[${correlationId}] Maya API error response:`, mayaResponseData);
-      console.error(`[${correlationId}] Maya API error - Status:`, mayaResponse?.status);
-      
+      const status = mayaResponse?.status ?? 0;
       const errorDetails = mayaResponseData?.developer_message || mayaResponseData?.message || mayaResponseData?.error || 'Unknown error';
-      
+
       await logTrace(supabaseClient, 'maya_api_error', {
-        status: mayaResponse?.status,
+        status,
         response: mayaResponseData,
         order_id,
         error_details: errorDetails
       }, correlationId);
 
-      // Issue refund for failed order
-      await issueRefund(supabaseClient, order_id, 'Service temporarily unavailable');
-      
+      // Refund only on server-side/provider errors (5xx) or allocation timeouts; not on 4xx like 404/401/403
+      if (status >= 500) {
+        await issueRefund(supabaseClient, order_id, 'Provider error while creating order');
+      }
+
       return new Response(
-        JSON.stringify({ 
-          error: 'Failed to create eSIM', 
+        JSON.stringify({
+          error: 'Failed to create eSIM',
           details: errorDetails,
+          status,
           correlation_id: correlationId
         }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: status || 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
 
     // Log successful order creation
     await logTrace(supabaseClient, 'maya_order_created', {

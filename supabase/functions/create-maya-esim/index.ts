@@ -113,7 +113,7 @@ serve(async (req) => {
   }
 
   try {
-    console.log('=== Create Maya eSIM Function Started ===');
+    console.log('=== Create Maya eSIM Function Started (v2 - using /esim endpoint) ===');
     
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',

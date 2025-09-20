@@ -67,6 +67,35 @@ export function TestMayaSync() {
     }
   };
 
+  const retryFailedOrders = async () => {
+    setValidatorLoading(true);
+    try {
+      console.log('Starting provider retry service...');
+      const { data, error } = await supabase.functions.invoke('provider-retry');
+      
+      if (error) {
+        console.error('Provider retry service error:', error);
+        throw error;
+      }
+
+      console.log('Provider retry service response:', data);
+      toast({
+        title: "Retry Service Complete",
+        description: `Processed ${data.processed || 0} retry attempts. Check logs for details.`,
+      });
+    } catch (error: any) {
+      console.error('Error running provider retry service:', error);
+      const message = error?.message || error?.error || 'Failed to run retry service';
+      toast({
+        title: "Error",
+        description: String(message).slice(0, 300),
+        variant: "destructive",
+      });
+    } finally {
+      setValidatorLoading(false);
+    }
+  };
+
   const validatePlans = async () => {
     setValidatorLoading(true);
     try {
@@ -101,9 +130,9 @@ export function TestMayaSync() {
 
   return (
     <div className="p-4 border rounded-lg space-y-4">
-      <h3 className="text-lg font-semibold mb-4">Maya API Management & Stability</h3>
+      <h3 className="text-lg font-semibold mb-4">Maya API Management & Provider Stability</h3>
       
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
         <Button 
           onClick={runHealthCheck} 
           disabled={healthLoading}
@@ -114,12 +143,21 @@ export function TestMayaSync() {
         </Button>
         
         <Button 
+          onClick={retryFailedOrders} 
+          disabled={validatorLoading}
+          variant="outline"
+          className="w-full"
+        >
+          {validatorLoading ? 'Retrying...' : 'Retry Failed Orders'}
+        </Button>
+        
+        <Button 
           onClick={validatePlans} 
           disabled={validatorLoading}
           variant="outline"
           className="w-full"
         >
-          {validatorLoading ? 'Validating Plans...' : 'Validate Plans'}
+          {validatorLoading ? 'Validating...' : 'Validate Plans'}
         </Button>
         
         <Button 
@@ -131,10 +169,15 @@ export function TestMayaSync() {
         </Button>
       </div>
       
-      <div className="text-xs text-muted-foreground mt-2">
-        <p><strong>Health Check:</strong> Verifies Maya API connectivity and authentication</p>
-        <p><strong>Validate Plans:</strong> Checks for invalid/outdated plans and fixes pricing</p>
-        <p><strong>Sync Plans:</strong> Fetches latest plans from Maya API</p>
+      <div className="text-xs text-muted-foreground mt-2 grid grid-cols-1 md:grid-cols-2 gap-2">
+        <div>
+          <p><strong>Health Check:</strong> Verifies Maya API connectivity</p>
+          <p><strong>Retry Failed:</strong> Retries orders stuck due to provider busy errors</p>
+        </div>
+        <div>
+          <p><strong>Validate Plans:</strong> Checks for invalid/outdated plans and fixes pricing</p>
+          <p><strong>Sync Plans:</strong> Fetches latest plans from Maya API</p>
+        </div>
       </div>
     </div>
   );

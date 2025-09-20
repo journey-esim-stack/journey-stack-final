@@ -38,3 +38,6 @@ verify_jwt = false
 
 [functions.maya-plan-validator]
 verify_jwt = false
+
+[functions.provider-retry]
+verify_jwt = false

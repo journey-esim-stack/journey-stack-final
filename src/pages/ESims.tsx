@@ -324,22 +324,36 @@ const ESims = () => {
   const retryESIMCreation = async (orderId: string, planId: string) => {
     try {
       setRetryingId(orderId);
-      
-      console.log('Calling create-esim function directly...');
-      
-      // Use direct fetch to get detailed error info  
+
+      // Determine supplier for the plan to call the correct edge function
+      const { data: planRow, error: planErr } = await supabase
+        .from('esim_plans')
+        .select('supplier_name')
+        .eq('id', planId)
+        .maybeSingle();
+
+      if (planErr) {
+        console.error('Failed to fetch plan for retry:', planErr);
+      }
+
+      const supplier = planRow?.supplier_name?.toLowerCase() || 'esim_access';
+      const functionName = supplier === 'maya' ? 'create-maya-esim' : 'create-esim';
+
+      console.log(`Retrying eSIM creation via ${functionName} for supplier: ${supplier}`);
+
+      // Use direct fetch to get detailed error info
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData.session?.access_token;
-      
-      const response = await fetch('https://cccktfactlzxuprpyhgh.supabase.co/functions/v1/create-esim', {
+
+      const response = await fetch(`https://cccktfactlzxuprpyhgh.supabase.co/functions/v1/${functionName}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           ...(token ? { 'Authorization': `Bearer ${token}` } : {})
         },
-        body: JSON.stringify({ 
-          plan_id: planId, 
-          order_id: orderId 
+        body: JSON.stringify({
+          plan_id: planId,
+          order_id: orderId
         })
       });
       

@@ -174,13 +174,13 @@ serve(async (req) => {
       });
     }
 
-    const { plan_id, order_id, correlationId } = requestBody;
+    const { plan_id, order_id, correlationId, product_uid } = requestBody;
     
-    await logTrace(supabaseClient, 'start', { plan_id, order_id }, correlationId);
+    await logTrace(supabaseClient, 'start', { plan_id, product_uid, order_id }, correlationId);
     
-    if (!plan_id || !order_id) {
-      console.error('Missing required fields:', { plan_id, order_id });
-      return new Response(JSON.stringify({ error: 'plan_id and order_id are required' }), {
+    if (!order_id || (!plan_id && !product_uid)) {
+      console.error('Missing required fields:', { plan_id, product_uid, order_id });
+      return new Response(JSON.stringify({ error: 'order_id and either plan_id or product_uid are required' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });

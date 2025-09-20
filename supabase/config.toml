@@ -35,3 +35,6 @@ verify_jwt = false
 
 [functions.maya-health]
 verify_jwt = false
+
+[functions.maya-plan-validator]
+verify_jwt = false

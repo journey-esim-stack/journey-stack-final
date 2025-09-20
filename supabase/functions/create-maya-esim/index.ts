@@ -327,10 +327,28 @@ serve(async (req) => {
         error_details: errorDetails
       }, correlationId);
 
-      // Refund only on server-side/provider errors (5xx) or allocation timeouts; not on 4xx like 404/401/403
-      if (status >= 500) {
-        await issueRefund(supabaseClient, order_id, 'Provider error while creating order');
-      }
+    // Enhanced refund logic based on error codes
+    if (status >= 500) {
+      await issueRefund(supabaseClient, order_id, 'Provider server error while creating order');
+    } else if (mayaResponseData?.errorCode === '310241') {
+      // Specific Maya error: plan doesn't exist
+      await issueRefund(supabaseClient, order_id, 'Service temporarily unavailable');
+      
+      // Log for plan validation
+      await logTrace(supabaseClient, 'invalid_plan_detected', {
+        plan_id,
+        supplier_plan_id: plan.supplier_plan_id,
+        order_id,
+        maya_error: mayaResponseData
+      }, correlationId);
+    } else if (status === 401 || status === 403) {
+      // Authentication/authorization issues - don't refund, log for investigation
+      await logTrace(supabaseClient, 'auth_error', {
+        status,
+        response: mayaResponseData,
+        order_id
+      }, correlationId);
+    }
 
       return new Response(
         JSON.stringify({
@@ -414,9 +432,15 @@ serve(async (req) => {
       `${mayaApiUrl}/connectivity/v1/orders/${orderId}`
     ];
 
-    // Poll for eSIM allocation (30 attempts, 2 seconds each = 1 minute total)
-    for (let attempt = 1; attempt <= 30; attempt++) {
-      await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds
+    // Poll for eSIM allocation (enhanced with exponential backoff)
+    const maxAttempts = 30;
+    const baseDelay = 2000; // 2 seconds
+    let consecutiveFailures = 0;
+    
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      // Exponential backoff: 2s, 2s, 4s, 4s, 8s, 8s...
+      const delay = Math.min(baseDelay * Math.pow(2, Math.floor(consecutiveFailures / 2)), 10000);
+      await new Promise(resolve => setTimeout(resolve, delay));
       
       for (const statusEndpoint of statusEndpoints) {
         try {
@@ -431,6 +455,7 @@ serve(async (req) => {
           });
 
           if (statusResponse.ok) {
+            consecutiveFailures = 0; // Reset on success
             const statusData = await statusResponse.json();
             console.log(`[${correlationId}] Polling response ${attempt}:`, statusData);
 

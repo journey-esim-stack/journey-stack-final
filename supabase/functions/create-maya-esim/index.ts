@@ -233,34 +233,7 @@ serve(async (req) => {
       console.log(`[${correlationId}] Using Basic Auth fallback`);
     }
 
-    // Determine which endpoints exist (probe products endpoints to avoid 404s)
-    const accountProductsEndpoint = `${mayaApiUrl}/connectivity/v1/account/products`;
-    const directProductsEndpoint = `${mayaApiUrl}/connectivity/v1/products`;
-
-    let useAccountEndpoints = true;
-    try {
-      const [acctProbe, directProbe] = await Promise.all([
-        fetch(accountProductsEndpoint, { method: 'GET', headers: { 'Authorization': headers['Authorization'], 'Accept': 'application/json' } }),
-        fetch(directProductsEndpoint, { method: 'GET', headers: { 'Authorization': headers['Authorization'], 'Accept': 'application/json' } })
-      ]);
-      // If account probe is 404 but direct is not 404, prefer direct; otherwise default to account
-      const acct404 = acctProbe.status === 404;
-      const direct404 = directProbe.status === 404;
-      useAccountEndpoints = !(acct404 && !direct404);
-      await logTrace(supabaseClient, 'maya_probe', { acct_status: acctProbe.status, direct_status: directProbe.status }, correlationId);
-    } catch (probeErr) {
-      console.log(`[${correlationId}] Probe error (non-fatal):`, probeErr);
-    }
-
-    // Working endpoints observed previously (choose based on probe)
-    const accountOrdersEndpoint = `${mayaApiUrl}/connectivity/v1/account/orders`;
-    const directOrdersEndpoint = `${mayaApiUrl}/connectivity/v1/orders`;
-    // Try both endpoints in a preferred order based on probe
-    const orderEndpoints = useAccountEndpoints 
-      ? [accountOrdersEndpoint, directOrdersEndpoint]
-      : [directOrdersEndpoint, accountOrdersEndpoint];
-
-    // Working payload format
+    // Working payload format exactly as it was before
     const payload = {
       items: [
         { product_uid: productUid, quantity: 1 }
@@ -272,51 +245,40 @@ serve(async (req) => {
     let mayaResponse: Response | null = null;
     let mayaResponseData: any = null;
 
-    // Try the selected orders endpoint (based on probe)
-    for (const endpoint of orderEndpoints) {
+    // Use the exact working endpoint: direct orders without account prefix
+    const orderEndpoint = `${mayaApiUrl}/connectivity/v1/orders`;
+    
+    try {
+      console.log(`[${correlationId}] Creating order at: ${orderEndpoint}`);
+      console.log(`[${correlationId}] Payload:`, JSON.stringify(payload, null, 2));
+      console.log(`[${correlationId}] Headers:`, JSON.stringify(headers, null, 2));
+      
+      mayaResponse = await fetch(orderEndpoint, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(payload)
+      });
+
+      const status = mayaResponse.status;
+      console.log(`[${correlationId}] Order response status ${status} from ${orderEndpoint}`);
+      console.log(`[${correlationId}] Response headers:`, Object.fromEntries(mayaResponse.headers.entries()));
+
+      const responseText = await mayaResponse.text();
+      console.log(`[${correlationId}] Raw response:`, responseText);
+
       try {
-        console.log(`[${correlationId}] Creating order at: ${endpoint}`);
-        mayaResponse = await fetch(endpoint, {
-          method: 'POST',
-          headers,
-          body: JSON.stringify(payload)
-        });
-
-        const status = mayaResponse.status;
-        console.log(`[${correlationId}] Order response status ${status} from ${endpoint}`);
-        console.log(`[${correlationId}] Response headers:`, Object.fromEntries(mayaResponse.headers.entries()));
-
-        const responseText = await mayaResponse.text();
-        console.log(`[${correlationId}] Raw response:`, responseText);
-
-        try {
-          mayaResponseData = responseText ? JSON.parse(responseText) : {};
-        } catch (parseError) {
-          console.error(`[${correlationId}] Failed to parse response as JSON:`, parseError);
-          mayaResponseData = { error: 'Invalid JSON response', raw_response: responseText };
-        }
-
-        if (mayaResponse.ok) {
-          console.log(`[${correlationId}] Order created successfully at ${endpoint}`);
-          break;
-        }
-
-        if (status === 404) {
-          console.log(`[${correlationId}] 404 at ${endpoint}`);
-        }
-
-        // Non-OK response: stop (we only try one endpoint based on probe)
-        console.error(`[${correlationId}] Provider error at ${endpoint}:`, mayaResponseData);
-        break;
-      } catch (err) {
-        console.error(`[${correlationId}] Request error at ${endpoint}:`, err);
-        // As a last resort, if we chose account and it failed at network level, try direct once
-        if (orderEndpoints.length === 1 && orderEndpoints[0] === accountOrdersEndpoint) {
-          orderEndpoints.push(directOrdersEndpoint);
-          continue;
-        }
-        break;
+        mayaResponseData = responseText ? JSON.parse(responseText) : {};
+      } catch (parseError) {
+        console.error(`[${correlationId}] Failed to parse response as JSON:`, parseError);
+        mayaResponseData = { error: 'Invalid JSON response', raw_response: responseText };
       }
+
+      if (!mayaResponse.ok) {
+        console.error(`[${correlationId}] Provider error at ${orderEndpoint}:`, mayaResponseData);
+      }
+    } catch (err) {
+      console.error(`[${correlationId}] Request error at ${orderEndpoint}:`, err);
+      mayaResponseData = { error: 'Network request failed', details: err };
     }
 
     if (!mayaResponse || !mayaResponse.ok) {

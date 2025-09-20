@@ -201,6 +201,13 @@ serve(async (req) => {
     // Build Basic Auth header
     const basicAuth = 'Basic ' + btoa(`${mayaApiKey}:${mayaApiSecret}`);
 
+    // Normalize base URL and define endpoints (try account first, then legacy)
+    const baseUrl = (mayaApiUrl || 'https://api.maya.net').replace(/\/+$/,'');
+    const endpoints = [
+      `${baseUrl}/connectivity/v1/account/orders`,
+      `${baseUrl}/connectivity/v1/orders`,
+    ];
+
     // Create eSIM order via Maya API
     const orderPayload = {
       product_uid: mayaProductUid,
@@ -210,21 +217,53 @@ serve(async (req) => {
       external_reference: order_id, // use our DB order id as reference
     };
     console.log('Maya Order Request payload:', orderPayload);
-    await logTrace(supabaseClient, 'order_request', { url: `${mayaApiUrl}/connectivity/v1/orders`, payload: orderPayload }, correlationId);
+    await logTrace(supabaseClient, 'order_request', { primary_url: endpoints[0], fallback_url: endpoints[1], payload: orderPayload }, correlationId);
 
-    const orderRes = await fetch(`${mayaApiUrl}/connectivity/v1/account/orders`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        'Authorization': basicAuth,
-      },
-      body: JSON.stringify(orderPayload),
-    });
+    // Try endpoints with graceful fallback
+    let orderRes: Response | null = null;
+    let usedEndpoint = '';
+    for (const ep of endpoints) {
+      try {
+        const res = await fetch(ep, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'Authorization': basicAuth,
+          },
+          body: JSON.stringify(orderPayload),
+        });
+        const ct = res.headers.get('content-type') || '';
+        const htmlLike = ct.includes('text/html');
+        if ((res.status === 404 || htmlLike) && ep !== endpoints[endpoints.length - 1]) {
+          await logTrace(supabaseClient, 'order_endpoint_fallback', { from: ep, status: res.status, contentType: ct }, correlationId);
+          continue; // try next endpoint
+        }
+        orderRes = res;
+        usedEndpoint = ep;
+        break;
+      } catch (e) {
+        await logTrace(supabaseClient, 'order_endpoint_error', { endpoint: ep, error: e.message }, correlationId);
+        continue;
+      }
+    }
+
+    if (!orderRes) {
+      console.error('All Maya order endpoints failed');
+      await supabaseClient
+        .from('orders')
+        .update({ status: 'failed', updated_at: new Date().toISOString() })
+        .eq('id', order_id);
+      await issueRefund(supabaseClient, order_id, 'Maya order endpoints unreachable');
+      return new Response(JSON.stringify({ error: 'Maya API unreachable' }), {
+        status: 502,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     console.log('Maya Order API Response status:', orderRes.status);
     console.log('Maya Order API Response headers:', Object.fromEntries(orderRes.headers.entries()));
-    await logTrace(supabaseClient, 'order_response_headers', { status: orderRes.status, headers: Object.fromEntries(orderRes.headers.entries()) }, correlationId);
+    await logTrace(supabaseClient, 'order_response_headers', { usedEndpoint, status: orderRes.status, headers: Object.fromEntries(orderRes.headers.entries()) }, correlationId);
 
     // Check if response is HTML (404 error page) instead of JSON
     const contentType = orderRes.headers.get('content-type');

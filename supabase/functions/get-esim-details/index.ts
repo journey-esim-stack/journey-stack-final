@@ -56,7 +56,24 @@ serve(async (req) => {
     
     if (!response.ok || !(raw?.success === true || String(raw?.success).toLowerCase() === 'true')) {
       console.error('Provider API error:', raw);
-      return new Response(JSON.stringify({ error: 'Failed to fetch eSIM details' }), {
+      
+      // Handle specific error codes
+      if (raw?.errorCode === '101013') {
+        return new Response(JSON.stringify({ 
+          error: 'Provider system is temporarily busy. Please try again in a few minutes.',
+          retryable: true,
+          success: false
+        }), {
+          status: 503, // Service Unavailable
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      
+      return new Response(JSON.stringify({ 
+        error: 'Failed to fetch eSIM details', 
+        details: raw?.errorMsg || 'Unknown error',
+        success: false
+      }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });

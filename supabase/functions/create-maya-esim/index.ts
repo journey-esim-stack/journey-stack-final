@@ -286,9 +286,9 @@ serve(async (req) => {
           break;
         }
 
-        // If first (account) endpoint 404s, try the direct endpoint next
-        if (orderEndpoint.includes('/account/') && status === 404) {
-          console.log(`[${correlationId}] Account endpoint returned 404, falling back to direct orders endpoint.`);
+        // If first (account) endpoint fails with 404/401/403, try the direct endpoint next
+        if (orderEndpoint.includes('/account/') && (status === 404 || status === 401 || status === 403)) {
+          console.log(`[${correlationId}] Account endpoint returned ${status}, falling back to direct orders endpoint.`);
           continue;
         }
 

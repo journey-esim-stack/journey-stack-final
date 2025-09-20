@@ -165,7 +165,17 @@ serve(async (req) => {
 
     // Extract Maya product UID from supplier_plan_id (format: maya_XXXXX)
     const mayaProductUid = plan.supplier_plan_id.replace('maya_', '');
-    console.log('Maya product UID:', mayaProductUid);
+    console.log('Maya product mapping:', { 
+      original: plan.supplier_plan_id, 
+      stripped: mayaProductUid,
+      plan_title: plan.title 
+    });
+    
+    await logTrace(supabaseClient, 'product_id_mapping', { 
+      original: plan.supplier_plan_id, 
+      stripped: mayaProductUid,
+      plan_title: plan.title 
+    }, correlationId);
 
     const mayaApiKey = Deno.env.get('MAYA_API_KEY');
     const mayaApiSecret = Deno.env.get('MAYA_API_SECRET');

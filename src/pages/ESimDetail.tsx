@@ -761,6 +761,11 @@ Instructions:
           isOpen={showTopupModal}
           onClose={() => setShowTopupModal(false)}
           iccid={iccid || ""}
+          onTopupComplete={() => {
+            setShowTopupModal(false);
+            // Refresh the eSIM data after successful topup
+            window.location.reload();
+          }}
         />
 
         {/* Share Modal */}

@@ -416,15 +416,42 @@ serve(async (req) => {
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       console.log(`Status check attempt ${attempt}/${maxAttempts} for Maya order:`, orderId);
       
-      const statusRes = await fetch(`${mayaApiUrl}/connectivity/v1/account/orders/${orderId}`, {
-        method: 'GET',
-        headers: {
-          'Authorization': basicAuth,
-          'Accept': 'application/json',
-        },
-      });
+      const baseUrl = (mayaApiUrl || 'https://api.maya.net').replace(/\/+$/,'');
+      const statusEndpoints = [
+        `${baseUrl}/connectivity/v1/account/orders/${orderId}`,
+        `${baseUrl}/connectivity/v1/orders/${orderId}`,
+      ];
+      let statusRes: Response | null = null;
+      let statusJson: any = null;
+      for (const ep of statusEndpoints) {
+        try {
+          const res = await fetch(ep, {
+            method: 'GET',
+            headers: {
+              'Authorization': basicAuth,
+              'Accept': 'application/json',
+            },
+          });
+          const ct = res.headers.get('content-type') || '';
+          const htmlLike = ct.includes('text/html');
+          if ((res.status === 404 || htmlLike) && ep !== statusEndpoints[statusEndpoints.length - 1]) {
+            await logTrace(supabaseClient, 'status_endpoint_fallback', { from: ep, status: res.status, contentType: ct }, correlationId);
+            continue;
+          }
+          statusRes = res;
+          try { statusJson = await res.json(); } catch { statusJson = {}; }
+          break;
+        } catch (e) {
+          await logTrace(supabaseClient, 'status_endpoint_error', { endpoint: ep, error: e.message }, correlationId);
+          continue;
+        }
+      }
 
-      const statusJson = await statusRes.json();
+      if (!statusRes) {
+        await delay(3000);
+        continue;
+      }
+
       console.log('Maya Status API Response status:', statusRes.status);
       console.log('Maya Status API Response data:', statusJson);
 

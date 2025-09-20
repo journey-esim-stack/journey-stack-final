@@ -79,69 +79,47 @@ serve(async (req) => {
     // Create Basic Auth header
     const basicAuth = btoa(`${mayaApiKey}:${mayaApiSecret}`);
     
-    // Test Maya API connectivity with a simple endpoint
-    const testUrl = `${mayaApiUrl}/connectivity/v1/account/products`;
-    console.log('Testing Maya API connectivity to:', testUrl);
-    
-    await logTrace(supabaseClient, 'api_request_start', { url: testUrl });
+    // Probe both legacy and account product endpoints
+    const baseUrl = (mayaApiUrl || 'https://api.maya.net').replace(/\/+$/,'');
+    const endpoints = [
+      `${baseUrl}/connectivity/v1/account/products`,
+      `${baseUrl}/connectivity/v1/products`,
+    ];
 
-    const response = await fetch(testUrl, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Basic ${basicAuth}`,
-        'Content-Type': 'application/json',
-      },
-    });
+    const results: any[] = [];
 
-    const responseHeaders = Object.fromEntries(response.headers.entries());
-    console.log('Maya API Response:', {
-      status: response.status,
-      statusText: response.statusText,
-      headers: responseHeaders
-    });
+    for (const url of endpoints) {
+      console.log('Testing Maya API connectivity to:', url);
+      await logTrace(supabaseClient, 'api_request_start', { url });
 
-    await logTrace(supabaseClient, 'api_response_headers', { 
-      status: response.status, 
-      statusText: response.statusText,
-      headers: responseHeaders 
-    });
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Basic ${basicAuth}`,
+          'Accept': 'application/json',
+        },
+      });
 
-    // Try to get response body (limit to first 500 chars for safety)
-    let responseBody = '';
-    let parseError = null;
-    
-    try {
-      const text = await response.text();
-      responseBody = text.substring(0, 500);
-      
-      // Try parsing as JSON if it looks like JSON
-      if (responseBody.trim().startsWith('{') || responseBody.trim().startsWith('[')) {
-        JSON.parse(responseBody);
+      const responseHeaders = Object.fromEntries(response.headers.entries());
+      const status = response.status;
+      const statusText = response.statusText;
+      let responseBody = '';
+      let parseError = null;
+      try {
+        const text = await response.text();
+        responseBody = text.substring(0, 500);
+      } catch (e) {
+        parseError = e.message;
       }
-    } catch (e) {
-      parseError = e.message;
+
+      const one = { url, status, statusText, headers: responseHeaders, bodySnippet: responseBody, parseError };
+      results.push(one);
+      await logTrace(supabaseClient, 'api_response_summary', one);
     }
 
-    await logTrace(supabaseClient, 'api_response_body', { 
-      responseBody, 
-      parseError,
-      contentType: response.headers.get('content-type')
-    });
-
-    const healthResult = {
-      success: response.ok,
-      status: response.status,
-      statusText: response.statusText,
-      headers: responseHeaders,
-      bodySnippet: responseBody,
-      parseError,
-      timestamp: new Date().toISOString(),
-      testUrl
-    };
-
+    const okAny = results.some(r => r.status >= 200 && r.status < 300);
+    const healthResult = { success: okAny, probes: results, timestamp: new Date().toISOString() };
     await logTrace(supabaseClient, 'health_check_complete', healthResult);
-
-    console.log('Maya Health Check completed:', healthResult);
 
     return new Response(JSON.stringify(healthResult), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

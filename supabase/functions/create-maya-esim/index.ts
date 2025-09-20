@@ -333,16 +333,14 @@ serve(async (req) => {
       if (esimData && esimData.iccid) {
         console.log(`[${correlationId}] eSIM immediately available:`, esimData);
         
-        // Update order with eSIM details including Maya-specific codes
+        // Update order with eSIM details
         const { error: updateError } = await supabaseClient
           .from('orders')
           .update({
             status: 'completed',
             esim_iccid: esimData.iccid,
-            esim_qr_code: esimData.activation_code || esimData.activationCode,
+            esim_qr_code: esimData.qr_code || esimData.qrcode,
             activation_code: esimData.activation_code || esimData.activationCode,
-            manual_code: esimData.manual_code,
-            smdp_address: esimData.smdp_address,
             supplier_order_id: mayaResponseData.id || mayaResponseData.order_id,
             updated_at: new Date().toISOString()
           })
@@ -416,16 +414,14 @@ serve(async (req) => {
             if (esimData && esimData.iccid) {
               console.log(`[${correlationId}] eSIM allocated:`, esimData);
               
-              // Update order with eSIM details including Maya-specific codes
+              // Update order with eSIM details
               const { error: updateError } = await supabaseClient
                 .from('orders')
                 .update({
                   status: 'completed',
                   esim_iccid: esimData.iccid,
-                  esim_qr_code: esimData.activation_code || esimData.activationCode,
+                  esim_qr_code: esimData.qr_code || esimData.qrcode,
                   activation_code: esimData.activation_code || esimData.activationCode,
-                  manual_code: esimData.manual_code,
-                  smdp_address: esimData.smdp_address,
                   supplier_order_id: orderId,
                   updated_at: new Date().toISOString()
                 })

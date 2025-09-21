@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 // Dynamic Algolia client configuration
 let cachedClient: any = null;
-let credentialsValidUntil: number = 0;
+let credentialsValidUntilMs: number = 0;
 
 export const ESIM_PLANS_INDEX = 'esim_plans';
 
@@ -11,8 +11,7 @@ export const ESIM_PLANS_INDEX = 'esim_plans';
 const getAlgoliaCredentials = async () => {
   const now = Date.now();
   
-  // Return cached client if still valid (with 5-minute buffer)
-  if (cachedClient && credentialsValidUntil > now + 300000) {
+  if (cachedClient && credentialsValidUntilMs > now + 300000) {
     return cachedClient;
   }
 
@@ -25,11 +24,11 @@ const getAlgoliaCredentials = async () => {
 
     const client = algoliasearch(creds.appId, creds.apiKey);
     
-    // Cache the client and update validity timestamp
+    // Cache the client and update validity timestamp (convert seconds to ms)
     cachedClient = client;
-    credentialsValidUntil = creds.validUntil || (now + 21600000); // 6 hours default
+    credentialsValidUntilMs = creds.validUntil ? creds.validUntil * 1000 : (now + 21600000);
     
-    console.log('Algolia credentials refreshed, valid until:', new Date(credentialsValidUntil));
+    console.log('Algolia credentials refreshed, valid until:', new Date(credentialsValidUntilMs));
     return client;
     
   } catch (error) {

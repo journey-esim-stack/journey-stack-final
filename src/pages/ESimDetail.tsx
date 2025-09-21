@@ -222,20 +222,28 @@ const ESimDetail = () => {
           // For Maya eSIMs, parse real_status and update immediately
           if (isMayaEsim && payload.new.real_status !== payload.old.real_status) {
             try {
-              const mayaData = JSON.parse(payload.new.real_status || '{}');
+              const mayaData = typeof payload.new.real_status === 'string' && payload.new.real_status.trim().startsWith('{') 
+                ? JSON.parse(payload.new.real_status || '{}')
+                : payload.new.real_status || {};
+                
               const networkStatus = mayaData.network_status || mayaData.esim?.network_status;
+              const stateVal = mayaData.state || mayaData.esim?.state;
               
-              console.log('Real-time Maya network_status update:', networkStatus);
+              console.log('Real-time Maya status update:', { networkStatus, stateVal });
               
               if (networkStatus) {
+                // Apply Maya rules: RELEASED+ENABLED = NOT_ACTIVE, network.connected=false
+                const isConnected = networkStatus === 'ENABLED' && stateVal !== 'RELEASED';
+                const displayStatus = (stateVal === 'RELEASED' && networkStatus === 'ENABLED') ? 'NOT_ACTIVE' : networkStatus;
+                
                 setEsimDetails(prev => {
                   if (!prev) return prev;
                   return {
                     ...prev,
-                    status: networkStatus, // Use network_status directly
+                    status: displayStatus,
                     network: {
                       ...prev.network,
-                      connected: networkStatus === 'ENABLED'
+                      connected: isConnected
                     }
                   };
                 });
@@ -277,17 +285,22 @@ const ESimDetail = () => {
         }).then(({ data, error }) => {
           if (!error && data?.success) {
             const networkStatus = data.status?.network_status || data.esim?.network_status;
-            console.log('Polled Maya network_status:', networkStatus);
+            const stateVal = data.status?.state || data.esim?.state;
+            console.log('Polled Maya status:', { networkStatus, stateVal });
             
             if (networkStatus) {
+              // Apply Maya rules: RELEASED+ENABLED = NOT_ACTIVE, network.connected=false
+              const isConnected = networkStatus === 'ENABLED' && stateVal !== 'RELEASED';
+              const displayStatus = (stateVal === 'RELEASED' && networkStatus === 'ENABLED') ? 'NOT_ACTIVE' : networkStatus;
+              
               setEsimDetails(prev => {
                 if (!prev) return prev;
                 return {
                   ...prev,
-                  status: networkStatus, // Use network_status directly  
+                  status: displayStatus,
                   network: {
                     ...prev.network,
-                    connected: networkStatus === 'ENABLED'
+                    connected: isConnected
                   }
                 };
               });
@@ -388,7 +401,8 @@ const ESimDetail = () => {
             const parsed = typeof raw === 'string' && raw.trim().startsWith('{') ? JSON.parse(raw) : raw;
             const stateVal = parsed?.state;
             networkStatusVal = parsed?.network_status;
-            // Map using Maya rules: if state is RELEASED and network is ENABLED => NOT_ACTIVE (awaiting)
+            
+            // Apply Maya rules: if state is RELEASED and network is ENABLED => NOT_ACTIVE (awaiting)
             if (stateVal === 'RELEASED' && networkStatusVal === 'ENABLED') {
               currentStatusText = 'NOT_ACTIVE';
               networkConnected = false;
@@ -400,7 +414,8 @@ const ESimDetail = () => {
               networkConnected = networkStatusVal === 'ENABLED' && stateVal !== 'RELEASED';
               isActive = networkConnected;
             }
-          } catch {
+          } catch (e) {
+            console.error('Failed to parse Maya real_status:', e);
             // If parsing fails, fall back to simple text
             isActive = /IN_USE|Active|ENABLED/i.test(currentStatusText);
             networkConnected = /ENABLED|Active|IN_USE/i.test(currentStatusText);

@@ -319,12 +319,18 @@ const ESims = () => {
     // For Maya eSIMs, parse JSON and extract network_status and state
     if (supplierName?.toLowerCase() === 'maya' && realStatus) {
       try {
-        const mayaData = JSON.parse(realStatus);
+        // Handle both JSON string and already parsed object
+        const mayaData = typeof realStatus === 'string' && realStatus.trim().startsWith('{') 
+          ? JSON.parse(realStatus) 
+          : (typeof realStatus === 'string' ? { raw: realStatus } : realStatus);
+        
         const networkStatus = mayaData.network_status || mayaData.esim?.network_status;
         mayaState = mayaData.state || mayaData.esim?.state;
+        
         if (networkStatus) {
           currentStatus = networkStatus;
         }
+        
         // Override: if state is RELEASED and network is ENABLED, treat as NOT_ACTIVE (awaiting activation)
         if (mayaState === 'RELEASED' && String(currentStatus).toUpperCase() === 'ENABLED') {
           currentStatus = 'NOT_ACTIVE';
@@ -373,12 +379,18 @@ const ESims = () => {
     // For Maya eSIMs, parse JSON and extract network_status and state
     if (supplierName?.toLowerCase() === 'maya' && realStatus) {
       try {
-        const mayaData = JSON.parse(realStatus);
+        // Handle both JSON string and already parsed object
+        const mayaData = typeof realStatus === 'string' && realStatus.trim().startsWith('{') 
+          ? JSON.parse(realStatus) 
+          : (typeof realStatus === 'string' ? { raw: realStatus } : realStatus);
+        
         const networkStatus = mayaData.network_status || mayaData.esim?.network_status;
         mayaState = mayaData.state || mayaData.esim?.state;
+        
         if (networkStatus) {
           currentStatus = networkStatus;
         }
+        
         // Override: if state is RELEASED and network is ENABLED, treat as NOT_ACTIVE (awaiting activation)
         if (mayaState === 'RELEASED' && String(currentStatus).toUpperCase() === 'ENABLED') {
           currentStatus = 'NOT_ACTIVE';
@@ -392,11 +404,11 @@ const ESims = () => {
     if (supplierName?.toLowerCase() === 'maya') {
       switch (String(currentStatus).toUpperCase()) {
         case 'ENABLED':
-          return 'CONNECTED';
+          return 'Connected';
         case 'NOT_ACTIVE':
-          return 'NOT CONNECTED';
+          return 'Not Active';
         case 'DISABLED':
-          return 'SUSPENDED';
+          return 'Suspended';
         default:
           return String(currentStatus).toUpperCase();
       }

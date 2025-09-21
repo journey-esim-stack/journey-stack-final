@@ -476,6 +476,28 @@ const ESimDetail = () => {
           sessions: []
         };
         setEsimDetails(basicDetails);
+
+        // One-off backfill: ensure both generic and legacy QR image paths exist for a previously shared link
+        try {
+          const targetIccid = '8910300000045259837';
+          const isMayaEsimLocal = String(orderData.esim_plans?.supplier_name || '').toLowerCase() === 'maya';
+          if (isMayaEsimLocal && (iccid === targetIccid || basicDetails.iccid === targetIccid)) {
+            const mayaCode = basicDetails.activation.qr_code || basicDetails.activation.manual_code || '';
+            const smdp = basicDetails.activation.sm_dp_address || 'consumer.e-sim.global';
+            const lpaText = mayaCode?.startsWith('LPA:') ? mayaCode : (mayaCode ? `LPA:1$${smdp}$${mayaCode}` : '');
+            if (lpaText) {
+              const dataUrl = await QRCode.toDataURL(lpaText, { margin: 1, scale: 6, color: { dark: '#000000', light: '#FFFFFF' } });
+              const blob = await (await fetch(dataUrl)).blob();
+              // Upload to generic path
+              await supabase.storage.from('qr-codes').upload(`esim-qr/${targetIccid}.png`, blob, { contentType: 'image/png', upsert: true, cacheControl: '3600' });
+              // Upload to legacy path (for backward compatibility)
+              await supabase.storage.from('qr-codes').upload(`maya-esim-qr-${targetIccid}.png`, blob, { contentType: 'image/png', upsert: true, cacheControl: '3600' });
+              console.log('Backfilled QR images for ICCID', targetIccid);
+            }
+          }
+        } catch (backfillErr) {
+          console.warn('Legacy QR backfill failed:', backfillErr);
+        }
       } else {
         // Use real-time status data when available, prioritizing webhook data
         const realtimeStatus = statusData?.esim_status || orderData.real_status;
@@ -683,18 +705,31 @@ Instructions:
       }
     }
 
-    // Fallback: upload QR image to Supabase Storage and include public URL
+    // Fallback: upload QR image to Supabase Storage and include public URL (generic path)
     if (isMayaEsim && qrBlob) {
       try {
-        const fileName = `esim-qr/${esimDetails?.iccid || Date.now()}.png`;
+        const genericPath = `esim-qr/${esimDetails?.iccid || Date.now()}.png`;
+        const legacyPath = `maya-esim-qr-${esimDetails?.iccid || Date.now()}.png`;
+
+        // Upload to generic path (canonical)
         const { data: uploadData, error: uploadError } = await supabase.storage
           .from('qr-codes')
-          .upload(fileName, qrBlob, { contentType: 'image/png', upsert: true });
+          .upload(genericPath, qrBlob, { contentType: 'image/png', upsert: true, cacheControl: '3600' });
+
         if (!uploadError && uploadData) {
           const { data: urlData } = supabase.storage
             .from('qr-codes')
-            .getPublicUrl(fileName);
+            .getPublicUrl(genericPath);
           qrImageUrl = urlData.publicUrl;
+
+          // Best-effort legacy compatibility upload (do not block)
+          try {
+            await supabase.storage
+              .from('qr-codes')
+              .upload(legacyPath, qrBlob, { contentType: 'image/png', upsert: true, cacheControl: '3600' });
+          } catch (legacyErr) {
+            console.warn('Legacy QR upload failed (non-blocking):', legacyErr);
+          }
         } else {
           console.warn('QR upload failed:', uploadError);
         }

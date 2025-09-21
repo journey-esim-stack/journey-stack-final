@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/components/ui/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -146,6 +147,7 @@ interface TopupHistory {
 const ESimDetail = () => {
   const { iccid } = useParams();
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [esimDetails, setEsimDetails] = useState<ESIMDetails | null>(null);
   const [orderInfo, setOrderInfo] = useState<any>(null);
   const [topupHistory, setTopupHistory] = useState<TopupHistory[]>([]);
@@ -153,6 +155,37 @@ const ESimDetail = () => {
   const [activeTab, setActiveTab] = useState("summary");
   const [showTopupModal, setShowTopupModal] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
+
+  // Real-time subscription for status updates
+  useEffect(() => {
+    if (!iccid) return;
+
+    const channel = supabase
+      .channel('esim-detail-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'orders',
+          filter: `esim_iccid=eq.${iccid}`
+        },
+        (payload) => {
+          console.log('Real-time order update for current eSIM:', payload);
+          // Refresh data when this specific eSIM is updated
+          fetchESIMDetails();
+          toast({
+            title: "Status Updated",
+            description: "eSIM status has been updated in real-time",
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [iccid]);
   const [agentBranding, setAgentBranding] = useState({
     companyName: "",
     message: "",
@@ -261,7 +294,7 @@ const ESimDetail = () => {
 
       if (orderError) {
         console.error("Error fetching order:", orderError);
-        toast.error("Failed to fetch eSIM information");
+        toast({ title: "Error", description: "Failed to fetch eSIM information", variant: "destructive" });
         return;
       }
 
@@ -409,12 +442,12 @@ const ESimDetail = () => {
 
     } catch (error) {
       console.error("Error:", error);
-      toast.error("An error occurred while fetching eSIM details");
+      toast({ title: "Error", description: "An error occurred while fetching eSIM details", variant: "destructive" });
     } finally {
       setLoading(false);
       if (isManualRefresh) {
         setIsRefreshing(false);
-        toast.success("eSIM data refreshed");
+        toast({ title: "Success", description: "eSIM data refreshed" });
       }
     }
   };
@@ -425,7 +458,7 @@ const ESimDetail = () => {
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-    toast.success("Copied to clipboard");
+    toast({ title: "Success", description: "Copied to clipboard" });
   };
 
   const generateShareMessage = () => {
@@ -472,7 +505,7 @@ Instructions:
     }
     
     setShowShareModal(false);
-    toast.success(`Shared via ${method === 'copy' ? 'clipboard' : method}`);
+    toast({ title: "Success", description: `Shared via ${method === 'copy' ? 'clipboard' : method}` });
   };
 
   const getStatusIcon = (status: string) => {
@@ -883,14 +916,14 @@ Instructions:
                         await navigator.clipboard.write([
                           new ClipboardItem({ [blob.type]: blob })
                         ]);
-                        toast.success('QR Code image copied to clipboard');
+                        toast({ title: "Success", description: "QR Code image copied to clipboard" });
                       } catch (error) {
                         try {
                           const fallbackText = `LPA:1$${esimDetails.activation.sm_dp_address}$${esimDetails.activation.manual_code}`;
                           await navigator.clipboard.writeText(fallbackText);
-                          toast.success('Manual activation string copied');
+                          toast({ title: "Success", description: "Manual activation string copied" });
                         } catch {
-                          toast.error('Failed to copy QR code');
+                          toast({ title: "Error", description: "Failed to copy QR code", variant: "destructive" });
                         }
                       }
                     }}

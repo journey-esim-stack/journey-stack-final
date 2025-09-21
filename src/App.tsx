@@ -5,6 +5,7 @@ import { Routes, Route } from "react-router-dom";
 import { CartProvider } from "@/contexts/CartContext";
 import { CurrencyProvider } from "@/contexts/CurrencyContext";
 import AgentApprovalGuard from "@/components/AgentApprovalGuard";
+import RealtimeStatusIndicator from "@/components/RealtimeStatusIndicator";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Auth from "./pages/Auth";
@@ -30,6 +31,7 @@ const App = () => (
       <CartProvider>
       <Toaster />
       <Sonner />
+      <RealtimeStatusIndicator />
         <Routes>
           {/* Public routes */}
           <Route path="/auth" element={<Auth />} />

@@ -197,19 +197,45 @@ serve(async (req) => {
 
     if (!createResponse.ok || createResult.result !== 1) {
       const errorMsg = createResult.developer_message || createResult.message || 'Maya eSIM creation failed';
-      console.error('Maya eSIM creation failed:', errorMsg);
+      const errorCode = createResult.errorCode || createResult.error_code;
+      console.error('Maya eSIM creation failed:', { errorMsg, errorCode, response: createResult });
       
-      // Update order status to failed
+      // Handle specific Maya API errors with user-friendly messages
+      let userFriendlyError = errorMsg;
+      let statusCode = 500;
+      
+      if (errorCode === '101013' || errorMsg.includes('system is busy')) {
+        userFriendlyError = 'eSIM provider is temporarily busy. Please try again in a few minutes.';
+        statusCode = 503; // Service Unavailable
+      } else if (errorCode === '101001' || errorMsg.includes('authentication')) {
+        userFriendlyError = 'eSIM service authentication error. Please contact support.';
+        statusCode = 502; // Bad Gateway
+      } else if (errorCode === '101002' || errorMsg.includes('insufficient')) {
+        userFriendlyError = 'eSIM service temporarily out of stock. Please try again later.';
+        statusCode = 503; // Service Unavailable
+      } else if (createResponse.status >= 500) {
+        userFriendlyError = 'eSIM provider service error. Please try again in a few minutes.';
+        statusCode = 503; // Service Unavailable
+      } else if (createResponse.status === 404) {
+        userFriendlyError = 'eSIM plan not available. Please select a different plan.';
+        statusCode = 404;
+      }
+      
+      // Update order status to failed with detailed error info
       await supabaseClient
         .from('orders')
-        .update({ status: 'failed', real_status: errorMsg })
+        .update({ 
+          status: 'failed', 
+          real_status: `Maya Error ${errorCode}: ${errorMsg}`,
+          failure_reason: userFriendlyError
+        })
         .eq('id', order_id);
 
-      await issueRefund(supabaseClient, order_id, errorMsg);
+      await issueRefund(supabaseClient, order_id, userFriendlyError);
       
       return new Response(
-        JSON.stringify({ error: errorMsg }),
-        { status: createResponse.status, headers: corsHeaders }
+        JSON.stringify({ error: userFriendlyError, provider_error: errorMsg }),
+        { status: statusCode, headers: corsHeaders }
       );
     }
 

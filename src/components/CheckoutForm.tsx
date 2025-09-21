@@ -174,15 +174,19 @@ export const CheckoutForm = ({ onSuccess, onCancel }: CheckoutFormProps) => {
           if (msg.includes('401') || msg.includes('unauthorized')) {
             errorTitle = 'Provider authentication failed';
             errorMessage = 'Service provider credentials issue. Please contact support.';
-          } else if (msg.includes('404') || msg.includes('not found')) {
+          } else if (msg.includes('404') || msg.includes('not found') || msg.includes('not available')) {
             errorTitle = 'Service unavailable';
             errorMessage = 'eSIM service temporarily unavailable. Please try again later.';
-          } else if (msg.includes('500') || msg.includes('502') || msg.includes('503')) {
-            errorTitle = 'Provider service error';
-            errorMessage = 'eSIM provider is experiencing issues. Please try again in a few minutes.';
+          } else if (msg.includes('500') || msg.includes('502') || msg.includes('503') || 
+                    msg.includes('busy') || msg.includes('temporarily')) {
+            errorTitle = 'Provider service busy';
+            errorMessage = 'eSIM provider is temporarily busy. Please try again in a few minutes.';
           } else if (msg.includes('timeout') || msg.includes('TIMEOUT')) {
             errorTitle = 'Request timeout';
             errorMessage = 'eSIM provisioning is taking longer than expected. Your order may still be processing.';
+          } else if (msg.includes('out of stock') || msg.includes('insufficient')) {
+            errorTitle = 'Service temporarily unavailable';
+            errorMessage = 'eSIM service temporarily out of stock. Please try again later.';
           }
           
           toast({ 

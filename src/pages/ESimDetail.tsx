@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -242,7 +242,7 @@ const ESimDetail = () => {
     // Fallback polling for API data (less frequent since we have real-time for status)
     const interval = setInterval(() => {
       fetchESIMDetails();
-    }, 30000); // Refresh every 30 seconds as fallback
+    }, 10000); // Refresh every 10 seconds as fallback
 
     return () => {
       supabase.removeChannel(ordersChannel);
@@ -325,33 +325,38 @@ const ESimDetail = () => {
         const raw = orderData.real_status || (orderData.status === 'completed' ? "Ready" : "New");
         let currentStatusText = String(raw || 'Unknown');
         let isActive = false;
+        let networkStatusVal: string | undefined;
+        let networkConnected = false;
 
         if (isMayaEsim) {
           try {
             const parsed = typeof raw === 'string' && raw.trim().startsWith('{') ? JSON.parse(raw) : raw;
             const state = parsed?.state;
             const serviceStatus = parsed?.service_status;
-            const networkStatus = parsed?.network_status;
+            networkStatusVal = parsed?.network_status;
             // Map using Maya table
-            if (serviceStatus === 'inactive' || networkStatus === 'DISABLED') {
+            if (serviceStatus === 'inactive' || networkStatusVal === 'DISABLED') {
               currentStatusText = 'Expired / Suspended';
-            } else if (state === 'RELEASED' && serviceStatus === 'active' && networkStatus === 'ENABLED') {
+            } else if (state === 'RELEASED' && serviceStatus === 'active' && networkStatusVal === 'ENABLED') {
               currentStatusText = 'Activated / Active';
-            } else if (state === 'RELEASED' && serviceStatus === 'active' && networkStatus === 'NOT_ACTIVE') {
+            } else if (state === 'RELEASED' && serviceStatus === 'active' && networkStatusVal === 'NOT_ACTIVE') {
               currentStatusText = 'Awaiting Activation';
             } else if (state === 'REVOKED' || state === 'DELETED') {
               currentStatusText = 'Revoked / Deleted';
             } else if (typeof parsed?.display_status === 'string') {
               currentStatusText = parsed.display_status;
             }
-            isActive = networkStatus === 'ENABLED' || /Active/i.test(currentStatusText);
+            networkConnected = networkStatusVal === 'ENABLED';
+            isActive = networkConnected || /Active/i.test(currentStatusText);
           } catch {
             // If parsing fails, fall back to simple text
             isActive = /IN_USE|Active|ENABLED/i.test(currentStatusText);
+            networkConnected = /ENABLED|Active|IN_USE/i.test(currentStatusText);
           }
         } else {
           // Non-Maya fallback
           isActive = currentStatusText === 'IN_USE';
+          networkConnected = isActive;
         }
 
         const expiryDate = orderData.esim_expiry_date || 
@@ -366,10 +371,10 @@ const ESimDetail = () => {
             unit: "GB"
           },
           network: {
-            connected: isActive,
-            operator: isMayaEsim ? (isActive ? "Network Enabled" : "Not Connected") : (isActive ? "Connected" : "Not Connected"),
+            connected: networkConnected,
+            operator: isMayaEsim ? (networkConnected ? "Network Enabled" : "Not Connected") : (networkConnected ? "Connected" : "Not Connected"),
             country: orderData.esim_plans?.country_name || "Unknown",
-            signal_strength: isActive ? 85 : 0
+            signal_strength: networkConnected ? 85 : 0
           },
           plan: {
             name: orderData.esim_plans?.title || "Unknown Plan",
@@ -432,6 +437,11 @@ const ESimDetail = () => {
           ? currentStatus === 'Activated / Active'
           : currentStatus === 'IN_USE';
         
+        // For Maya, 'Connected' should track network_status === 'ENABLED'
+        const networkConnected = isMayaEsim
+          ? (apiData.status?.network_status === 'ENABLED')
+          : (isActive || apiData.obj?.network?.connected || false);
+        
         const expiryDate = orderData.esim_expiry_date || apiData.obj?.plan?.expiresAt;
 
         console.log('ESimDetail - Final status for transform:', currentStatus);
@@ -446,12 +456,12 @@ const ESimDetail = () => {
             unit: "GB"
           },
           network: {
-            connected: isMayaEsim ? isActive : (isActive || apiData.obj?.network?.connected || false),
+            connected: networkConnected,
             operator: isMayaEsim
-              ? (isActive ? "Network Enabled" : "Not Connected")
-              : (isActive ? (apiData.obj?.network?.operator || "Network Operator") : "Not Connected"),
+              ? (networkConnected ? "Network Enabled" : "Not Connected")
+              : (networkConnected ? (apiData.obj?.network?.operator || "Network Operator") : "Not Connected"),
             country: (!isMayaEsim ? (apiData.obj?.network?.country) : undefined) || orderData.esim_plans?.country_name || "Unknown",
-            signal_strength: (isMayaEsim ? (isActive ? 85 : 0) : (isActive ? parseInt(apiData.obj?.network?.signalStrength || "85") : 0))
+            signal_strength: (isMayaEsim ? (networkConnected ? 85 : 0) : (networkConnected ? parseInt(apiData.obj?.network?.signalStrength || "85") : 0))
           },
           plan: {
             name: orderData.esim_plans?.title || "Unknown Plan",

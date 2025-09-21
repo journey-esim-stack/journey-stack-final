@@ -20,7 +20,10 @@ export default function AgentApprovalGuard({ children }: AgentApprovalGuardProps
     try {
       const { data: { user } } = await supabase.auth.getUser();
       
+      console.log('AgentApprovalGuard: Checking user:', user?.email);
+      
       if (!user) {
+        console.log('AgentApprovalGuard: No user found, redirecting to auth');
         navigate('/auth');
         return;
       }
@@ -33,7 +36,10 @@ export default function AgentApprovalGuard({ children }: AgentApprovalGuardProps
         .eq('role', 'admin')
         .single();
 
+      console.log('AgentApprovalGuard: Admin role check:', adminRole);
+
       if (adminRole) {
+        console.log('AgentApprovalGuard: User is admin, granting access');
         setIsApproved(true);
         setIsLoading(false);
         return;

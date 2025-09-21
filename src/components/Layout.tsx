@@ -24,19 +24,34 @@ export default function Layout({ children }: LayoutProps) {
   const { toast } = useToast();
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+    let mounted = true;
+    
+    const getInitialSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (mounted) {
         setUser(session?.user ?? null);
         setLoading(false);
       }
+    };
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        if (mounted) {
+          setUser(session?.user ?? null);
+          // Only show loading on sign out, not on route changes
+          if (event === 'SIGNED_OUT') {
+            setLoading(false);
+          }
+        }
+      }
     );
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
+    getInitialSession();
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   useEffect(() => {
@@ -66,7 +81,8 @@ export default function Layout({ children }: LayoutProps) {
     }
   };
 
-  if (loading) {
+  // Only show loading spinner on initial load, not during navigation
+  if (loading && !user) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -74,7 +90,7 @@ export default function Layout({ children }: LayoutProps) {
     );
   }
 
-  if (!user) {
+  if (!user && !loading) {
     return <Navigate to="/auth" replace />;
   }
 
@@ -102,10 +118,17 @@ export default function Layout({ children }: LayoutProps) {
                 <img 
                   src="/lovable-uploads/1e1f433f-d326-4551-ba07-4e6b9e5c259f.png" 
                   alt="Journey Stack" 
-                  className="h-12 md:h-16 w-auto object-contain shrink-0 transition-none"
+                  className="h-12 md:h-16 w-auto object-contain shrink-0"
                   loading="eager"
                   decoding="sync"
-                  style={{ imageRendering: 'crisp-edges' }}
+                  style={{ 
+                    imageRendering: 'crisp-edges',
+                    minHeight: '3rem',
+                    minWidth: '3rem'
+                  }}
+                  onError={(e) => {
+                    e.currentTarget.style.visibility = 'hidden';
+                  }}
                 />
               </Link>
               <div className="hidden md:flex items-center space-x-1">

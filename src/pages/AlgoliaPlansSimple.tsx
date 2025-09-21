@@ -211,22 +211,23 @@ export default function AlgoliaPlansSimple() {
 
       const optionalWords = buildOptionalWords(query);
 
-      // Algolia v5 client: use client.search with request params object
+      // Build URLSearchParams string because Algolia /queries expects params as a URL-encoded string
+      const baseParams = new URLSearchParams();
+      baseParams.set('query', query);
+      baseParams.set('hitsPerPage', '1000');
+      baseParams.set('page', '0');
+      baseParams.set('filters', 'is_active:true AND admin_only:false');
+      baseParams.set('typoTolerance', 'true');
+      baseParams.set('ignorePlurals', 'true');
+      baseParams.set('removeStopWords', 'true');
+      baseParams.set('queryLanguages', 'en');
+      if (optionalWords.length) baseParams.set('optionalWords', optionalWords.join(','));
+
       const initial = await (client as any).search({
         requests: [
           {
             indexName: 'esim_plans',
-            params: {
-              query,
-              hitsPerPage: 1000,
-              page: 0,
-              filters: 'is_active:true AND admin_only:false',
-              typoTolerance: true,
-              ignorePlurals: true,
-              removeStopWords: true,
-              queryLanguages: ['en'],
-              optionalWords,
-            },
+            params: baseParams.toString(),
           },
         ],
       });
@@ -236,21 +237,13 @@ export default function AlgoliaPlansSimple() {
       const nbPages = first.nbPages ?? 1;
       let page = 1;
       while (page < nbPages && allHits.length < 5000) {
+        const pageParams = new URLSearchParams(baseParams);
+        pageParams.set('page', String(page));
         const nextResp = await (client as any).search({
           requests: [
             {
               indexName: 'esim_plans',
-              params: {
-                query,
-                hitsPerPage: 1000,
-                page,
-                filters: 'is_active:true AND admin_only:false',
-                typoTolerance: true,
-                ignorePlurals: true,
-                removeStopWords: true,
-                queryLanguages: ['en'],
-                optionalWords,
-              },
+              params: pageParams.toString(),
             },
           ],
         });

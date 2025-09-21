@@ -23,6 +23,7 @@ import AdminSuppliers from "./pages/AdminSuppliers";
 import TopupSuccess from "./pages/TopupSuccess";
 import TopupCanceled from "./pages/TopupCanceled";
 import Profile from "./pages/Profile";
+import QrView from "./pages/QrView";
 
 const App = () => (
   <TooltipProvider>
@@ -36,6 +37,7 @@ const App = () => (
           <Route path="/auth/confirmed" element={<AuthConfirmed />} />
           <Route path="/auth/confirm" element={<EmailConfirm />} />
           <Route path="/test-auth" element={<TestAuth />} />
+          <Route path="/qr" element={<QrView />} />
           
           {/* Protected routes - require agent approval */}
           <Route path="/" element={<AgentApprovalGuard><Dashboard /></AgentApprovalGuard>} />

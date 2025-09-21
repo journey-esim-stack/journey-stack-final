@@ -629,13 +629,14 @@ Instructions:
     let qrBlob: Blob | null = null;
     let qrFile: File | null = null;
     let qrImageUrl: string | null = null;
+    let lpa: string | null = null;
 
     try {
       if (isMayaEsim) {
         const qrSource = esimDetails?.activation?.qr_code || '';
         const smdp = esimDetails?.activation?.sm_dp_address || 'consumer.e-sim.global';
         const mayaCode = qrSource || esimDetails?.activation?.manual_code || '';
-        const lpa = mayaCode?.startsWith('LPA:') ? mayaCode : (mayaCode ? `LPA:1$${smdp}$${mayaCode}` : '');
+        lpa = mayaCode?.startsWith('LPA:') ? mayaCode : (mayaCode ? `LPA:1$${smdp}$${mayaCode}` : '');
 
         if (lpa) {
           const dataUrl = await QRCode.toDataURL(lpa, {
@@ -700,6 +701,10 @@ Instructions:
       } catch (e) {
         console.warn('QR upload exception:', e);
       }
+    }
+    // Fallback link to in-app QR render page if upload unavailable
+    if (isMayaEsim && !qrImageUrl && lpa) {
+      qrImageUrl = `${window.location.origin}/qr?code=${encodeURIComponent(lpa)}`;
     }
 
     const finalShareText = qrImageUrl ? `${shareText}\n\nQR Code Image: ${qrImageUrl}` : shareText;

@@ -249,19 +249,18 @@ export default function AlgoliaPlans() {
           });
         }
 
-        // Create Algolia client with actual credentials
+        // Fetch Algolia credentials from Edge Function
+        const { data: creds, error: credsError } = await supabase.functions.invoke('get-algolia-credentials');
+        if (credsError || !creds?.appId || !creds?.apiKey) {
+          throw new Error('Failed to load Algolia credentials');
+        }
+
         const client = algoliasearch(
-          '7EHTXDSQKE', // Algolia Application ID
-          '4f4b69b5e4f54c3f8c5f1e8d9c2a7b3e' // Algolia Search API Key
+          creds.appId,
+          creds.apiKey
         );
         
-        console.log('Algolia client created with credentials:', {
-          appId: '7EHTXDSQKE',
-          hasSearchKey: !!client
-        });
-        
-        
-        console.log('Algolia client initialized');
+        console.log('Algolia client initialized with secured key');
         setSearchClient(client);
         
       } catch (error) {

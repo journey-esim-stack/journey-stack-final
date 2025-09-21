@@ -55,6 +55,7 @@ const ESims = () => {
   const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [statusLoading, setStatusLoading] = useState<Set<string>>(new Set());
+  const [networkStatusMap, setNetworkStatusMap] = useState<Record<string, boolean>>({});
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -230,6 +231,7 @@ const ESims = () => {
     setStatusLoading(newStatusLoading);
 
     const updatedOrders = [...ordersList];
+    const connectedMap: Record<string, boolean> = {};
 
     for (const order of completedOrders) {
       try {
@@ -259,6 +261,10 @@ const ESims = () => {
                 ...updatedOrders[orderIndex],
                 real_status: JSON.stringify(mayaData)
               };
+              // Update connected map using same logic as ESimDetail
+              const netStatus = mayaData.network_status || mayaData.esim?.network_status;
+              const st = mayaData.state || mayaData.esim?.state;
+              connectedMap[order.id] = (netStatus === 'ENABLED' && st !== 'RELEASED');
             } else {
               // For eSIM Access, use existing logic
               const apiStatus = eSimDetails.obj?.status || eSimDetails.obj?.state;
@@ -294,6 +300,8 @@ const ESims = () => {
                 ...updatedOrders[orderIndex],
                 real_status: realStatus
               };
+              // For eSIM Access: network.connected reflects actual network state
+              connectedMap[order.id] = Boolean(eSimDetails.obj?.network?.connected) === true;
             }
           }
         }
@@ -303,6 +311,7 @@ const ESims = () => {
     }
 
     setOrders(updatedOrders);
+    setNetworkStatusMap(prev => ({ ...prev, ...connectedMap }));
     setStatusLoading(new Set());
   };
 
@@ -722,47 +731,7 @@ const ESims = () => {
                                  </div>
                                ) : (
                                  (() => {
-                                   const supplierName = order.esim_plans?.supplier_name?.toLowerCase();
-                                   const isMaya = supplierName === 'maya';
-                                   
-                                   // Use the same logic as ESimDetail page for network connectivity
-                                   let isConnected = false;
-                                   
-                                   if (isMaya && order.real_status) {
-                                     try {
-                                       const parsed = typeof order.real_status === 'string' && order.real_status.trim().startsWith('{') 
-                                         ? JSON.parse(order.real_status) 
-                                         : order.real_status;
-                                       
-                                       // For Maya: Connected requires network_status === 'ENABLED' and state !== 'RELEASED'
-                                       const networkStatus = parsed?.network_status || parsed?.esim?.network_status;
-                                       const state = parsed?.state || parsed?.esim?.state;
-                                       isConnected = (networkStatus === 'ENABLED' && state !== 'RELEASED');
-                                     } catch (e) {
-                                       console.error('Failed to parse Maya real_status:', e);
-                                       isConnected = false;
-                                     }
-                                   } else if (!isMaya && order.real_status) {
-                                     try {
-                                       const parsed = typeof order.real_status === 'string' && order.real_status.trim().startsWith('{') 
-                                         ? JSON.parse(order.real_status) 
-                                         : null;
-                                       
-                                       // For eSIM Access: Check obj.network.connected
-                                       if (parsed && parsed.obj && parsed.obj.network) {
-                                         isConnected = Boolean(parsed.obj.network.connected);
-                                       } else {
-                                         // Fallback: assume connected if status indicates active use
-                                         const statusLower = order.real_status.toLowerCase();
-                                         isConnected = statusLower === 'in_use';
-                                       }
-                                     } catch (e) {
-                                       // Fallback for non-JSON status
-                                       const statusLower = order.real_status.toLowerCase();
-                                       isConnected = statusLower === 'in_use';
-                                     }
-                                   }
-                                   
+                                   const isConnected = Boolean(networkStatusMap[order.id]);
                                    return (
                                      <Badge 
                                        className={isConnected ? 

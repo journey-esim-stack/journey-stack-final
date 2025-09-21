@@ -208,8 +208,8 @@ export default function AdminInventory() {
                 body: { iccid }
               });
               
-              if (mayaResponse?.success && mayaResponse.data?.esim) {
-                const { network_status, state } = mayaResponse.data.esim;
+              if (mayaResponse?.success && mayaResponse.status) {
+                const { network_status, state } = mayaResponse.status;
                 const isConnected = network_status === 'ENABLED' && state !== 'RELEASED';
                 statusMap.set(iccid, isConnected);
               }
@@ -219,8 +219,8 @@ export default function AdminInventory() {
                 body: { iccid }
               });
               
-              if (detailsResponse?.success && detailsResponse.data?.obj?.network) {
-                const isConnected = detailsResponse.data.obj.network.connected === true;
+              if (detailsResponse?.success && detailsResponse?.obj?.network) {
+                const isConnected = detailsResponse.obj.network.connected === true;
                 statusMap.set(iccid, isConnected);
               }
             }

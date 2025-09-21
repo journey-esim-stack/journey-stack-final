@@ -183,29 +183,46 @@ export default function AlgoliaPlansSimple() {
   
   const { toast } = useToast();
 
+  // Synonyms mapping for client-side assistance (Algolia expects boolean `synonyms` param; custom lists are index-level only)
+  const synonymsMap: Record<string, string[]> = {
+    uae: ["dubai", "united arab emirates"],
+    dubai: ["uae", "united arab emirates"],
+    uk: ["united kingdom", "britain", "england"],
+    usa: ["united states", "america", "us"],
+    america: ["united states", "usa", "us"],
+    singapore: ["singpore"],
+    singpore: ["singapore"],
+  };
+
+  const buildOptionalWords = (q: string) => {
+    const tokens = q.toLowerCase().split(/[^a-z]+/).filter(Boolean);
+    const set = new Set<string>();
+    tokens.forEach((t) => synonymsMap[t]?.forEach((s) => set.add(s)));
+    return Array.from(set);
+  };
+
   const searchPlans = useCallback(async (query: string = "") => {
     setIsLoading(true);
     setError(null);
     
     try {
       const client = await getSearchClient();
+
+      const optionalWords = buildOptionalWords(query);
       
-      // Enhanced search with typo tolerance and synonyms
       const searchResponse = await client.search({
         requests: [{
           indexName: 'esim_plans',
-          query: query,
-          hitsPerPage: 1000,
-          filters: 'is_active:true AND admin_only:false',
-          typoTolerance: true,
-          ignorePlurals: true,
-          removeStopWords: true,
-          synonyms: [
-            'UAE,Dubai,United Arab Emirates',
-            'UK,United Kingdom,Britain,England',
-            'USA,United States,America,US',
-            'Singapore,Singpore', // Handle common typo
-          ]
+          query,
+          params: {
+            hitsPerPage: 1000,
+            filters: 'is_active:true AND admin_only:false',
+            typoTolerance: true,
+            ignorePlurals: true,
+            removeStopWords: true,
+            queryLanguages: ['en'],
+            optionalWords,
+          }
         }]
       });
       

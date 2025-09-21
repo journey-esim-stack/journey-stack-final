@@ -26,7 +26,7 @@ serve(async (req) => {
       .select(`
         *,
         agent_profiles!orders_agent_id_fkey(id, company_name, contact_person),
-        esim_plans!orders_plan_id_fkey(title, country_name, data_amount)
+        esim_plans!orders_plan_id_fkey(title, country_name, data_amount, supplier_name)
       `)
       .order("created_at", { ascending: false });
 
@@ -56,7 +56,8 @@ serve(async (req) => {
       customer_name: order.customer_name,
       customer_email: order.customer_email,
       activation_code: order.activation_code,
-      supplier_order_id: order.supplier_order_id
+      supplier_order_id: order.supplier_order_id,
+      supplier_name: order.esim_plans?.supplier_name || 'esim_access'
     }));
 
     console.log("Inventory data transformed:", inventoryData.length);

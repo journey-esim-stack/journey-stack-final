@@ -113,8 +113,8 @@ export default function Layout({ children }: LayoutProps) {
       <nav className="border-b bg-card">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16 md:h-20">
-            <div className="flex items-center">
-              <Link to="/dashboard" className="flex items-center flex-shrink-0">
+            <div className="flex items-center space-x-3">
+              <Link to="/dashboard" className="flex items-center">
                 <img 
                   src="/lovable-uploads/1e1f433f-d326-4551-ba07-4e6b9e5c259f.png" 
                   alt="Journey Stack" 
@@ -131,43 +131,39 @@ export default function Layout({ children }: LayoutProps) {
                   }}
                 />
               </Link>
-              
-              <div className="flex items-center ml-4">
-                <div className="hidden md:flex items-center space-x-1 flex-shrink-0">
-                  {navigation.map((item) => {
-                    const Icon = item.icon;
-                    return (
-                      <Link
-                        key={item.name}
-                        to={item.href}
-                        className={`flex items-center space-x-2 px-2 md:px-3 py-2 rounded-md text-xs md:text-sm font-medium transition-colors ${
-                          location.pathname === item.href
-                            ? "bg-primary text-primary-foreground"
-                            : "text-foreground/80 hover:text-foreground hover:bg-accent"
-                        }`}
-                      >
-                        <Icon className="h-4 w-4 flex-shrink-0" />
-                        <span className="whitespace-nowrap">{item.name}</span>
-                      </Link>
-                    );
-                  })}
-                </div>
-                
+              <div className="hidden md:flex items-center space-x-1">
+                {navigation.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <Link
+                      key={item.name}
+                      to={item.href}
+                      className={`flex items-center space-x-2 px-2 md:px-3 py-2 rounded-md text-xs md:text-sm font-medium transition-colors ${
+                        location.pathname === item.href
+                          ? "bg-primary text-primary-foreground"
+                          : "text-foreground/80 hover:text-foreground hover:bg-accent"
+                      }`}
+                    >
+                      <Icon className="h-4 w-4" />
+                      <span>{item.name}</span>
+                    </Link>
+                  );
+                })}
                 {isAdmin && (
-                  <div className="hidden md:block ml-4 flex-shrink-0">
+                  <div className="ml-3">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                      <Button 
-                        variant="outline"
-                        size="default"
-                        className="rounded-full h-10 px-4 flex items-center gap-2 bg-orange-500 text-white border-orange-500 hover:bg-orange-600 hover:border-orange-600 w-[120px] min-w-[120px] justify-center overflow-hidden leading-none"
-                      >
-                        <ShieldCheck className="h-4 w-4 flex-shrink-0" />
-                        <span className="whitespace-nowrap">Admin</span>
-                        <ChevronDown className="h-4 w-4 flex-shrink-0" />
-                      </Button>
+                        <Button 
+                          variant="outline"
+                          size="sm"
+                          className="flex items-center space-x-2 bg-orange-500 text-white border-orange-500 hover:bg-orange-600 hover:border-orange-600"
+                        >
+                          <ShieldCheck className="h-4 w-4" />
+                          <span className="whitespace-nowrap">Admin</span>
+                          <ChevronDown className="h-4 w-4" />
+                        </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="z-50 bg-background border border-border shadow-lg">
+                      <DropdownMenuContent align="end" className="bg-background border border-border">
                         {adminNavigation.map((item) => {
                           const Icon = item.icon;
                           return (

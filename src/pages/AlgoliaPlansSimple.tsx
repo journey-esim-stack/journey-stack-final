@@ -395,12 +395,12 @@ export default function AlgoliaPlansSimple() {
               <CardContent className="space-y-4">
                 <div>
                   <label className="text-sm font-medium mb-2 block">Country</label>
-                  <Select value={selectedCountry} onValueChange={setSelectedCountry}>
+                  <Select value={selectedCountry || "all"} onValueChange={(value) => setSelectedCountry(value === "all" ? "" : value)}>
                     <SelectTrigger>
                       <SelectValue placeholder="All countries" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All countries</SelectItem>
+                      <SelectItem value="all">All countries</SelectItem>
                       {uniqueCountries.map(country => (
                         <SelectItem key={country} value={country}>{country}</SelectItem>
                       ))}
@@ -410,12 +410,12 @@ export default function AlgoliaPlansSimple() {
 
                 <div>
                   <label className="text-sm font-medium mb-2 block">Supplier</label>
-                  <Select value={selectedSupplier} onValueChange={setSelectedSupplier}>
+                  <Select value={selectedSupplier || "all"} onValueChange={(value) => setSelectedSupplier(value === "all" ? "" : value)}>
                     <SelectTrigger>
                       <SelectValue placeholder="All suppliers" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All suppliers</SelectItem>
+                      <SelectItem value="all">All suppliers</SelectItem>
                       {uniqueSuppliers.map(supplier => (
                         <SelectItem key={supplier} value={supplier}>
                           {supplier === 'esim_access' ? 'eSIM Access' : supplier}
@@ -427,12 +427,12 @@ export default function AlgoliaPlansSimple() {
 
                 <div>
                   <label className="text-sm font-medium mb-2 block">Duration</label>
-                  <Select value={validityFilter} onValueChange={setValidityFilter}>
+                  <Select value={validityFilter || "all"} onValueChange={(value) => setValidityFilter(value === "all" ? "" : value)}>
                     <SelectTrigger>
                       <SelectValue placeholder="Any duration" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Any duration</SelectItem>
+                      <SelectItem value="all">Any duration</SelectItem>
                       <SelectItem value="1">1 day</SelectItem>
                       <SelectItem value="7">2-7 days</SelectItem>
                       <SelectItem value="30">8-30 days</SelectItem>

@@ -558,10 +558,16 @@ const ESimDetail = () => {
     const message = agentBranding.message || `Here is your ${planName} activation details:`;
     const contactInfo = agentBranding.contactInfo ? `\n\nFor support: ${agentBranding.contactInfo}` : "";
     
+    // Check if this is a Maya eSIM to format QR code properly
+    const isMayaEsim = orderInfo?.esim_plans?.supplier_name?.toLowerCase() === 'maya';
+    const qrCodeText = isMayaEsim 
+      ? `LPA:1$${esimDetails?.activation?.sm_dp_address || 'consumer.e-sim.global'}$${esimDetails?.activation?.manual_code || ''}`
+      : (esimDetails?.activation?.qr_code || "");
+    
     return `${companyBranding}${message}
 
 Plan: ${planName}
-QR Code: ${esimDetails?.activation?.qr_code || ""}
+QR Code: ${qrCodeText}
 Manual Activation Code: ${esimDetails?.activation?.manual_code || ""}
 
 IMPORTANT - Check your device eSIM compatibility:

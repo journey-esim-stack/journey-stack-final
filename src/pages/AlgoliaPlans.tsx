@@ -255,6 +255,12 @@ export default function AlgoliaPlans() {
           '4f4b69b5e4f54c3f8c5f1e8d9c2a7b3e' // Algolia Search API Key
         );
         
+        console.log('Algolia client created with credentials:', {
+          appId: '7EHTXDSQKE',
+          hasSearchKey: !!client
+        });
+        
+        
         console.log('Algolia client initialized');
         setSearchClient(client);
         
@@ -358,7 +364,7 @@ export default function AlgoliaPlans() {
         <InstantSearch searchClient={searchClient} indexName="esim_plans">
           <Configure 
             hitsPerPage={24}
-            filters="is_active:true AND admin_only:false"
+            filters="is_active:true"
           />
           
           <div className="grid lg:grid-cols-4 gap-8">

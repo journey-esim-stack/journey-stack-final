@@ -12,6 +12,7 @@ import { getCountryFlag } from "@/utils/countryFlags";
 import { useCart } from "@/contexts/CartContext";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import { getSearchClient } from "@/lib/algolia";
+import { supabase } from "@/integrations/supabase/client";
 
 interface EsimPlan {
   objectID: string;
@@ -210,10 +211,22 @@ export default function AlgoliaPlansSimple() {
 
       const optionalWords = buildOptionalWords(query);
 
-      const response = await client.searchSingleIndex({
-        indexName: 'esim_plans',
-        searchParams: {
-          query,
+      const index = (client as any).initIndex('esim_plans');
+      const response = await index.search(query, {
+        hitsPerPage: 1000,
+        filters: 'is_active:true AND admin_only:false',
+        typoTolerance: true,
+        ignorePlurals: true,
+        removeStopWords: true,
+        queryLanguages: ['en'],
+        optionalWords,
+      });
+      
+      const allHits: any[] = Array.isArray((response as any)?.hits) ? [...(response as any).hits] : [];
+      const nbPages = (response as any)?.nbPages ?? 1;
+      let page = 1;
+      while (page < nbPages && allHits.length < 5000) {
+        const next = await index.search(query, {
           hitsPerPage: 1000,
           filters: 'is_active:true AND admin_only:false',
           typoTolerance: true,
@@ -221,21 +234,38 @@ export default function AlgoliaPlansSimple() {
           removeStopWords: true,
           queryLanguages: ['en'],
           optionalWords,
-        },
-      });
-      
-      const hits = (response as any)?.hits || [];
-      setAllPlans(hits as EsimPlan[]);
-      setPlans(hits as EsimPlan[]);
-      
+          page,
+        });
+        if (Array.isArray((next as any)?.hits)) allHits.push(...(next as any).hits);
+        page++;
+      }
+      setAllPlans(allHits as EsimPlan[]);
+      setPlans(allHits as EsimPlan[]);
     } catch (err: any) {
       console.error('Search error:', err);
-      setError(err.message || 'Search failed');
-      toast({
-        title: "Search Error",
-        description: "Failed to search plans. Please try again.",
-        variant: "destructive",
-      });
+
+      // Fallback to Supabase query if Algolia fails
+      try {
+        const { data, error: se } = await supabase
+          .from('esim_plans')
+          .select('*')
+          .eq('is_active', true)
+          .eq('admin_only', false)
+          .limit(5000);
+
+        if (se) throw se;
+
+        setAllPlans((data || []) as unknown as EsimPlan[]);
+        setPlans((data || []) as unknown as EsimPlan[]);
+        toast({ title: 'Algolia unavailable, using fallback', description: `Loaded ${data?.length || 0} plans from Supabase.` });
+      } catch (fallbackErr: any) {
+        setError(err.message || 'Search failed');
+        toast({
+          title: 'Search Error',
+          description: 'Failed to load plans from Algolia and fallback. Please try again.',
+          variant: 'destructive',
+        });
+      }
     } finally {
       setIsLoading(false);
     }

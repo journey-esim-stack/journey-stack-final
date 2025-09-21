@@ -149,44 +149,44 @@ export default function Layout({ children }: LayoutProps) {
                     </Link>
                   );
                 })}
-                {isAdmin && (
-                  <div className="ml-3">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button 
-                          variant="outline"
-                          size="sm"
-                          className="flex items-center space-x-2 bg-orange-500 text-white border-orange-500 hover:bg-orange-600 hover:border-orange-600"
-                        >
-                          <ShieldCheck className="h-4 w-4" />
-                          <span className="whitespace-nowrap">Admin</span>
-                          <ChevronDown className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="bg-background border border-border">
-                        {adminNavigation.map((item) => {
-                          const Icon = item.icon;
-                          return (
-                            <DropdownMenuItem key={item.name} asChild>
-                              <Link
-                                to={item.href}
-                                className={`flex items-center space-x-2 px-2 py-2 text-sm font-medium transition-colors ${
-                                  location.pathname === item.href
-                                    ? "bg-accent text-accent-foreground"
-                                    : "text-foreground hover:bg-accent hover:text-accent-foreground"
-                                }`}
-                              >
-                                <Icon className="h-4 w-4" />
-                                <span>{item.name}</span>
-                              </Link>
-                            </DropdownMenuItem>
-                          );
-                        })}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                )}
               </div>
+              {isAdmin && (
+                <div className="hidden md:block ml-3">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button 
+                        variant="outline"
+                        size="sm"
+                        className="flex items-center space-x-2 bg-orange-500 text-white border-orange-500 hover:bg-orange-600 hover:border-orange-600 min-w-[100px] justify-center"
+                      >
+                        <ShieldCheck className="h-4 w-4" />
+                        <span className="whitespace-nowrap">Admin</span>
+                        <ChevronDown className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="bg-background border border-border">
+                      {adminNavigation.map((item) => {
+                        const Icon = item.icon;
+                        return (
+                          <DropdownMenuItem key={item.name} asChild>
+                            <Link
+                              to={item.href}
+                              className={`flex items-center space-x-2 px-2 py-2 text-sm font-medium transition-colors ${
+                                location.pathname === item.href
+                                  ? "bg-accent text-accent-foreground"
+                                  : "text-foreground hover:bg-accent hover:text-accent-foreground"
+                              }`}
+                            >
+                              <Icon className="h-4 w-4" />
+                              <span>{item.name}</span>
+                            </Link>
+                          </DropdownMenuItem>
+                        );
+                      })}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              )}
             </div>
             <div className="flex items-center space-x-2 md:space-x-3">
               <div className="hidden md:block h-6 w-px bg-border" aria-hidden="true" />

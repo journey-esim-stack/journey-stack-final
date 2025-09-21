@@ -59,9 +59,9 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Algolia not configured' }), { status: 500, headers: corsHeaders });
     }
 
-    const validUntil = Math.floor(Date.now() / 1000) + 60 * 60 * 6; // 6 hours
-    const encodedFilters = encodeURIComponent('is_active:true AND admin_only:false');
-    const queryParams = `filters=${encodedFilters}&restrictIndices=esim_plans&validUntil=${validUntil}`;
+    // Generate a secured API key restricted to the public index/filters
+    const validUntil = Math.floor(Date.now() / 1000) + 60 * 60 * 6; // 6 hours (seconds)
+    const queryParams = `filters=is_active:true AND admin_only:false&restrictIndices=esim_plans&validUntil=${validUntil}`;
 
     const signatureHex = await hmacHex(adminKey, queryParams);
     const securedApiKey = btoa(signatureHex + queryParams);

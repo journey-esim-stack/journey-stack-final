@@ -83,11 +83,33 @@ export const CheckoutForm = ({ onSuccess, onCancel }: CheckoutFormProps) => {
   };
 
   const handleSubmit = async () => {
-    if (!validateForm()) return;
+    console.log('🛒 Starting checkout process...');
     
-    if (state.items.length === 0) return;
+    if (!validateForm()) {
+      console.log('❌ Form validation failed');
+      return;
+    }
+    
+    if (state.items.length === 0) {
+      console.log('❌ No items in cart');
+      return;
+    }
+    
+    // Check authentication first
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    console.log('👤 Auth check:', { user: user?.id, error: authError });
+    
+    if (authError || !user) {
+      toast({ 
+        title: 'Authentication required', 
+        description: 'Please log in to complete your purchase.', 
+        variant: 'destructive' 
+      });
+      return;
+    }
     
     setIsSubmitting(true);
+    console.log('💰 Cart total:', state.total, selectedCurrency);
     
     try {
       // Convert prices back to USD for backend processing
@@ -97,34 +119,42 @@ export const CheckoutForm = ({ onSuccess, onCancel }: CheckoutFormProps) => {
         selectedCurrency === 'EUR' ? 1/0.95 : 1;
       
       const usdTotal = Number((state.total * usdConversionRate).toFixed(2));
+      console.log('💵 USD total after conversion:', usdTotal);
+      console.log('🛍️ Cart items:', state.items.length);
+      
+      const requestBody = {
+        amount: usdTotal,
+        description: `eSIM purchase: ${state.items.map(item => item.title).join(", ")}`,
+        reference_id: `cart-${Date.now()}`,
+        cart_items: state.items.map(item => ({
+          ...item,
+          agentPrice: item.agentPrice * usdConversionRate, // Convert back to USD
+          wholesalePrice: (item.agentPrice * usdConversionRate) * 0.8, // Convert back to USD and estimate wholesale
+          supplier_name: item.supplier_name // Include supplier info to route to correct create function
+        })),
+        customer_info: {
+          name: customerInfo.name.trim() || 'Customer',
+          email: customerInfo.email.trim() || 'customer@example.com',
+          phone: customerInfo.phone.trim() || null,
+        },
+        device_info: deviceInfo.modelId ? {
+          brand_id: deviceInfo.brandId,
+          model_id: deviceInfo.modelId,
+          compatibility_checked: true,
+          compatibility_warning_shown: deviceInfo.isCompatible === false
+        } : null
+      };
+      
+      console.log('📤 Sending wallet-debit request:', JSON.stringify(requestBody, null, 2));
       
       const { error, data } = await supabase.functions.invoke('wallet-debit', {
-        body: {
-          amount: usdTotal,
-          description: `eSIM purchase: ${state.items.map(item => item.title).join(", ")}`,
-          reference_id: `cart-${Date.now()}`,
-          cart_items: state.items.map(item => ({
-            ...item,
-            agentPrice: item.agentPrice * usdConversionRate, // Convert back to USD
-            wholesalePrice: (item.agentPrice * usdConversionRate) * 0.8, // Convert back to USD and estimate wholesale
-            supplier_name: item.supplier_name // Include supplier info to route to correct create function
-          })),
-          customer_info: {
-            name: customerInfo.name.trim() || 'Customer',
-            email: customerInfo.email.trim() || 'customer@example.com',
-            phone: customerInfo.phone.trim() || null,
-          },
-          device_info: deviceInfo.modelId ? {
-            brand_id: deviceInfo.brandId,
-            model_id: deviceInfo.modelId,
-            compatibility_checked: true,
-            compatibility_warning_shown: deviceInfo.isCompatible === false
-          } : null
-        },
+        body: requestBody,
       });
       
+      console.log('📥 Wallet-debit response:', { error, data });
+      
       if (error) {
-        console.error('Wallet debit error:', error);
+        console.error('💥 Wallet debit error:', error);
         const errorData = error as any;
         const msg = errorData?.message || '';
         
@@ -165,6 +195,7 @@ export const CheckoutForm = ({ onSuccess, onCancel }: CheckoutFormProps) => {
       }
       
       const orderCount = data?.order_ids?.length || 0;
+      console.log('✅ Checkout successful:', { orderCount, orders: data?.order_ids });
       toast({ 
         title: 'Payment successful', 
         description: `${orderCount} order(s) created and charged from wallet.` 
@@ -173,7 +204,7 @@ export const CheckoutForm = ({ onSuccess, onCancel }: CheckoutFormProps) => {
       clearCart();
       onSuccess();
     } catch (e) {
-      console.error('Checkout error:', e);
+      console.error('💥 Checkout error:', e);
       toast({ 
         title: 'Checkout error', 
         description: 'Unexpected error occurred.', 

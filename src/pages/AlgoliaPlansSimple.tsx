@@ -255,17 +255,24 @@ export default function AlgoliaPlansSimple() {
       const nbHits = (first as any)?.nbHits ?? allHits.length;
       if (nbHits > allHits.length) {
         try {
-          const { data, error: se } = await supabase
-            .from('esim_plans')
-            .select('*')
-            .eq('is_active', true)
-            .eq('admin_only', false)
-            .limit(10000);
-          if (!se) {
-            setAllPlans((data || []) as unknown as EsimPlan[]);
-            setPlans((data || []) as unknown as EsimPlan[]);
-            return;
+          const pageSize = 1000;
+          let from = 0; let to = pageSize - 1; let supaHits: any[] = [];
+          while (true) {
+            const { data, error } = await supabase
+              .from('esim_plans')
+              .select('*')
+              .eq('is_active', true)
+              .eq('admin_only', false)
+              .range(from, to);
+            if (error) throw error;
+            if (!data || data.length === 0) break;
+            supaHits.push(...data);
+            if (data.length < pageSize) break;
+            from += pageSize; to += pageSize;
           }
+          setAllPlans(supaHits as unknown as EsimPlan[]);
+          setPlans(supaHits as unknown as EsimPlan[]);
+          return;
         } catch {}
       }
 
@@ -276,18 +283,25 @@ export default function AlgoliaPlansSimple() {
 
       // Fallback to Supabase query if Algolia fails
       try {
-        const { data, error: se } = await supabase
-          .from('esim_plans')
-          .select('*')
-          .eq('is_active', true)
-          .eq('admin_only', false)
-          .limit(5000);
+        const pageSize = 1000;
+        let from = 0; let to = pageSize - 1; let supaHits: any[] = [];
+        while (true) {
+          const { data, error } = await supabase
+            .from('esim_plans')
+            .select('*')
+            .eq('is_active', true)
+            .eq('admin_only', false)
+            .range(from, to);
+          if (error) throw error;
+          if (!data || data.length === 0) break;
+          supaHits.push(...data);
+          if (data.length < pageSize) break;
+          from += pageSize; to += pageSize;
+        }
 
-        if (se) throw se;
-
-        setAllPlans((data || []) as unknown as EsimPlan[]);
-        setPlans((data || []) as unknown as EsimPlan[]);
-        toast({ title: 'Algolia unavailable, using fallback', description: `Loaded ${data?.length || 0} plans from Supabase.` });
+        setAllPlans(supaHits as unknown as EsimPlan[]);
+        setPlans(supaHits as unknown as EsimPlan[]);
+        toast({ title: 'Algolia unavailable, using fallback', description: `Loaded ${supaHits.length} plans from Supabase.` });
       } catch (fallbackErr: any) {
         setError(err.message || 'Search failed');
         toast({

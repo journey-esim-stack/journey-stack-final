@@ -39,7 +39,7 @@ const PlanHit = ({ hit }: { hit: ESimPlanHit }) => {
       validityDays: hit.validity_days,
       agentPrice: hit.wholesale_price,
       currency: hit.currency,
-      supplier_name: hit.supplier_name
+      supplier_name: "eSIM Provider"
     });
   };
 
@@ -54,7 +54,7 @@ const PlanHit = ({ hit }: { hit: ESimPlanHit }) => {
             </CardDescription>
           </div>
           <Badge variant="secondary" className="text-xs">
-            {hit.supplier_name}
+            {hit.data_amount}
           </Badge>
         </div>
       </CardHeader>
@@ -138,11 +138,11 @@ const AlgoliaSearch = () => {
 
             <Card>
               <CardHeader className="pb-3">
-                <CardTitle className="text-base">Supplier</CardTitle>
+                <CardTitle className="text-base">Data Amount</CardTitle>
               </CardHeader>
               <CardContent>
                 <RefinementList 
-                  attribute="supplier_name"
+                  attribute="data_amount"
                   classNames={{
                     root: 'space-y-2',
                     list: 'space-y-1',

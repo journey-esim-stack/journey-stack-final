@@ -4,7 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { User as SupabaseUser } from "@supabase/supabase-js";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { LogOut, Package, Wallet, ShoppingCart, ShieldCheck, Smartphone, User, BarChart3, Archive } from "lucide-react";
+import { LogOut, Package, Wallet, ShoppingCart, ShieldCheck, Smartphone, User, BarChart3, Archive, ChevronDown } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
 import CartSidebar from "@/components/CartSidebar";
 import CartIcon from "@/components/CartIcon";
@@ -86,8 +87,9 @@ export default function Layout({ children }: LayoutProps) {
   ];
 
   const adminNavigation = isAdmin ? [
-    { name: "Admin: Agents", href: "/admin/agents", icon: ShieldCheck },
-    { name: "Admin: Inventory", href: "/admin/inventory", icon: Archive },
+    { name: "Agents", href: "/admin/agents", icon: ShieldCheck },
+    { name: "Inventory", href: "/admin/inventory", icon: Archive },
+    { name: "Suppliers", href: "/admin/suppliers", icon: Package },
   ] : [];
 
   return (
@@ -121,25 +123,43 @@ export default function Layout({ children }: LayoutProps) {
                     </Link>
                   );
                 })}
-                <div className="flex items-center space-x-2 ml-3">
-                  {adminNavigation.map((item) => {
-                    const Icon = item.icon;
-                    return (
-                      <Link
-                        key={item.name}
-                        to={item.href}
-                        className={`flex items-center space-x-2 px-2 md:px-3 py-2 rounded-md text-xs md:text-sm font-medium transition-colors ${
-                          location.pathname === item.href
-                            ? "bg-orange-600 text-white"
-                            : "bg-orange-500 text-white hover:bg-orange-600"
-                        }`}
-                      >
-                        <Icon className="h-4 w-4" />
-                        <span className="whitespace-nowrap">{item.name}</span>
-                      </Link>
-                    );
-                  })}
-                </div>
+                {isAdmin && (
+                  <div className="ml-3">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button 
+                          variant="outline"
+                          size="sm"
+                          className="flex items-center space-x-2 bg-orange-500 text-white border-orange-500 hover:bg-orange-600 hover:border-orange-600"
+                        >
+                          <ShieldCheck className="h-4 w-4" />
+                          <span className="whitespace-nowrap">Admin</span>
+                          <ChevronDown className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="bg-background border border-border">
+                        {adminNavigation.map((item) => {
+                          const Icon = item.icon;
+                          return (
+                            <DropdownMenuItem key={item.name} asChild>
+                              <Link
+                                to={item.href}
+                                className={`flex items-center space-x-2 px-2 py-2 text-sm font-medium transition-colors ${
+                                  location.pathname === item.href
+                                    ? "bg-accent text-accent-foreground"
+                                    : "text-foreground hover:bg-accent hover:text-accent-foreground"
+                                }`}
+                              >
+                                <Icon className="h-4 w-4" />
+                                <span>{item.name}</span>
+                              </Link>
+                            </DropdownMenuItem>
+                          );
+                        })}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                )}
               </div>
             </div>
             <div className="flex items-center space-x-2 md:space-x-3">

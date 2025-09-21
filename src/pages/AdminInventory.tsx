@@ -29,6 +29,7 @@ interface InventoryItem {
   customer_email: string;
   activation_code?: string;
   supplier_order_id?: string;
+  supplier_name?: string;
 }
 
 export default function AdminInventory() {
@@ -39,6 +40,7 @@ export default function AdminInventory() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [agentFilter, setAgentFilter] = useState<string>("all");
   const [agents, setAgents] = useState<Array<{id: string, company_name: string}>>([]);
+  const [networkStatusMap, setNetworkStatusMap] = useState<Map<string, boolean>>(new Map());
   const { toast } = useToast();
 
   useEffect(() => {
@@ -76,6 +78,12 @@ export default function AdminInventory() {
       supabase.removeChannel(channel);
     };
   }, []);
+
+  useEffect(() => {
+    if (inventory.length > 0) {
+      fetchNetworkStatuses();
+    }
+  }, [inventory]);
 
   useEffect(() => {
     filterInventory();
@@ -121,7 +129,7 @@ export default function AdminInventory() {
         .select(`
           *,
           agent_profiles(id, company_name, contact_person),
-          esim_plans(title, country_name, data_amount)
+          esim_plans(title, country_name, data_amount, supplier_name)
         `)
         .order("created_at", { ascending: false });
 
@@ -151,7 +159,8 @@ export default function AdminInventory() {
         customer_name: order.customer_name,
         customer_email: order.customer_email,
         activation_code: order.activation_code,
-        supplier_order_id: order.supplier_order_id
+        supplier_order_id: order.supplier_order_id,
+        supplier_name: order.esim_plans?.supplier_name || 'esim_access'
       }));
 
       console.log("Direct query inventory data:", inventoryData.length);
@@ -167,6 +176,68 @@ export default function AdminInventory() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchNetworkStatuses = async () => {
+    const statusMap = new Map<string, boolean>();
+    
+    // Get unique ICCIDs that have actual values
+    const iccidsToCheck = [...new Set(
+      inventory
+        .filter(item => item.esim_iccid && item.esim_iccid !== 'Pending')
+        .map(item => item.esim_iccid)
+    )];
+
+    console.log(`Checking network status for ${iccidsToCheck.length} unique ICCIDs`);
+
+    // Process in batches to avoid overwhelming the API
+    const batchSize = 10;
+    for (let i = 0; i < iccidsToCheck.length; i += batchSize) {
+      const batch = iccidsToCheck.slice(i, i + batchSize);
+      
+      await Promise.all(
+        batch.map(async (iccid) => {
+          try {
+            // Find the plan to determine supplier
+            const item = inventory.find(item => item.esim_iccid === iccid);
+            const supplierName = (item as any)?.supplier_name || 'esim_access';
+            
+            if (supplierName === 'maya') {
+              // Check Maya eSIM status
+              const { data: mayaResponse } = await supabase.functions.invoke('get-maya-esim-status', {
+                body: { iccid }
+              });
+              
+              if (mayaResponse?.success && mayaResponse.data?.esim) {
+                const { network_status, state } = mayaResponse.data.esim;
+                const isConnected = network_status === 'ENABLED' && state !== 'RELEASED';
+                statusMap.set(iccid, isConnected);
+              }
+            } else {
+              // Check eSIM Access status
+              const { data: detailsResponse } = await supabase.functions.invoke('get-esim-details', {
+                body: { iccid }
+              });
+              
+              if (detailsResponse?.success && detailsResponse.data?.obj?.network) {
+                const isConnected = detailsResponse.data.obj.network.connected === true;
+                statusMap.set(iccid, isConnected);
+              }
+            }
+          } catch (error) {
+            console.error(`Error checking status for ${iccid}:`, error);
+          }
+        })
+      );
+      
+      // Add a small delay between batches
+      if (i + batchSize < iccidsToCheck.length) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+    }
+
+    setNetworkStatusMap(statusMap);
+    console.log(`Network status checked for ${statusMap.size} eSIMs`);
   };
 
   const filterInventory = () => {
@@ -340,7 +411,11 @@ export default function AdminInventory() {
           <Card>
             <CardContent className="p-6">
               <div className="text-2xl font-bold">
-                {inventory.filter(item => item.status === 'completed').length}
+                {inventory.filter(item => 
+                  item.esim_iccid && 
+                  item.esim_iccid !== 'Pending' && 
+                  networkStatusMap.get(item.esim_iccid) === true
+                ).length}
               </div>
               <p className="text-sm text-muted-foreground">Active eSIMs</p>
             </CardContent>

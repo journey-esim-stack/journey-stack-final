@@ -251,6 +251,24 @@ export default function AlgoliaPlansSimple() {
         if (Array.isArray(next.hits)) allHits.push(...next.hits);
         page++;
       }
+      // If Algolia pagination limit (paginationLimitedTo) truncated results, fall back to Supabase for full list
+      const nbHits = (first as any)?.nbHits ?? allHits.length;
+      if (nbHits > allHits.length) {
+        try {
+          const { data, error: se } = await supabase
+            .from('esim_plans')
+            .select('*')
+            .eq('is_active', true)
+            .eq('admin_only', false)
+            .limit(10000);
+          if (!se) {
+            setAllPlans((data || []) as unknown as EsimPlan[]);
+            setPlans((data || []) as unknown as EsimPlan[]);
+            return;
+          }
+        } catch {}
+      }
+
       setAllPlans(allHits as EsimPlan[]);
       setPlans(allHits as EsimPlan[]);
     } catch (err: any) {

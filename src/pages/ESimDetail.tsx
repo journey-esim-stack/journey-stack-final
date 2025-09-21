@@ -287,27 +287,9 @@ const ESimDetail = () => {
       if (apiError || !apiData?.success) {
         console.error("Error fetching eSIM details:", apiError);
         
-        // Use real-time status data when available, or fall back to basic data
-        const rawStatus = statusData?.esim_status || orderData.real_status || (orderData.status === 'completed' ? "Ready" : "New");
-        const isMayaEsim = orderData.esim_plans?.supplier_name === 'maya';
-
-        // For Maya fallbacks, try to extract network_status from composite strings
-        let currentStatus: string = String(rawStatus || 'Unknown');
-        if (isMayaEsim) {
-          const parseNetwork = (s: string) => {
-            if (!s) return null as string | null;
-            const m1 = s.match(/network_status[:=]\s*([A-Z_]+)/i);
-            const m2 = s.match(/network[:=]\s*([A-Z_]+)/i);
-            return (m1?.[1] || m2?.[1])?.toUpperCase() || null;
-          };
-          const mayaNetwork = parseNetwork(currentStatus);
-          if (mayaNetwork) currentStatus = mayaNetwork;
-        }
-
-        // Normalize to connection boolean
-        const isActive = isMayaEsim
-          ? String(currentStatus).toUpperCase() === 'ENABLED'
-          : currentStatus === 'IN_USE';
+        // Use basic fallback data for non-Maya or when API fails
+        const currentStatus = orderData.real_status || (orderData.status === 'completed' ? "Ready" : "New");
+        const isActive = currentStatus === 'IN_USE';
 
         const expiryDate = orderData.esim_expiry_date || 
           (isActive ? new Date(Date.now() + (orderData.esim_plans?.validity_days || 30) * 24 * 60 * 60 * 1000).toISOString() : null);
@@ -322,9 +304,7 @@ const ESimDetail = () => {
           },
           network: {
             connected: isActive,
-            operator: isMayaEsim
-              ? (isActive ? "Network Enabled" : "Not Connected")
-              : (isActive ? "Connected" : "Not Connected"),
+            operator: isActive ? "Connected" : "Not Connected",
             country: orderData.esim_plans?.country_name || "Unknown",
             signal_strength: isActive ? 85 : 0
           },
@@ -355,27 +335,38 @@ const ESimDetail = () => {
           mayaApiData: isMayaEsim ? apiData.status : null
         });
         
-        // For Maya eSIMs, use network_status for management display
-        if (isMayaEsim && apiData.status?.network_status) {
-          currentStatus = apiData.status.network_status;
-          console.log('ESimDetail - Maya network_status extracted:', currentStatus);
-        } else if (isMayaEsim && typeof currentStatus === 'string' && currentStatus.includes('network:')) {
-          // If we have a composite string, extract network status
-          const networkMatch = currentStatus.match(/network:\s*([a-zA-Z_]+)/i);
-          if (networkMatch) {
-            currentStatus = networkMatch[1];
-            console.log('ESimDetail - Maya network status parsed from composite:', currentStatus);
+        // Maya status mapping according to official docs
+        if (isMayaEsim && apiData.status) {
+          const mayaStatus = apiData.status;
+          const state = mayaStatus.state;
+          const serviceStatus = mayaStatus.service_status;
+          const networkStatus = mayaStatus.network_status;
+          
+          console.log('ESimDetail - Maya status fields:', { state, serviceStatus, networkStatus });
+          
+          // Map according to Maya's official reference table
+          if (serviceStatus === 'inactive' || networkStatus === 'DISABLED') {
+            currentStatus = 'Expired / Suspended';
+          } else if (state === 'RELEASED' && serviceStatus === 'active' && networkStatus === 'ENABLED') {
+            currentStatus = 'Activated / Active';
+          } else if (state === 'RELEASED' && serviceStatus === 'active' && networkStatus === 'NOT_ACTIVE') {
+            currentStatus = 'Awaiting Activation';
+          } else if (state === 'REVOKED' || state === 'DELETED') {
+            currentStatus = 'Revoked / Deleted';
+          } else {
+            currentStatus = networkStatus || 'Unknown';
           }
+          
+          console.log('ESimDetail - Maya mapped status:', currentStatus);
         } else if (!isMayaEsim) {
           // For eSIM Access, use existing logic
           const apiStatus = apiData.obj?.status;
           currentStatus = realtimeStatus || apiStatus || "Unknown";
         }
         
-        // Normalize to connection boolean
-        const connectedStatuses = ["enabled", "active", "online", "connected"];
+        // Determine if active based on status
         const isActive = isMayaEsim
-          ? connectedStatuses.includes(String(currentStatus).toLowerCase())
+          ? currentStatus === 'Activated / Active'
           : currentStatus === 'IN_USE';
         
         const expiryDate = orderData.esim_expiry_date || apiData.obj?.plan?.expiresAt;

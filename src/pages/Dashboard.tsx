@@ -111,47 +111,8 @@ export default function Dashboard() {
 
       if (ordersError) throw ordersError;
       setOrders(ordersData || []);
-      fetchApiStatuses(ordersData || []);
-
-      // Calculate active eSIMs (only those truly connected to network)
-      const activeCount = (ordersData || []).filter(order => {
-        if (order.status !== "completed" || !order.esim_iccid) {
-          return false;
-        }
-
-        // Determine supplier type
-        const supplierName = order.esim_plans?.supplier_name?.toLowerCase();
-        const isMaya = supplierName === 'maya' || 
-                      (order.real_status && order.real_status.includes('state'));
-
-        console.log(`Checking eSIM ${order.esim_iccid}: supplier=${supplierName}, isMaya=${isMaya}, real_status=${order.real_status}`);
-
-        if (isMaya && order.real_status) {
-          // Use Maya status parser to determine if connected
-          const status = MayaStatusParser.getProcessedStatus(order.real_status, 'maya');
-          console.log(`Maya eSIM ${order.esim_iccid}: isConnected=${status.isConnected}, statusText=${status.statusText}`);
-          return status.isConnected;
-        } else if (order.real_status) {
-          // For eSIM Access eSIMs, check various status indicators
-          const statusLower = order.real_status.toLowerCase();
-          
-          // Check for common eSIM Access connected status indicators
-          const isConnected = statusLower.includes('enabled') || 
-                             statusLower.includes('active') || 
-                             statusLower.includes('connected') ||
-                             statusLower === 'installed' ||
-                             statusLower === 'provisioned';
-          
-          console.log(`eSIM Access eSIM ${order.esim_iccid}: real_status="${order.real_status}", isConnected=${isConnected}`);
-          return isConnected;
-        }
-        
-        console.log(`eSIM ${order.esim_iccid}: No real_status, not counted as active`);
-        return false;
-      }).length;
-      
-      console.log(`Total active eSIMs: ${activeCount}`);
-      setActiveESims(activeCount);
+      // Fetch live statuses and compute active eSIMs from providers
+      await fetchApiStatuses(ordersData || []);
 
       // Generate chart data for last 30 days
       generateChartData(ordersData || []);
@@ -194,14 +155,16 @@ export default function Dashboard() {
 
   const fetchApiStatuses = async (ordersData: Order[]) => {
     const items = (ordersData || []).filter(o => !!o.esim_iccid);
-    if (items.length === 0) return;
+    if (items.length === 0) {
+      setActiveESims(0);
+      return;
+    }
     
     try {
       const results = await Promise.allSettled(items.slice(0, 25).map(async (o) => {
         const supplierName = o.esim_plans?.supplier_name?.toLowerCase();
-        const isMaya = supplierName === 'maya' || 
-                      (o.real_status && o.real_status.includes('state'));
-        
+        const isMaya = supplierName === 'maya' || (o.real_status && o.real_status.includes('state'));
+
         if (isMaya) {
           // For Maya eSIMs, use the Maya status API
           const { data, error } = await supabase.functions.invoke('get-maya-esim-status', {
@@ -209,7 +172,7 @@ export default function Dashboard() {
           });
           if (!error && data?.success) {
             const status = MayaStatusParser.getProcessedStatus(data.status, 'maya');
-            return { iccid: o.esim_iccid, status: status.statusText };
+            return { iccid: o.esim_iccid, status: status.statusText, connected: status.isConnected };
           }
         } else {
           // For eSIM Access eSIMs, use the general status API
@@ -218,20 +181,24 @@ export default function Dashboard() {
           });
           if (!error && (data?.success === true || String(data?.success).toLowerCase() === 'true')) {
             const status = data?.obj?.status || data?.obj?.esimStatus || 'unknown';
-            return { iccid: o.esim_iccid, status };
+            const connected = Boolean(data?.obj?.network?.connected) || (String(status).toUpperCase() === 'IN_USE');
+            return { iccid: o.esim_iccid, status, connected };
           }
         }
-        
-        return { iccid: o.esim_iccid, status: 'unknown' };
+
+        return { iccid: o.esim_iccid, status: 'unknown', connected: false };
       }));
-      
+
       const map: Record<string, string> = {};
+      let connectedCount = 0;
       results.forEach((r) => {
         if (r.status === 'fulfilled' && r.value) {
           map[r.value.iccid] = r.value.status;
+          if (r.value.connected) connectedCount += 1;
         }
       });
       setStatusMap(prev => ({ ...prev, ...map }));
+      setActiveESims(connectedCount);
     } catch (e) {
       console.error('Failed to fetch eSIM statuses', e);
     }

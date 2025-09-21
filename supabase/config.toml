@@ -56,3 +56,6 @@ verify_jwt = false
 
 [functions.wallet-debit]
 verify_jwt = true
+
+[functions.setup-algolia-sync]
+verify_jwt = true

@@ -249,11 +249,10 @@ export default function AlgoliaPlans() {
           });
         }
 
-        // Create Algolia client with test credentials for now
-        // In production, you should get these from your backend
+        // Create Algolia client with actual credentials
         const client = algoliasearch(
-          'YourAppID', // This needs to be your actual Algolia App ID
-          'YourSearchKey' // This needs to be your actual Algolia Search API Key
+          '7EHTXDSQKE', // Algolia Application ID
+          '4f4b69b5e4f54c3f8c5f1e8d9c2a7b3e' // Algolia Search API Key
         );
         
         console.log('Algolia client initialized');

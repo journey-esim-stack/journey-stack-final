@@ -39,6 +39,65 @@ import { Textarea } from "@/components/ui/textarea";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import QRCode from "qrcode";
 
+// QR Code Display Component
+const QRCodeDisplay = ({ qrText, size = 256 }: { qrText: string; size?: number }) => {
+  const [qrDataUrl, setQrDataUrl] = useState<string>('');
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const generateQR = async () => {
+      if (!qrText) return;
+      
+      try {
+        setIsLoading(true);
+        // Generate QR code from text
+        const dataUrl = await QRCode.toDataURL(qrText, {
+          margin: 1,
+          scale: 6,
+          color: { dark: '#000000', light: '#FFFFFF' }
+        });
+        setQrDataUrl(dataUrl);
+      } catch (error) {
+        console.error('Failed to generate QR code:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    generateQR();
+  }, [qrText]);
+
+  if (!qrText) {
+    return (
+      <div className="flex items-center justify-center" style={{ width: size, height: size }}>
+        <div className="text-center">
+          <QrCode className="h-12 w-12 mx-auto mb-2 text-primary" />
+          <p className="text-sm text-muted-foreground">No QR Code</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-64 h-64 mx-auto mb-4 glass-intense rounded-lg flex items-center justify-center border border-white/10">
+      {isLoading ? (
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      ) : qrDataUrl ? (
+        <img 
+          src={qrDataUrl} 
+          alt="eSIM QR Code"
+          className="w-full h-full object-contain p-4"
+        />
+      ) : (
+        <div className="text-center">
+          <QrCode className="h-12 w-12 mx-auto mb-2 text-primary" />
+          <p className="text-sm text-muted-foreground">Failed to generate QR</p>
+        </div>
+      )}
+    </div>
+  );
+};
+
 interface ESIMDetails {
   iccid: string;
   status: string;
@@ -248,8 +307,8 @@ const ESimDetail = () => {
           },
           activation: {
             qr_code: orderData.esim_qr_code || "",
-            manual_code: orderData.activation_code || "",
-            sm_dp_address: "consumer.e-sim.global"
+            manual_code: (orderData as any).manual_code || orderData.activation_code || "",
+            sm_dp_address: (orderData as any).smdp_address || "consumer.e-sim.global"
           },
           sessions: []
         };
@@ -286,8 +345,8 @@ const ESimDetail = () => {
           },
           activation: {
             qr_code: orderData.esim_qr_code || "",
-            manual_code: orderData.activation_code || "",
-            sm_dp_address: "consumer.e-sim.global"
+            manual_code: (orderData as any).manual_code || orderData.activation_code || "",
+            sm_dp_address: (orderData as any).smdp_address || "consumer.e-sim.global"
           },
           sessions: apiData.obj?.sessions || []
         };
@@ -748,21 +807,8 @@ Instructions:
                      </Popover>
                   </div>
                 </CardHeader>
-                <CardContent className="text-center">
-                  <div className="w-64 h-64 mx-auto mb-4 glass-intense rounded-lg flex items-center justify-center border border-white/10">
-                    {esimDetails.activation.qr_code ? (
-                      <img 
-                        src={esimDetails.activation.qr_code} 
-                        alt="eSIM QR Code"
-                        className="w-full h-full object-contain p-4"
-                      />
-                    ) : (
-                      <div className="text-center">
-                        <QrCode className="h-12 w-12 mx-auto mb-2 text-primary" />
-                        <p className="text-sm text-muted-foreground">QR Code</p>
-                      </div>
-                    )}
-                  </div>
+                 <CardContent className="text-center">
+                   <QRCodeDisplay qrText={esimDetails.activation.qr_code} />
                   
                   {/* Copy QR Code Image Button */}
                   <Button 

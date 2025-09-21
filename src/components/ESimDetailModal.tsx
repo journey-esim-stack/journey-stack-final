@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -7,6 +7,73 @@ import { Input } from '@/components/ui/input';
 import { Copy, Download, QrCode, Smartphone, Calendar, Globe, Edit, Save, X, Check } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import QRCodeLib from "qrcode";
+
+// QR Code Display Component
+const QRCodeDisplay = ({ qrText, size = 256 }: { qrText: string; size?: number }) => {
+  const [qrDataUrl, setQrDataUrl] = useState<string>('');
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const generateQR = async () => {
+      if (!qrText) return;
+      
+      try {
+        setIsLoading(true);
+        // Generate QR code from text
+        const dataUrl = await QRCodeLib.toDataURL(qrText, {
+          margin: 1,
+          scale: 6,
+          color: { dark: '#000000', light: '#FFFFFF' }
+        });
+        setQrDataUrl(dataUrl);
+      } catch (error) {
+        console.error('Failed to generate QR code:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    generateQR();
+  }, [qrText]);
+
+  if (!qrText) {
+    return (
+      <div className="flex items-center justify-center bg-white p-4 rounded-lg shadow-sm border" style={{ width: size, height: size }}>
+        <div className="text-center">
+          <QrCode className="h-12 w-12 mx-auto mb-2 text-primary" />
+          <p className="text-sm text-muted-foreground">No QR Code</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex justify-center">
+      <div className="bg-white p-4 rounded-lg shadow-sm border">
+        {isLoading ? (
+          <div className="flex items-center justify-center" style={{ width: size, height: size }}>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+          </div>
+        ) : qrDataUrl ? (
+          <img 
+            src={qrDataUrl} 
+            alt="eSIM QR Code"
+            style={{ width: size, height: size }}
+            className="object-contain"
+          />
+        ) : (
+          <div className="flex items-center justify-center" style={{ width: size, height: size }}>
+            <div className="text-center">
+              <QrCode className="h-12 w-12 mx-auto mb-2 text-primary" />
+              <p className="text-sm text-muted-foreground">Failed to generate QR</p>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
 
 interface ESimDetailModalProps {
   isOpen: boolean;
@@ -16,6 +83,8 @@ interface ESimDetailModalProps {
     esim_iccid: string;
     esim_qr_code?: string;
     activation_code?: string;
+    manual_code?: string;
+    smdp_address?: string;
     status: string;
     created_at: string;
     customer_name: string;
@@ -318,15 +387,7 @@ export const ESimDetailModal: React.FC<ESimDetailModalProps> = ({
                     QR Code for Installation
                   </div>
                   
-                  <div className="flex justify-center">
-                    <div className="bg-white p-4 rounded-lg shadow-sm border">
-                      <img
-                        src={order.esim_qr_code}
-                        alt="eSIM QR Code"
-                        className="w-48 h-48 object-contain"
-                      />
-                    </div>
-                  </div>
+                   <QRCodeDisplay qrText={order.esim_qr_code} size={192} />
 
                   <div className="flex gap-2 justify-center">
                     <Button
@@ -351,26 +412,52 @@ export const ESimDetailModal: React.FC<ESimDetailModalProps> = ({
             </Card>
           )}
 
-          {/* Activation Code */}
-          {order.activation_code && (
+          {/* Manual Activation Details */}
+          {(order.manual_code || order.activation_code) && (
             <Card>
               <CardContent className="pt-6">
-                <div className="space-y-3">
+                <div className="space-y-4">
                   <label className="text-sm font-medium text-muted-foreground">
-                    Activation Code (Manual Setup)
+                    Manual Setup Information
                   </label>
-                  <div className="bg-muted p-3 rounded-md">
-                    <p className="font-mono text-sm break-all">{order.activation_code}</p>
+                  
+                  {/* Manual Code */}
+                  <div className="space-y-2">
+                    <label className="text-xs text-muted-foreground">Activation Code</label>
+                    <div className="bg-muted p-3 rounded-md">
+                      <p className="font-mono text-sm break-all">
+                        {order.manual_code || order.activation_code}
+                      </p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => copyToClipboard(order.manual_code || order.activation_code!, 'Manual Code')}
+                      className="w-full"
+                    >
+                      <Copy className="h-4 w-4 mr-2" />
+                      Copy Manual Code
+                    </Button>
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => copyToClipboard(order.activation_code!, 'Activation Code')}
-                    className="w-full"
-                  >
-                    <Copy className="h-4 w-4 mr-2" />
-                    Copy Activation Code
-                  </Button>
+
+                  {/* SMDP Address */}
+                  {order.smdp_address && (
+                    <div className="space-y-2">
+                      <label className="text-xs text-muted-foreground">SM-DP+ Address</label>
+                      <div className="bg-muted p-3 rounded-md">
+                        <p className="font-mono text-sm break-all">{order.smdp_address}</p>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => copyToClipboard(order.smdp_address!, 'SM-DP+ Address')}
+                        className="w-full"
+                      >
+                        <Copy className="h-4 w-4 mr-2" />
+                        Copy SM-DP+ Address
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>

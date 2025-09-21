@@ -18,6 +18,8 @@ interface Order {
   esim_iccid: string | null;
   esim_qr_code?: string;
   activation_code?: string;
+  manual_code?: string;
+  smdp_address?: string;
   status: string;
   plan_id: string;
   customer_name: string;
@@ -263,11 +265,13 @@ const ESims = () => {
       case "activated":
       case "connected":
       case "online":
+      case "enabled":
         return "bg-green-100 text-green-800 border-green-200";
       case "inactive":
       case "not_activated":
       case "not_active":
       case "offline":
+      case "released":
         return "bg-blue-100 text-blue-800 border-blue-200";
       case "suspended":
       case "blocked":
@@ -293,12 +297,14 @@ const ESims = () => {
       case "activated":
       case "connected":
       case "online":
+      case "enabled":
         return "Active";
       case "inactive":
       case "not_activated":
       case "not_active":
       case "offline":
-        return "Inactive";
+      case "released":
+        return "Ready";
       case "suspended":
       case "blocked":
         return "Suspended";

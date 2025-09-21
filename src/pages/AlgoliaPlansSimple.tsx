@@ -190,12 +190,22 @@ export default function AlgoliaPlansSimple() {
     try {
       const client = await getSearchClient();
       
+      // Enhanced search with typo tolerance and synonyms
       const searchResponse = await client.search({
         requests: [{
           indexName: 'esim_plans',
           query: query,
-          hitsPerPage: 1000, // Get more results for filtering
-          filters: 'is_active:true AND admin_only:false'
+          hitsPerPage: 1000,
+          filters: 'is_active:true AND admin_only:false',
+          typoTolerance: true,
+          ignorePlurals: true,
+          removeStopWords: true,
+          synonyms: [
+            'UAE,Dubai,United Arab Emirates',
+            'UK,United Kingdom,Britain,England',
+            'USA,United States,America,US',
+            'Singapore,Singpore', // Handle common typo
+          ]
         }]
       });
       
@@ -326,9 +336,28 @@ export default function AlgoliaPlansSimple() {
     applyFiltersAndSorting();
   }, [applyFiltersAndSorting]);
 
+  // Real-time search as user types
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      searchPlans(searchQuery);
+    }, 300); // Debounce search
+    
+    return () => clearTimeout(timeoutId);
+  }, [searchQuery, searchPlans]);
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     searchPlans(searchQuery);
+  };
+
+  const handleCountryPillClick = (country: string) => {
+    if (country === "All Countries") {
+      setSelectedCountry("");
+      setSearchQuery("");
+    } else {
+      setSelectedCountry(country);
+      setSearchQuery(country);
+    }
   };
   
   // Get unique values for filters
@@ -341,6 +370,18 @@ export default function AlgoliaPlansSimple() {
     setDataFilter("");
     setSortBy("price-asc");
   };
+
+  const popularCountries = [
+    { name: "All Countries", flag: "🌍" },
+    { name: "UAE", flag: "🇦🇪", alt: "Dubai" },
+    { name: "Singapore", flag: "🇸🇬" },
+    { name: "United Kingdom", flag: "🇬🇧", display: "UK" },
+    { name: "United States", flag: "🇺🇸", display: "USA" },
+    { name: "Italy", flag: "🇮🇹" },
+    { name: "Thailand", flag: "🇹🇭" },
+    { name: "Indonesia", flag: "🇮🇩" },
+    { name: "Spain", flag: "🇪🇸" },
+  ];
 
   return (
     <Layout>
@@ -360,32 +401,52 @@ export default function AlgoliaPlansSimple() {
           </div>
         </div>
 
+        {/* Enhanced Search Section */}
+        <div className="space-y-6">
+          <Card>
+            <CardContent className="pt-6">
+              <div className="space-y-4">
+                <div className="relative">
+                  <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    type="text"
+                    placeholder="Search plans, countries... (e.g., UAE, Dubai, Singapore, UK)"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10 h-12 text-base"
+                  />
+                  {isLoading && (
+                    <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+                  )}
+                </div>
+                
+                {/* Popular Countries Pills */}
+                <div className="space-y-3">
+                  <h3 className="text-sm font-medium text-muted-foreground">Popular Countries</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {popularCountries.map((country) => (
+                      <Button
+                        key={country.name}
+                        variant={selectedCountry === country.name || (country.name === "All Countries" && !selectedCountry) ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => handleCountryPillClick(country.name)}
+                        className="h-8 px-3 rounded-full"
+                      >
+                        <span className="mr-1.5">{country.flag}</span>
+                        {country.display || country.name}
+                        {country.alt && ` (${country.alt})`}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
         <div className="grid lg:grid-cols-4 gap-8">
           {/* Filters Sidebar */}
           <div className="lg:col-span-1 space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Search</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={handleSearch} className="flex gap-2">
-                  <Input
-                    type="text"
-                    placeholder="Search plans, countries..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="flex-1"
-                  />
-                  <Button type="submit" disabled={isLoading}>
-                    {isLoading ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <SearchIcon className="h-4 w-4" />
-                    )}
-                  </Button>
-                </form>
-              </CardContent>
-            </Card>
 
             <Card>
               <CardHeader>

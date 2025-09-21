@@ -674,38 +674,7 @@ Instructions:
       console.error('QR generation error:', e);
     }
 
-    // Try native share/clipboard first when possible
-    if (isMayaEsim) {
-      if (method === 'copy' && qrBlob) {
-        try {
-          const ClipboardItemCtor: any = (window as any).ClipboardItem;
-          if (navigator.clipboard && ClipboardItemCtor) {
-            await (navigator.clipboard as any).write([
-              new ClipboardItemCtor({ 'image/png': qrBlob })
-            ]);
-            await navigator.clipboard.writeText(shareText);
-            setShowShareModal(false);
-            toast({ title: 'Success', description: 'Copied QR image and details to clipboard' });
-            return;
-          }
-        } catch (e) {
-          console.warn('Clipboard image write failed:', e);
-        }
-      }
-
-      if ((method === 'whatsapp' || method === 'email') && qrFile && (navigator as any).canShare && (navigator as any).canShare({ files: [qrFile] })) {
-        try {
-          await (navigator as any).share({ title: 'eSIM Activation QR', text: shareText, files: [qrFile] });
-          setShowShareModal(false);
-          toast({ title: 'Success', description: 'Shared with QR image' });
-          return;
-        } catch (e) {
-          console.warn('System share failed:', e);
-        }
-      }
-    }
-
-    // Fallback: upload QR image to Supabase Storage and include public URL (generic path)
+    // Upload QR image first to get a public URL (generic path), then attempt native share
     if (isMayaEsim && qrBlob) {
       try {
         const genericPath = `esim-qr/${esimDetails?.iccid || Date.now()}.png`;
@@ -722,7 +691,7 @@ Instructions:
             .getPublicUrl(genericPath);
           qrImageUrl = urlData.publicUrl;
 
-          // Best-effort legacy compatibility upload (do not block)
+          // Best-effort legacy compatibility upload (non-blocking)
           try {
             await supabase.storage
               .from('qr-codes')
@@ -737,12 +706,44 @@ Instructions:
         console.warn('QR upload exception:', e);
       }
     }
+
     // Fallback link to in-app QR render page if upload unavailable
     if (isMayaEsim && !qrImageUrl && lpa) {
       qrImageUrl = `${window.location.origin}/qr?code=${encodeURIComponent(lpa)}`;
     }
 
     const finalShareText = qrImageUrl ? `${shareText}\n\nQR Code Image: ${qrImageUrl}` : shareText;
+
+    // Try native share/clipboard (include image when possible) AFTER we have a URL to include in text
+    if (isMayaEsim) {
+      if (method === 'copy') {
+        try {
+          const ClipboardItemCtor: any = (window as any).ClipboardItem;
+          if (qrBlob && navigator.clipboard && ClipboardItemCtor) {
+            await (navigator as any).clipboard.write([
+              new ClipboardItemCtor({ 'image/png': qrBlob })
+            ]);
+          }
+          await navigator.clipboard.writeText(finalShareText);
+          setShowShareModal(false);
+          toast({ title: 'Success', description: qrBlob ? 'Copied QR image and link' : 'Copied details with link' });
+          return;
+        } catch (e) {
+          console.warn('Clipboard operation failed:', e);
+        }
+      }
+
+      if ((method === 'whatsapp' || method === 'email') && qrFile && (navigator as any).canShare && (navigator as any).canShare({ files: [qrFile] })) {
+        try {
+          await (navigator as any).share({ title: 'eSIM Activation QR', text: finalShareText, files: [qrFile] });
+          setShowShareModal(false);
+          toast({ title: 'Success', description: 'Shared with QR image and link' });
+          return;
+        } catch (e) {
+          console.warn('System share failed:', e);
+        }
+      }
+
 
     switch (method) {
       case 'copy':

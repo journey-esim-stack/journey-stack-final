@@ -604,10 +604,6 @@ export default function AlgoliaPlans() {
           <InstantSearch 
             searchClient={searchClient} 
             indexName="esim_plans"
-            insights={true}
-            future={{
-              preserveSharedStateOnUnmount: true,
-            }}
           >
             <Configure 
               hitsPerPage={24}

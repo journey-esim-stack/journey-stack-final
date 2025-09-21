@@ -258,7 +258,11 @@ serve(async (req) => {
       manual_code: esim.manual_code,
       smdp_address: esim.smdp_address,
       supplier_order_id: esim.uid,
-      real_status: `state: ${esim.state}, service: ${esim.service_status}, network: ${esim.network_status}`
+      real_status: JSON.stringify({
+        state: esim.state,
+        service_status: esim.service_status,
+        network_status: esim.network_status
+      })
     };
 
     // Set expiry date if plan is included

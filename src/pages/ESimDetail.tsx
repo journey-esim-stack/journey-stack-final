@@ -398,9 +398,21 @@ const ESimDetail = () => {
 
         if (isMayaEsim) {
           try {
-            const parsed = typeof raw === 'string' && raw.trim().startsWith('{') ? JSON.parse(raw) : raw;
-            const stateVal = parsed?.state;
-            networkStatusVal = parsed?.network_status;
+            const parsed = typeof raw === 'string' ? (raw.trim().startsWith('{') ? JSON.parse(raw) : raw) : raw;
+            let stateVal: string | undefined;
+            if (typeof parsed === 'string') {
+              const parts = parsed.split(',');
+              const map: Record<string, string> = {};
+              for (const p of parts) {
+                const [k, v] = p.split(':');
+                if (k && v) map[k.trim().toLowerCase()] = v.trim().toUpperCase();
+              }
+              stateVal = map['state'];
+              networkStatusVal = map['network'];
+            } else {
+              stateVal = parsed?.state;
+              networkStatusVal = parsed?.network_status;
+            }
             
             // Apply Maya rules: if state is RELEASED and network is ENABLED => NOT_ACTIVE (awaiting)
             if (stateVal === 'RELEASED' && networkStatusVal === 'ENABLED') {

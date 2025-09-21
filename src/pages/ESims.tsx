@@ -312,25 +312,45 @@ const ESims = () => {
     order.esim_plans?.country_name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // Helper to parse Maya real_status whether JSON or 'key: value' string
+  const parseMayaStatus = (input: any): { state?: string; network_status?: string } => {
+    try {
+      if (!input) return {};
+      if (typeof input === 'string') {
+        const trimmed = input.trim();
+        if (trimmed.startsWith('{')) {
+          const obj = JSON.parse(trimmed);
+          return { state: obj.state || obj.esim?.state, network_status: obj.network_status || obj.esim?.network_status };
+        }
+        // Parse formats like: "STATE: RELEASED, SERVICE: ACTIVE, NETWORK: ENABLED"
+        const parts = trimmed.split(',');
+        const map: Record<string,string> = {};
+        for (const p of parts) {
+          const [k, v] = p.split(':');
+          if (k && v) map[k.trim().toLowerCase()] = v.trim().toUpperCase();
+        }
+        return { state: map['state'], network_status: map['network'] };
+      }
+      if (typeof input === 'object') {
+        return { state: input.state || input.esim?.state, network_status: input.network_status || input.esim?.network_status };
+      }
+      return {};
+    } catch { return {}; }
+  };
+
   const getStatusColor = (status: string, realStatus?: string, supplierName?: string) => {
     let currentStatus = realStatus || status;
     let mayaState: string | undefined;
     
-    // For Maya eSIMs, parse JSON and extract network_status and state
+    // For Maya eSIMs, parse JSON and legacy string formats and extract network_status and state
     if (supplierName?.toLowerCase() === 'maya' && realStatus) {
       try {
-        // Handle both JSON string and already parsed object
-        const mayaData = typeof realStatus === 'string' && realStatus.trim().startsWith('{') 
-          ? JSON.parse(realStatus) 
-          : (typeof realStatus === 'string' ? { raw: realStatus } : realStatus);
-        
-        const networkStatus = mayaData.network_status || mayaData.esim?.network_status;
-        mayaState = mayaData.state || mayaData.esim?.state;
-        
+        const parsed = parseMayaStatus(realStatus);
+        const networkStatus = parsed.network_status;
+        mayaState = parsed.state;
         if (networkStatus) {
           currentStatus = networkStatus;
         }
-        
         // Override: if state is RELEASED and network is ENABLED, treat as NOT_ACTIVE (awaiting activation)
         if (mayaState === 'RELEASED' && String(currentStatus).toUpperCase() === 'ENABLED') {
           currentStatus = 'NOT_ACTIVE';
@@ -376,21 +396,15 @@ const ESims = () => {
     let currentStatus = realStatus || status;
     let mayaState: string | undefined;
     
-    // For Maya eSIMs, parse JSON and extract network_status and state
+    // For Maya eSIMs, parse JSON and legacy string formats and extract network_status and state
     if (supplierName?.toLowerCase() === 'maya' && realStatus) {
       try {
-        // Handle both JSON string and already parsed object
-        const mayaData = typeof realStatus === 'string' && realStatus.trim().startsWith('{') 
-          ? JSON.parse(realStatus) 
-          : (typeof realStatus === 'string' ? { raw: realStatus } : realStatus);
-        
-        const networkStatus = mayaData.network_status || mayaData.esim?.network_status;
-        mayaState = mayaData.state || mayaData.esim?.state;
-        
+        const parsed = parseMayaStatus(realStatus);
+        const networkStatus = parsed.network_status;
+        mayaState = parsed.state;
         if (networkStatus) {
           currentStatus = networkStatus;
         }
-        
         // Override: if state is RELEASED and network is ENABLED, treat as NOT_ACTIVE (awaiting activation)
         if (mayaState === 'RELEASED' && String(currentStatus).toUpperCase() === 'ENABLED') {
           currentStatus = 'NOT_ACTIVE';

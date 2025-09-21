@@ -157,17 +157,17 @@ export default function Layout({ children }: LayoutProps) {
                   <div className="hidden md:block ml-4 flex-shrink-0">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button 
-                          variant="outline"
-                          size="sm"
-                          className="flex items-center space-x-2 bg-orange-500 text-white border-orange-500 hover:bg-orange-600 hover:border-orange-600 w-[100px] justify-center flex-shrink-0"
-                        >
-                          <ShieldCheck className="h-4 w-4 flex-shrink-0" />
-                          <span className="whitespace-nowrap">Admin</span>
-                          <ChevronDown className="h-4 w-4 flex-shrink-0" />
-                        </Button>
+                      <Button 
+                        variant="outline"
+                        size="default"
+                        className="rounded-full h-10 px-4 flex items-center gap-2 bg-orange-500 text-white border-orange-500 hover:bg-orange-600 hover:border-orange-600 w-[120px] min-w-[120px] justify-center overflow-hidden leading-none"
+                      >
+                        <ShieldCheck className="h-4 w-4 flex-shrink-0" />
+                        <span className="whitespace-nowrap">Admin</span>
+                        <ChevronDown className="h-4 w-4 flex-shrink-0" />
+                      </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="bg-background border border-border">
+                      <DropdownMenuContent align="end" className="z-50 bg-background border border-border shadow-lg">
                         {adminNavigation.map((item) => {
                           const Icon = item.icon;
                           return (

@@ -54,20 +54,18 @@ serve(async (req) => {
     }
 
     const appId = Deno.env.get('ALGOLIA_APPLICATION_ID');
-    const adminKey = Deno.env.get('ALGOLIA_ADMIN_API_KEY');
-    if (!appId || !adminKey) {
+    const searchKey = Deno.env.get('ALGOLIA_SEARCH_API_KEY');
+    if (!appId || !searchKey) {
       return new Response(JSON.stringify({ error: 'Algolia not configured' }), { status: 500, headers: corsHeaders });
     }
 
-    // Generate a secured API key restricted to the public index/filters
-    const validUntil = Math.floor(Date.now() / 1000) + 60 * 60 * 6; // 6 hours (seconds)
-    const queryParams = `filters=is_active:true AND admin_only:false&restrictIndices=esim_plans&validUntil=${validUntil}`;
-
-    const signatureHex = await hmacHex(adminKey, queryParams);
-    const securedApiKey = btoa(signatureHex + queryParams);
-
+    // Return the search-only API key directly (no need for secured key with search-only permissions)
     return new Response(
-      JSON.stringify({ appId, apiKey: securedApiKey, validUntil }),
+      JSON.stringify({ 
+        appId, 
+        apiKey: searchKey, 
+        validUntil: Math.floor(Date.now() / 1000) + 60 * 60 * 6 
+      }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (err) {

@@ -347,9 +347,11 @@ export type Database = {
           esim_iccid: string | null
           esim_qr_code: string | null
           id: string
+          manual_code: string | null
           plan_id: string
           real_status: string | null
           retail_price: number
+          smdp_address: string | null
           status: Database["public"]["Enums"]["order_status"]
           supplier_order_id: string | null
           updated_at: string
@@ -370,9 +372,11 @@ export type Database = {
           esim_iccid?: string | null
           esim_qr_code?: string | null
           id?: string
+          manual_code?: string | null
           plan_id: string
           real_status?: string | null
           retail_price: number
+          smdp_address?: string | null
           status?: Database["public"]["Enums"]["order_status"]
           supplier_order_id?: string | null
           updated_at?: string
@@ -393,9 +397,11 @@ export type Database = {
           esim_iccid?: string | null
           esim_qr_code?: string | null
           id?: string
+          manual_code?: string | null
           plan_id?: string
           real_status?: string | null
           retail_price?: number
+          smdp_address?: string | null
           status?: Database["public"]["Enums"]["order_status"]
           supplier_order_id?: string | null
           updated_at?: string

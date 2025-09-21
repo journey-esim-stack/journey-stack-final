@@ -286,9 +286,13 @@ const ESims = () => {
     order.esim_plans?.country_name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const getStatusColor = (status: string, realStatus?: string) => {
-    // Use real status if available, otherwise fall back to order status
-    const currentStatus = realStatus || status;
+  const getStatusColor = (status: string, realStatus?: string, supplierName?: string) => {
+    // Normalize for Maya: extract only service_status if a composite string is present
+    let currentStatus = realStatus || status;
+    if (supplierName === 'maya' && currentStatus) {
+      const match = currentStatus.match(/service:\s*([a-zA-Z_]+)/i);
+      if (match) currentStatus = match[1];
+    }
     
     switch (currentStatus.toLowerCase()) {
       case "active":
@@ -317,10 +321,14 @@ const ESims = () => {
         return "bg-gray-100 text-gray-800 border-gray-200";
     }
   };
-
-  const getStatusText = (status: string, realStatus?: string) => {
-    // Use real status if available, otherwise fall back to order status
-    const currentStatus = realStatus || status;
+  
+  const getStatusText = (status: string, realStatus?: string, supplierName?: string) => {
+    // Normalize for Maya: extract only service_status if a composite string is present
+    let currentStatus = realStatus || status;
+    if (supplierName === 'maya' && currentStatus) {
+      const match = currentStatus.match(/service:\s*([a-zA-Z_]+)/i);
+      if (match) currentStatus = match[1];
+    }
     
     switch (currentStatus.toLowerCase()) {
       case "active":
@@ -591,14 +599,14 @@ const ESims = () => {
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
-                            <Badge className={`${getStatusColor(order.status, order.real_status)} inline-flex items-center justify-center px-2.5 py-1 text-xs font-medium rounded-full whitespace-nowrap border`}>
+                            <Badge className={`${getStatusColor(order.status, order.real_status, order.esim_plans?.supplier_name)} inline-flex items-center justify-center px-2.5 py-1 text-xs font-medium rounded-full whitespace-nowrap border`}>
                               {statusLoading.has(order.id) ? (
                                 <div className="flex items-center gap-1">
                                   <div className="animate-spin rounded-full h-3 w-3 border-b border-current"></div>
                                   Loading...
                                 </div>
                               ) : (
-                                getStatusText(order.status, order.real_status)
+                                getStatusText(order.status, order.real_status, order.esim_plans?.supplier_name)
                               )}
                             </Badge>
                           </div>

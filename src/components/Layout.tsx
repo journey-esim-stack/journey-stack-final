@@ -113,8 +113,8 @@ export default function Layout({ children }: LayoutProps) {
       <nav className="border-b bg-card">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16 md:h-20">
-            <div className="flex items-center space-x-3">
-              <Link to="/dashboard" className="flex items-center">
+            <div className="flex items-center">
+              <Link to="/dashboard" className="flex items-center flex-shrink-0">
                 <img 
                   src="/lovable-uploads/1e1f433f-d326-4551-ba07-4e6b9e5c259f.png" 
                   alt="Journey Stack" 
@@ -131,62 +131,66 @@ export default function Layout({ children }: LayoutProps) {
                   }}
                 />
               </Link>
-              <div className="hidden md:flex items-center space-x-1">
-                {navigation.map((item) => {
-                  const Icon = item.icon;
-                  return (
-                    <Link
-                      key={item.name}
-                      to={item.href}
-                      className={`flex items-center space-x-2 px-2 md:px-3 py-2 rounded-md text-xs md:text-sm font-medium transition-colors ${
-                        location.pathname === item.href
-                          ? "bg-primary text-primary-foreground"
-                          : "text-foreground/80 hover:text-foreground hover:bg-accent"
-                      }`}
-                    >
-                      <Icon className="h-4 w-4" />
-                      <span>{item.name}</span>
-                    </Link>
-                  );
-                })}
-              </div>
-              {isAdmin && (
-                <div className="hidden md:block ml-3">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button 
-                        variant="outline"
-                        size="sm"
-                        className="flex items-center space-x-2 bg-orange-500 text-white border-orange-500 hover:bg-orange-600 hover:border-orange-600 min-w-[100px] justify-center"
+              
+              <div className="flex items-center ml-4">
+                <div className="hidden md:flex items-center space-x-1 flex-shrink-0">
+                  {navigation.map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <Link
+                        key={item.name}
+                        to={item.href}
+                        className={`flex items-center space-x-2 px-2 md:px-3 py-2 rounded-md text-xs md:text-sm font-medium transition-colors ${
+                          location.pathname === item.href
+                            ? "bg-primary text-primary-foreground"
+                            : "text-foreground/80 hover:text-foreground hover:bg-accent"
+                        }`}
                       >
-                        <ShieldCheck className="h-4 w-4" />
-                        <span className="whitespace-nowrap">Admin</span>
-                        <ChevronDown className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="bg-background border border-border">
-                      {adminNavigation.map((item) => {
-                        const Icon = item.icon;
-                        return (
-                          <DropdownMenuItem key={item.name} asChild>
-                            <Link
-                              to={item.href}
-                              className={`flex items-center space-x-2 px-2 py-2 text-sm font-medium transition-colors ${
-                                location.pathname === item.href
-                                  ? "bg-accent text-accent-foreground"
-                                  : "text-foreground hover:bg-accent hover:text-accent-foreground"
-                              }`}
-                            >
-                              <Icon className="h-4 w-4" />
-                              <span>{item.name}</span>
-                            </Link>
-                          </DropdownMenuItem>
-                        );
-                      })}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                        <Icon className="h-4 w-4 flex-shrink-0" />
+                        <span className="whitespace-nowrap">{item.name}</span>
+                      </Link>
+                    );
+                  })}
                 </div>
-              )}
+                
+                {isAdmin && (
+                  <div className="hidden md:block ml-4 flex-shrink-0">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button 
+                          variant="outline"
+                          size="sm"
+                          className="flex items-center space-x-2 bg-orange-500 text-white border-orange-500 hover:bg-orange-600 hover:border-orange-600 w-[100px] justify-center flex-shrink-0"
+                        >
+                          <ShieldCheck className="h-4 w-4 flex-shrink-0" />
+                          <span className="whitespace-nowrap">Admin</span>
+                          <ChevronDown className="h-4 w-4 flex-shrink-0" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="bg-background border border-border">
+                        {adminNavigation.map((item) => {
+                          const Icon = item.icon;
+                          return (
+                            <DropdownMenuItem key={item.name} asChild>
+                              <Link
+                                to={item.href}
+                                className={`flex items-center space-x-2 px-2 py-2 text-sm font-medium transition-colors ${
+                                  location.pathname === item.href
+                                    ? "bg-accent text-accent-foreground"
+                                    : "text-foreground hover:bg-accent hover:text-accent-foreground"
+                                }`}
+                              >
+                                <Icon className="h-4 w-4" />
+                                <span>{item.name}</span>
+                              </Link>
+                            </DropdownMenuItem>
+                          );
+                        })}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                )}
+              </div>
             </div>
             <div className="flex items-center space-x-2 md:space-x-3">
               <div className="hidden md:block h-6 w-px bg-border" aria-hidden="true" />

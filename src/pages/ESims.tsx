@@ -63,6 +63,39 @@ const ESims = () => {
     fetchOrders();
   }, []);
 
+  // Real-time subscriptions and auto-refresh effect
+  useEffect(() => {
+    // Set up real-time subscriptions to orders table
+    const ordersChannel = supabase
+      .channel('orders-realtime-inventory')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'orders'
+        },
+        (payload) => {
+          console.log('Real-time order update:', payload);
+          // Update the specific order in our state
+          setOrders(prevOrders => {
+            const index = prevOrders.findIndex(order => order.id === payload.new.id);
+            if (index !== -1) {
+              const updatedOrders = [...prevOrders];
+              updatedOrders[index] = { ...updatedOrders[index], ...payload.new };
+              return updatedOrders;
+            }
+            return prevOrders;
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(ordersChannel);
+    };
+  }, []);
+
   // Auto-refresh effect for pending orders and real-time status updates
   useEffect(() => {
     if (!autoRefreshEnabled) return;
@@ -200,7 +233,7 @@ const ESims = () => {
     for (const order of completedOrders) {
       try {
         // Check if this is a Maya eSIM
-        const isMayaEsim = order.esim_plans?.supplier_name === 'maya';
+        const isMayaEsim = order.esim_plans?.supplier_name?.toLowerCase() === 'maya';
         
         // Use appropriate status endpoint based on supplier
         const functionName = isMayaEsim ? 'get-maya-esim-status' : 'get-esim-details';
@@ -208,35 +241,28 @@ const ESims = () => {
           body: { iccid: order.esim_iccid }
         });
 
+        console.log(`Status for ${order.esim_iccid}:`, eSimDetails);
+
         if (!error && eSimDetails?.success) {
           const orderIndex = updatedOrders.findIndex(o => o.id === order.id);
           if (orderIndex !== -1) {
-            let realStatus = "inactive";
-            
             if (isMayaEsim) {
-              // For Maya eSIMs, use service_status for inventory display
-              const serviceStatus = eSimDetails.status?.service_status;
-              if (serviceStatus) {
-                switch (serviceStatus.toLowerCase()) {
-                  case "active":
-                    realStatus = "active";
-                    break;
-                  case "inactive":
-                    realStatus = "inactive";
-                    break;
-                  case "suspended":
-                    realStatus = "suspended";
-                    break;
-                  case "expired":
-                    realStatus = "expired";
-                    break;
-                  default:
-                    realStatus = "inactive";
-                }
-              }
+              // For Maya eSIMs, store the full JSON and use network_status for display
+              const mayaData = eSimDetails.status || eSimDetails;
+              const networkStatus = mayaData.network_status || mayaData.esim?.network_status;
+              
+              console.log(`Maya network_status for ${order.esim_iccid}:`, networkStatus);
+              
+              // Store the full Maya response as JSON for real-time updates
+              updatedOrders[orderIndex] = {
+                ...updatedOrders[orderIndex],
+                real_status: JSON.stringify(mayaData)
+              };
             } else {
               // For eSIM Access, use existing logic
               const apiStatus = eSimDetails.obj?.status || eSimDetails.obj?.state;
+              let realStatus = "inactive";
+              
               if (apiStatus) {
                 switch (apiStatus.toLowerCase()) {
                   case "active":
@@ -262,12 +288,12 @@ const ESims = () => {
                     realStatus = "inactive";
                 }
               }
+              
+              updatedOrders[orderIndex] = {
+                ...updatedOrders[orderIndex],
+                real_status: realStatus
+              };
             }
-            
-            updatedOrders[orderIndex] = {
-              ...updatedOrders[orderIndex],
-              real_status: realStatus
-            };
           }
         }
       } catch (error) {
@@ -287,29 +313,40 @@ const ESims = () => {
   );
 
   const getStatusColor = (status: string, realStatus?: string, supplierName?: string) => {
-    // Normalize for Maya: extract only service_status if a composite string is present
     let currentStatus = realStatus || status;
-    if (supplierName === 'maya' && currentStatus) {
-      const match = currentStatus.match(/service:\s*([a-zA-Z_]+)/i);
-      if (match) currentStatus = match[1];
+    
+    // For Maya eSIMs, parse JSON and extract network_status
+    if (supplierName?.toLowerCase() === 'maya' && realStatus) {
+      try {
+        const mayaData = JSON.parse(realStatus);
+        const networkStatus = mayaData.network_status || mayaData.esim?.network_status;
+        if (networkStatus) {
+          currentStatus = networkStatus;
+        }
+      } catch (e) {
+        // Fallback to existing status if JSON parsing fails
+        console.log('Failed to parse Maya status JSON:', e);
+      }
     }
     
     switch (currentStatus.toLowerCase()) {
+      case "enabled":
+        return "bg-green-100 text-green-800 border-green-200";
+      case "not_active":
+      case "inactive":
+      case "not_activated":
+      case "offline":
+      case "released":
+        return "bg-blue-100 text-blue-800 border-blue-200";
+      case "disabled":
+      case "suspended":
+      case "blocked":
+        return "bg-orange-100 text-orange-800 border-orange-200";
       case "active":
       case "activated":
       case "connected":
       case "online":
-      case "enabled":
         return "bg-green-100 text-green-800 border-green-200";
-      case "inactive":
-      case "not_activated":
-      case "not_active":
-      case "offline":
-      case "released":
-        return "bg-blue-100 text-blue-800 border-blue-200";
-      case "suspended":
-      case "blocked":
-        return "bg-orange-100 text-orange-800 border-orange-200";
       case "expired":
         return "bg-red-100 text-red-800 border-red-200";
       case "pending":
@@ -323,11 +360,25 @@ const ESims = () => {
   };
   
   const getStatusText = (status: string, realStatus?: string, supplierName?: string) => {
-    // Normalize for Maya: extract only service_status if a composite string is present
     let currentStatus = realStatus || status;
-    if (supplierName === 'maya' && currentStatus) {
-      const match = currentStatus.match(/service:\s*([a-zA-Z_]+)/i);
-      if (match) currentStatus = match[1];
+    
+    // For Maya eSIMs, parse JSON and extract network_status
+    if (supplierName?.toLowerCase() === 'maya' && realStatus) {
+      try {
+        const mayaData = JSON.parse(realStatus);
+        const networkStatus = mayaData.network_status || mayaData.esim?.network_status;
+        if (networkStatus) {
+          currentStatus = networkStatus;
+        }
+      } catch (e) {
+        // Fallback to existing status if JSON parsing fails
+        console.log('Failed to parse Maya status JSON:', e);
+      }
+    }
+    
+    // Return Maya network_status directly as display text
+    if (supplierName?.toLowerCase() === 'maya') {
+      return currentStatus.toUpperCase();
     }
     
     switch (currentStatus.toLowerCase()) {
@@ -345,6 +396,7 @@ const ESims = () => {
         return "Ready";
       case "suspended":
       case "blocked":
+      case "disabled":
         return "Suspended";
       case "expired":
         return "Expired";

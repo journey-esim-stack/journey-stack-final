@@ -199,9 +199,11 @@ const ESimDetail = () => {
     }
   }, [iccid]);
 
-  // Set up real-time subscriptions for immediate updates
+  // Set up real-time subscriptions and polling for Maya eSIMs
   useEffect(() => {
     if (!iccid) return;
+
+    const isMayaEsim = orderInfo?.esim_plans?.supplier_name?.toLowerCase() === 'maya';
 
     // Subscribe to orders table changes for this ICCID
     const ordersChannel = supabase
@@ -216,7 +218,34 @@ const ESimDetail = () => {
         },
         (payload) => {
           console.log('Order updated:', payload);
-          fetchESIMDetails(); // Refresh data when order updates
+          
+          // For Maya eSIMs, parse real_status and update immediately
+          if (isMayaEsim && payload.new.real_status !== payload.old.real_status) {
+            try {
+              const mayaData = JSON.parse(payload.new.real_status || '{}');
+              const networkStatus = mayaData.network_status || mayaData.esim?.network_status;
+              
+              console.log('Real-time Maya network_status update:', networkStatus);
+              
+              if (networkStatus) {
+                setEsimDetails(prev => {
+                  if (!prev) return prev;
+                  return {
+                    ...prev,
+                    status: networkStatus, // Use network_status directly
+                    network: {
+                      ...prev.network,
+                      connected: networkStatus === 'ENABLED'
+                    }
+                  };
+                });
+              }
+            } catch (e) {
+              console.error('Failed to parse real_status JSON:', e);
+            }
+          } else {
+            fetchESIMDetails(); // Refresh data for non-Maya or on other changes
+          }
         }
       )
       .subscribe();
@@ -239,17 +268,43 @@ const ESimDetail = () => {
       )
       .subscribe();
 
-    // Fallback polling for API data (less frequent since we have real-time for status)
+    // Enhanced polling for Maya eSIMs (every 10 seconds)
     const interval = setInterval(() => {
-      fetchESIMDetails();
-    }, 10000); // Refresh every 10 seconds as fallback
+      if (isMayaEsim) {
+        // For Maya, poll the API directly to get latest network_status
+        supabase.functions.invoke('get-maya-esim-status', {
+          body: { iccid }
+        }).then(({ data, error }) => {
+          if (!error && data?.success) {
+            const networkStatus = data.status?.network_status || data.esim?.network_status;
+            console.log('Polled Maya network_status:', networkStatus);
+            
+            if (networkStatus) {
+              setEsimDetails(prev => {
+                if (!prev) return prev;
+                return {
+                  ...prev,
+                  status: networkStatus, // Use network_status directly  
+                  network: {
+                    ...prev.network,
+                    connected: networkStatus === 'ENABLED'
+                  }
+                };
+              });
+            }
+          }
+        });
+      } else {
+        fetchESIMDetails();
+      }
+    }, 10000);
 
     return () => {
       supabase.removeChannel(ordersChannel);
       supabase.removeChannel(statusChannel);
       clearInterval(interval);
     };
-  }, [iccid]);
+  }, [iccid, orderInfo?.esim_plans?.supplier_name]);
 
   const fetchESIMDetails = async (isManualRefresh = false) => {
     if (isManualRefresh) {
@@ -331,23 +386,13 @@ const ESimDetail = () => {
         if (isMayaEsim) {
           try {
             const parsed = typeof raw === 'string' && raw.trim().startsWith('{') ? JSON.parse(raw) : raw;
-            const state = parsed?.state;
-            const serviceStatus = parsed?.service_status;
             networkStatusVal = parsed?.network_status;
-            // Map using Maya table
-            if (serviceStatus === 'inactive' || networkStatusVal === 'DISABLED') {
-              currentStatusText = 'Expired / Suspended';
-            } else if (state === 'RELEASED' && serviceStatus === 'active' && networkStatusVal === 'ENABLED') {
-              currentStatusText = 'Activated / Active';
-            } else if (state === 'RELEASED' && serviceStatus === 'active' && networkStatusVal === 'NOT_ACTIVE') {
-              currentStatusText = 'Awaiting Activation';
-            } else if (state === 'REVOKED' || state === 'DELETED') {
-              currentStatusText = 'Revoked / Deleted';
-            } else if (typeof parsed?.display_status === 'string') {
-              currentStatusText = parsed.display_status;
+            // Use network_status directly as requested by user
+            if (networkStatusVal) {
+              currentStatusText = networkStatusVal; // Show network_status directly (ENABLED, NOT_ACTIVE, DISABLED)
             }
             networkConnected = networkStatusVal === 'ENABLED';
-            isActive = networkConnected || /Active/i.test(currentStatusText);
+            isActive = networkConnected;
           } catch {
             // If parsing fails, fall back to simple text
             isActive = /IN_USE|Active|ENABLED/i.test(currentStatusText);
@@ -434,7 +479,7 @@ const ESimDetail = () => {
         
         // Determine if active based on status
         const isActive = isMayaEsim
-          ? currentStatus === 'Activated / Active'
+          ? currentStatus === 'ENABLED'  // For Maya, ENABLED = active
           : currentStatus === 'IN_USE';
         
         // For Maya, 'Connected' should track network_status === 'ENABLED'

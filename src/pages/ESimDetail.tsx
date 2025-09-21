@@ -275,10 +275,14 @@ const ESimDetail = () => {
       const isMayaEsim = orderData.esim_plans?.supplier_name === 'maya';
       const functionName = isMayaEsim ? 'get-maya-esim-status' : 'get-esim-details';
       
+      console.log('ESimDetail - isMayaEsim:', isMayaEsim, 'supplier_name:', orderData.esim_plans?.supplier_name);
+      
       // Fetch real-time details from provider API
       const { data: apiData, error: apiError } = await supabase.functions.invoke(functionName, {
         body: { iccid }
       });
+
+      console.log('ESimDetail - API Response:', apiData);
 
       if (apiError || !apiData?.success) {
         console.error("Error fetching eSIM details:", apiError);
@@ -323,9 +327,24 @@ const ESimDetail = () => {
         const realtimeStatus = statusData?.esim_status || orderData.real_status;
         let currentStatus = realtimeStatus || "Unknown";
         
+        console.log('ESimDetail - Before Maya processing:', {
+          isMayaEsim,
+          realtimeStatus,
+          currentStatus,
+          mayaApiData: isMayaEsim ? apiData.status : null
+        });
+        
         // For Maya eSIMs, use network_status for management display
         if (isMayaEsim && apiData.status?.network_status) {
           currentStatus = apiData.status.network_status;
+          console.log('ESimDetail - Maya network_status extracted:', currentStatus);
+        } else if (isMayaEsim && typeof currentStatus === 'string' && currentStatus.includes('network:')) {
+          // If we have a composite string, extract network status
+          const networkMatch = currentStatus.match(/network:\s*([a-zA-Z_]+)/i);
+          if (networkMatch) {
+            currentStatus = networkMatch[1];
+            console.log('ESimDetail - Maya network status parsed from composite:', currentStatus);
+          }
         } else if (!isMayaEsim) {
           // For eSIM Access, use existing logic
           const apiStatus = apiData.obj?.status;
@@ -339,6 +358,8 @@ const ESimDetail = () => {
           : currentStatus === 'IN_USE';
         
         const expiryDate = orderData.esim_expiry_date || apiData.obj?.plan?.expiresAt;
+
+        console.log('ESimDetail - Final status for transform:', currentStatus);
 
         // Transform API response to match our interface
         const transformedData: ESIMDetails = {

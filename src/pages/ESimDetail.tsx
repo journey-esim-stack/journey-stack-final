@@ -644,7 +644,7 @@ Instructions:
             color: { dark: '#000000', light: '#FFFFFF' }
           });
           qrBlob = await (await fetch(dataUrl)).blob();
-          qrFile = new File([qrBlob], `maya-esim-qr-${esimDetails?.iccid || Date.now()}.png`, { type: 'image/png' });
+          qrFile = new File([qrBlob], `esim-qr-${esimDetails?.iccid || Date.now()}.png`, { type: 'image/png' });
         }
       }
     } catch (e) {
@@ -685,7 +685,7 @@ Instructions:
     // Fallback: upload QR image to Supabase Storage and include public URL
     if (isMayaEsim && qrBlob) {
       try {
-        const fileName = `maya-esim-qr/${esimDetails?.iccid || Date.now()}.png`;
+        const fileName = `esim-qr/${esimDetails?.iccid || Date.now()}.png`;
         const { data: uploadData, error: uploadError } = await supabase.storage
           .from('qr-codes')
           .upload(fileName, qrBlob, { contentType: 'image/png', upsert: true });

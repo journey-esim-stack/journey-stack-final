@@ -209,20 +209,20 @@ export default function AlgoliaPlansSimple() {
       const client = await getSearchClient();
 
       const optionalWords = buildOptionalWords(query);
+      const params = new URLSearchParams();
+      params.set('query', query);
+      params.set('hitsPerPage', '1000');
+      params.set('filters', 'is_active:true AND admin_only:false');
+      params.set('typoTolerance', 'true');
+      params.set('ignorePlurals', 'true');
+      params.set('removeStopWords', 'true');
+      params.set('queryLanguages', 'en');
+      if (optionalWords.length) params.set('optionalWords', optionalWords.join(','));
       
       const searchResponse = await client.search({
         requests: [{
           indexName: 'esim_plans',
-          query,
-          params: {
-            hitsPerPage: 1000,
-            filters: 'is_active:true AND admin_only:false',
-            typoTolerance: true,
-            ignorePlurals: true,
-            removeStopWords: true,
-            queryLanguages: ['en'],
-            optionalWords,
-          }
+          params: params.toString(),
         }]
       });
       

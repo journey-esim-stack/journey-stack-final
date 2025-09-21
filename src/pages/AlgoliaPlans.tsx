@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { InstantSearch, Configure, useSearchBox, useHits, useRefinementList, useStats, usePagination } from 'react-instantsearch';
-import { getSearchClient } from "@/lib/algolia";
+import { getSearchClient, ESIM_PLANS_INDEX } from "@/lib/algolia";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -450,21 +450,6 @@ export default function AlgoliaPlans() {
         // Get dynamic Algolia client
         const client = await getSearchClient();
         
-        // Validate client with a test search
-        try {
-          await client.search({
-            requests: [{
-              indexName: 'esim_plans',
-              query: '',
-              hitsPerPage: 1,
-              filters: 'is_active:true'
-            }]
-          });
-        } catch (searchError) {
-          console.warn('Algolia test search failed:', searchError);
-          throw new Error('Algolia index not accessible');
-        }
-        
         console.log('Algolia client initialized and validated');
         setSearchClient(client);
         setLastSyncTime(new Date());
@@ -603,19 +588,11 @@ export default function AlgoliaPlans() {
 
           <InstantSearch 
             searchClient={searchClient} 
-            indexName="esim_plans"
+            indexName={ESIM_PLANS_INDEX}
           >
             <Configure 
               hitsPerPage={24}
               filters="is_active:true AND admin_only:false"
-              attributesToRetrieve={[
-                'objectID', 'id', 'title', 'description', 'country_name', 
-                'country_code', 'data_amount', 'validity_days', 'wholesale_price', 
-                'currency', 'supplier_name', 'is_active'
-              ]}
-              attributesToHighlight={['title', 'country_name', 'data_amount']}
-              typoTolerance={true}
-              removeWordsIfNoResults="allOptional"
             />
             
             <div className="grid lg:grid-cols-4 gap-8">

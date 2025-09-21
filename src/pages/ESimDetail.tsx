@@ -331,23 +331,31 @@ const ESimDetail = () => {
           const apiStatus = apiData.obj?.status;
           currentStatus = realtimeStatus || apiStatus || "Unknown";
         }
-        const isActive = currentStatus === 'IN_USE';
+        
+        // Normalize to connection boolean
+        const connectedStatuses = ["enabled", "active", "online", "connected"];
+        const isActive = isMayaEsim
+          ? connectedStatuses.includes(String(currentStatus).toLowerCase())
+          : currentStatus === 'IN_USE';
+        
         const expiryDate = orderData.esim_expiry_date || apiData.obj?.plan?.expiresAt;
 
         // Transform API response to match our interface
         const transformedData: ESIMDetails = {
-          iccid: apiData.obj?.iccid || iccid || "",
+          iccid: (isMayaEsim ? (apiData.status?.iccid || iccid) : (apiData.obj?.iccid || iccid)) || "",
           status: currentStatus,
           data_usage: {
-            used: parseFloat(apiData.obj?.dataUsage?.used || "0"),
-            total: parseFloat(apiData.obj?.dataUsage?.total || orderData.esim_plans?.data_amount?.replace(/[^\d.]/g, '') || "3"),
+            used: parseFloat((!isMayaEsim ? apiData.obj?.dataUsage?.used : undefined) || "0"),
+            total: parseFloat((!isMayaEsim ? apiData.obj?.dataUsage?.total : undefined) || orderData.esim_plans?.data_amount?.replace(/[^\d.]/g, '') || "3"),
             unit: "GB"
           },
           network: {
-            connected: isActive || apiData.obj?.network?.connected || false,
-            operator: isActive ? (apiData.obj?.network?.operator || "Network Operator") : "Not Connected",
-            country: apiData.obj?.network?.country || orderData.esim_plans?.country_name || "Unknown",
-            signal_strength: isActive ? parseInt(apiData.obj?.network?.signalStrength || "85") : 0
+            connected: isMayaEsim ? isActive : (isActive || apiData.obj?.network?.connected || false),
+            operator: isMayaEsim
+              ? (isActive ? "Network Enabled" : "Not Connected")
+              : (isActive ? (apiData.obj?.network?.operator || "Network Operator") : "Not Connected"),
+            country: (!isMayaEsim ? (apiData.obj?.network?.country) : undefined) || orderData.esim_plans?.country_name || "Unknown",
+            signal_strength: (isMayaEsim ? (isActive ? 85 : 0) : (isActive ? parseInt(apiData.obj?.network?.signalStrength || "85") : 0))
           },
           plan: {
             name: orderData.esim_plans?.title || "Unknown Plan",
@@ -361,7 +369,7 @@ const ESimDetail = () => {
             manual_code: (orderData as any).manual_code || orderData.activation_code || "",
             sm_dp_address: (orderData as any).smdp_address || "consumer.e-sim.global"
           },
-          sessions: apiData.obj?.sessions || []
+          sessions: []
         };
         setEsimDetails(transformedData);
       }
@@ -439,6 +447,7 @@ Instructions:
       case "active":
       case "activated":
       case "installed":
+      case "enabled":
         return <CheckCircle className="h-4 w-4 text-green-600" />;
       case "connected":
         return <Signal className="h-4 w-4 text-green-600" />;
@@ -447,6 +456,7 @@ Instructions:
         return <AlertCircle className="h-4 w-4 text-blue-600" />;
       case "expired":
       case "cancelled":
+      case "disabled":
         return <AlertCircle className="h-4 w-4 text-red-600" />;
       default:
         return <AlertCircle className="h-4 w-4 text-yellow-600" />;

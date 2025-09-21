@@ -288,8 +288,27 @@ const ESimDetail = () => {
         console.error("Error fetching eSIM details:", apiError);
         
         // Use real-time status data when available, or fall back to basic data
-        const currentStatus = statusData?.esim_status || orderData.real_status || (orderData.status === 'completed' ? "Ready" : "New");
-        const isActive = currentStatus === 'IN_USE';
+        const rawStatus = statusData?.esim_status || orderData.real_status || (orderData.status === 'completed' ? "Ready" : "New");
+        const isMayaEsim = orderData.esim_plans?.supplier_name === 'maya';
+
+        // For Maya fallbacks, try to extract network_status from composite strings
+        let currentStatus: string = String(rawStatus || 'Unknown');
+        if (isMayaEsim) {
+          const parseNetwork = (s: string) => {
+            if (!s) return null as string | null;
+            const m1 = s.match(/network_status[:=]\s*([A-Z_]+)/i);
+            const m2 = s.match(/network[:=]\s*([A-Z_]+)/i);
+            return (m1?.[1] || m2?.[1])?.toUpperCase() || null;
+          };
+          const mayaNetwork = parseNetwork(currentStatus);
+          if (mayaNetwork) currentStatus = mayaNetwork;
+        }
+
+        // Normalize to connection boolean
+        const isActive = isMayaEsim
+          ? String(currentStatus).toUpperCase() === 'ENABLED'
+          : currentStatus === 'IN_USE';
+
         const expiryDate = orderData.esim_expiry_date || 
           (isActive ? new Date(Date.now() + (orderData.esim_plans?.validity_days || 30) * 24 * 60 * 60 * 1000).toISOString() : null);
 
@@ -303,7 +322,9 @@ const ESimDetail = () => {
           },
           network: {
             connected: isActive,
-            operator: isActive ? "Connected" : "Not Connected",
+            operator: isMayaEsim
+              ? (isActive ? "Network Enabled" : "Not Connected")
+              : (isActive ? "Connected" : "Not Connected"),
             country: orderData.esim_plans?.country_name || "Unknown",
             signal_strength: isActive ? 85 : 0
           },

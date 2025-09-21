@@ -439,9 +439,39 @@ const ESimDetail = () => {
             plan_id: orderData.esim_plans?.id || ""
           },
           activation: {
-            qr_code: orderData.esim_qr_code || "",
-            manual_code: (orderData as any).manual_code || orderData.activation_code || "",
-            sm_dp_address: (orderData as any).smdp_address || "consumer.e-sim.global"
+            qr_code: (() => {
+              if (isMayaEsim) {
+                try {
+                  const parsed = typeof raw === 'string' && raw.trim().startsWith('{') ? JSON.parse(raw) : raw;
+                  return parsed?.activation_code || orderData.esim_qr_code || "";
+                } catch {
+                  return orderData.esim_qr_code || "";
+                }
+              }
+              return orderData.esim_qr_code || "";
+            })(),
+            manual_code: (() => {
+              if (isMayaEsim) {
+                try {
+                  const parsed = typeof raw === 'string' && raw.trim().startsWith('{') ? JSON.parse(raw) : raw;
+                  return parsed?.manual_code || (orderData as any).manual_code || orderData.activation_code || "";
+                } catch {
+                  return (orderData as any).manual_code || orderData.activation_code || "";
+                }
+              }
+              return (orderData as any).manual_code || orderData.activation_code || "";
+            })(),
+            sm_dp_address: (() => {
+              if (isMayaEsim) {
+                try {
+                  const parsed = typeof raw === 'string' && raw.trim().startsWith('{') ? JSON.parse(raw) : raw;
+                  return parsed?.smdp_address || "consumer.e-sim.global";
+                } catch {
+                  return "consumer.e-sim.global";
+                }
+              }
+              return (orderData as any).smdp_address || "consumer.e-sim.global";
+            })()
           },
           sessions: []
         };
@@ -522,9 +552,15 @@ const ESimDetail = () => {
             plan_id: orderData.esim_plans?.id || ""
           },
           activation: {
-            qr_code: orderData.esim_qr_code || "",
-            manual_code: (orderData as any).manual_code || orderData.activation_code || "",
-            sm_dp_address: (orderData as any).smdp_address || "consumer.e-sim.global"
+            qr_code: isMayaEsim 
+              ? (apiData.status?.activation_code || orderData.esim_qr_code || "")
+              : (orderData.esim_qr_code || ""),
+            manual_code: isMayaEsim 
+              ? (apiData.status?.manual_code || (orderData as any).manual_code || orderData.activation_code || "")
+              : ((orderData as any).manual_code || orderData.activation_code || ""),
+            sm_dp_address: isMayaEsim 
+              ? (apiData.status?.smdp_address || "consumer.e-sim.global")
+              : ((orderData as any).smdp_address || "consumer.e-sim.global")
           },
           sessions: []
         };

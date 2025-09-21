@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { MayaStatusParser } from '@/utils/mayaStatus';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -219,38 +220,23 @@ const ESimDetail = () => {
         (payload) => {
           console.log('Order updated:', payload);
           
-          // For Maya eSIMs, parse real_status and update immediately
+          // For Maya eSIMs, use centralized status parser
           if (isMayaEsim && payload.new.real_status !== payload.old.real_status) {
-            try {
-              const mayaData = typeof payload.new.real_status === 'string' && payload.new.real_status.trim().startsWith('{') 
-                ? JSON.parse(payload.new.real_status || '{}')
-                : payload.new.real_status || {};
-                
-              const networkStatus = mayaData.network_status || mayaData.esim?.network_status;
-              const stateVal = mayaData.state || mayaData.esim?.state;
-              
-              console.log('Real-time Maya status update:', { networkStatus, stateVal });
-              
-              if (networkStatus) {
-                // Apply Maya rules: RELEASED+ENABLED = NOT_ACTIVE, network.connected=false
-                const isConnected = networkStatus === 'ENABLED' && stateVal !== 'RELEASED';
-                const displayStatus = (stateVal === 'RELEASED' && networkStatus === 'ENABLED') ? 'NOT_ACTIVE' : networkStatus;
-                
-                setEsimDetails(prev => {
-                  if (!prev) return prev;
-                  return {
-                    ...prev,
-                    status: displayStatus,
-                    network: {
-                      ...prev.network,
-                      connected: isConnected
-                    }
-                  };
-                });
-              }
-            } catch (e) {
-              console.error('Failed to parse real_status JSON:', e);
-            }
+            const mayaStatus = MayaStatusParser.getProcessedStatus(payload.new.real_status, 'maya');
+            
+            console.log('Real-time Maya status update:', mayaStatus);
+            
+            setEsimDetails(prev => {
+              if (!prev) return prev;
+              return {
+                ...prev,
+                status: mayaStatus.displayStatus,
+                network: {
+                  ...prev.network,
+                  connected: mayaStatus.isConnected
+                }
+              };
+            });
           } else {
             fetchESIMDetails(); // Refresh data for non-Maya or on other changes
           }
@@ -284,27 +270,21 @@ const ESimDetail = () => {
           body: { iccid }
         }).then(({ data, error }) => {
           if (!error && data?.success) {
-            const networkStatus = data.status?.network_status || data.esim?.network_status;
-            const stateVal = data.status?.state || data.esim?.state;
-            console.log('Polled Maya status:', { networkStatus, stateVal });
+            const mayaStatus = MayaStatusParser.getProcessedStatus(data, 'maya');
             
-            if (networkStatus) {
-              // Apply Maya rules: RELEASED+ENABLED = NOT_ACTIVE, network.connected=false
-              const isConnected = networkStatus === 'ENABLED' && stateVal !== 'RELEASED';
-              const displayStatus = (stateVal === 'RELEASED' && networkStatus === 'ENABLED') ? 'NOT_ACTIVE' : networkStatus;
-              
-              setEsimDetails(prev => {
-                if (!prev) return prev;
-                return {
-                  ...prev,
-                  status: displayStatus,
-                  network: {
-                    ...prev.network,
-                    connected: isConnected
-                  }
-                };
-              });
-            }
+            console.log('Polled Maya status:', mayaStatus);
+            
+            setEsimDetails(prev => {
+              if (!prev) return prev;
+              return {
+                ...prev,
+                status: mayaStatus.displayStatus,
+                network: {
+                  ...prev.network,
+                  connected: mayaStatus.isConnected
+                }
+              };
+            });
           }
         });
       } else {
@@ -389,56 +369,13 @@ const ESimDetail = () => {
       if (apiError || !apiData?.success) {
         console.error("Error fetching eSIM details:", apiError);
         
-        // Robust fallback: use stored real_status (JSON) and Maya mapping
-        const raw = orderData.real_status || (orderData.status === 'completed' ? "Ready" : "New");
-        let currentStatusText = String(raw || 'Unknown');
-        let isActive = false;
-        let networkStatusVal: string | undefined;
-        let networkConnected = false;
-
-        if (isMayaEsim) {
-          try {
-            const parsed = typeof raw === 'string' ? (raw.trim().startsWith('{') ? JSON.parse(raw) : raw) : raw;
-            let stateVal: string | undefined;
-            if (typeof parsed === 'string') {
-              const parts = parsed.split(',');
-              const map: Record<string, string> = {};
-              for (const p of parts) {
-                const [k, v] = p.split(':');
-                if (k && v) map[k.trim().toLowerCase()] = v.trim().toUpperCase();
-              }
-              stateVal = map['state'];
-              networkStatusVal = map['network'];
-            } else {
-              stateVal = parsed?.state;
-              networkStatusVal = parsed?.network_status;
-            }
-            
-            // Apply Maya rules: if state is RELEASED and network is ENABLED => NOT_ACTIVE (awaiting)
-            if (stateVal === 'RELEASED' && networkStatusVal === 'ENABLED') {
-              currentStatusText = 'NOT_ACTIVE';
-              networkConnected = false;
-              isActive = false;
-            } else {
-              if (networkStatusVal) {
-                currentStatusText = networkStatusVal;
-              }
-              networkConnected = networkStatusVal === 'ENABLED' && stateVal !== 'RELEASED';
-              isActive = networkConnected;
-            }
-          } catch (e) {
-            console.error('Failed to parse Maya real_status:', e);
-            // If parsing fails, fall back to simple text
-            isActive = /IN_USE|Active|ENABLED/i.test(currentStatusText);
-            networkConnected = /ENABLED|Active|IN_USE/i.test(currentStatusText);
-          }
-        } else {
-          // Non-Maya fallback
-          isActive = currentStatusText === 'IN_USE';
-          networkConnected = isActive;
-        }
-
-        // For Maya eSIMs: Only set expiry date if network is ENABLED (connected)
+        // Robust fallback: use stored real_status with centralized Maya parser
+        const mayaStatus = MayaStatusParser.getProcessedStatus(orderData.real_status, orderData.esim_plans?.supplier_name);
+        const currentStatusText = mayaStatus.displayStatus;
+        const isActive = mayaStatus.isActive;
+        const networkConnected = mayaStatus.isConnected;
+        
+        // For Maya eSIMs: Only set expiry date if network is connected
         const shouldHaveExpiryDate = isMayaEsim ? networkConnected : isActive;
         const expiryDate = shouldHaveExpiryDate 
           ? (orderData.esim_expiry_date || new Date(Date.now() + (orderData.esim_plans?.validity_days || 30) * 24 * 60 * 60 * 1000).toISOString())
@@ -469,7 +406,7 @@ const ESimDetail = () => {
             qr_code: (() => {
               if (isMayaEsim) {
                 try {
-                  const parsed = typeof raw === 'string' && raw.trim().startsWith('{') ? JSON.parse(raw) : raw;
+                  const parsed = typeof orderData.real_status === 'string' && orderData.real_status.trim().startsWith('{') ? JSON.parse(orderData.real_status) : orderData.real_status;
                   return parsed?.activation_code || orderData.esim_qr_code || "";
                 } catch {
                   return orderData.esim_qr_code || "";
@@ -480,7 +417,7 @@ const ESimDetail = () => {
             manual_code: (() => {
               if (isMayaEsim) {
                 try {
-                  const parsed = typeof raw === 'string' && raw.trim().startsWith('{') ? JSON.parse(raw) : raw;
+                  const parsed = typeof orderData.real_status === 'string' && orderData.real_status.trim().startsWith('{') ? JSON.parse(orderData.real_status) : orderData.real_status;
                   return parsed?.manual_code || (orderData as any).manual_code || orderData.activation_code || "";
                 } catch {
                   return (orderData as any).manual_code || orderData.activation_code || "";
@@ -491,7 +428,7 @@ const ESimDetail = () => {
             sm_dp_address: (() => {
               if (isMayaEsim) {
                 try {
-                  const parsed = typeof raw === 'string' && raw.trim().startsWith('{') ? JSON.parse(raw) : raw;
+                  const parsed = typeof orderData.real_status === 'string' && orderData.real_status.trim().startsWith('{') ? JSON.parse(orderData.real_status) : orderData.real_status;
                   return parsed?.smdp_address || "consumer.e-sim.global";
                 } catch {
                   return "consumer.e-sim.global";

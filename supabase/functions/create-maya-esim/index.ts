@@ -249,7 +249,7 @@ serve(async (req) => {
       );
     }
 
-    // Update order with eSIM details
+    // Update order with eSIM details using standardized JSON format
     const updateData: any = {
       status: 'completed',
       esim_iccid: esim.iccid,
@@ -259,9 +259,9 @@ serve(async (req) => {
       smdp_address: esim.smdp_address,
       supplier_order_id: esim.uid,
       real_status: JSON.stringify({
-        state: esim.state,
-        service_status: esim.service_status,
-        network_status: esim.network_status
+        state: esim.state || 'UNKNOWN',
+        service_status: esim.service_status || 'UNKNOWN',
+        network_status: esim.network_status || 'UNKNOWN'
       })
     };
 

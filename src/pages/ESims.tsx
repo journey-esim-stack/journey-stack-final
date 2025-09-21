@@ -11,6 +11,7 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import Layout from "@/components/Layout";
 import { ESimDetailModal } from "@/components/ESimDetailModal";
+import { MayaStatusParser } from '@/utils/mayaStatus';
 
 interface Order {
   id: string;

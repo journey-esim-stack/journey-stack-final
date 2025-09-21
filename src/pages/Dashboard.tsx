@@ -11,6 +11,7 @@ import { Smartphone, DollarSign, ShoppingCart, AlertTriangle } from "lucide-reac
 import { MetricCard } from "@/components/ui/metric-card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { SkeletonCard } from "@/components/ui/skeleton-enhanced";
+import { MayaStatusParser } from "@/utils/mayaStatus";
 
 interface Order {
   id: string;
@@ -24,11 +25,13 @@ interface Order {
   esim_iccid: string;
   activation_code: string;
   supplier_order_id: string;
+  real_status?: string;
   esim_plans: {
     title: string;
     country_name: string;
     data_amount: string;
     validity_days: number;
+    supplier_name?: string;
   };
 }
 
@@ -94,11 +97,13 @@ export default function Dashboard() {
           esim_iccid,
           activation_code,
           supplier_order_id,
+          real_status,
           esim_plans:plan_id (
             title,
             country_name,
             data_amount,
-            validity_days
+            validity_days,
+            supplier_name
           )
         `)
         .eq("agent_id", profile.id)
@@ -108,10 +113,27 @@ export default function Dashboard() {
       setOrders(ordersData || []);
       fetchApiStatuses(ordersData || []);
 
-      // Calculate active eSIMs (completed orders with eSIM data)
-      const activeCount = ordersData?.filter(o => 
-        o.status === "completed" && o.esim_iccid
-      ).length || 0;
+      // Calculate active eSIMs (only those truly connected to network)
+      const activeCount = (ordersData || []).filter(order => {
+        if (order.status !== "completed" || !order.esim_iccid) {
+          return false;
+        }
+
+        // Check if it's a Maya eSIM using supplier_name or real_status format
+        const isMaya = order.esim_plans?.supplier_name?.toLowerCase() === 'maya' || 
+                      (order.real_status && order.real_status.includes('state'));
+
+        if (isMaya && order.real_status) {
+          // Use Maya status parser to determine if connected
+          const status = MayaStatusParser.getProcessedStatus(order.real_status, 'maya');
+          return status.isConnected;
+        } else {
+          // For eSIM Access eSIMs, check real_status for ENABLED status
+          // This is a simple check - may need refinement based on actual eSIM Access status format
+          return order.real_status && order.real_status.toLowerCase().includes('enabled');
+        }
+      }).length;
+      
       setActiveESims(activeCount);
 
       // Generate chart data for last 30 days

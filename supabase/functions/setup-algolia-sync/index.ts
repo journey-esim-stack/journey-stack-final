@@ -112,10 +112,9 @@ serve(async (req) => {
       attributesToSnippet: ['description:20'],
       hitsPerPage: 24,
       maxValuesPerFacet: 100,
-      typoTolerance: {
-        minWordSizeFor1Typo: 4,
-        minWordSizeFor2Typos: 8
-      },
+      typoTolerance: true,
+      minWordSizefor1Typo: 4,
+      minWordSizefor2Typos: 8,
       removeWordsIfNoResults: 'allOptional',
       queryType: 'prefixLast',
       highlightPreTag: '<mark>',

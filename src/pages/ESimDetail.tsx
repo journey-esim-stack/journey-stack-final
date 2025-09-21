@@ -477,27 +477,6 @@ const ESimDetail = () => {
         };
         setEsimDetails(basicDetails);
 
-        // One-off backfill: ensure both generic and legacy QR image paths exist for a previously shared link
-        try {
-          const targetIccid = '8910300000045259837';
-          const isMayaEsimLocal = String(orderData.esim_plans?.supplier_name || '').toLowerCase() === 'maya';
-          if (isMayaEsimLocal && (iccid === targetIccid || basicDetails.iccid === targetIccid)) {
-            const mayaCode = basicDetails.activation.qr_code || basicDetails.activation.manual_code || '';
-            const smdp = basicDetails.activation.sm_dp_address || 'consumer.e-sim.global';
-            const lpaText = mayaCode?.startsWith('LPA:') ? mayaCode : (mayaCode ? `LPA:1$${smdp}$${mayaCode}` : '');
-            if (lpaText) {
-              const dataUrl = await QRCode.toDataURL(lpaText, { margin: 1, scale: 6, color: { dark: '#000000', light: '#FFFFFF' } });
-              const blob = await (await fetch(dataUrl)).blob();
-              // Upload to generic path
-              await supabase.storage.from('qr-codes').upload(`esim-qr/${targetIccid}.png`, blob, { contentType: 'image/png', upsert: true, cacheControl: '3600' });
-              // Upload to legacy path (for backward compatibility)
-              await supabase.storage.from('qr-codes').upload(`maya-esim-qr-${targetIccid}.png`, blob, { contentType: 'image/png', upsert: true, cacheControl: '3600' });
-              console.log('Backfilled QR images for ICCID', targetIccid);
-            }
-          }
-        } catch (backfillErr) {
-          console.warn('Legacy QR backfill failed:', backfillErr);
-        }
       } else {
         // Use real-time status data when available, prioritizing webhook data
         const realtimeStatus = statusData?.esim_status || orderData.real_status;
@@ -743,7 +722,7 @@ Instructions:
           console.warn('System share failed:', e);
         }
       }
-
+    }
 
     switch (method) {
       case 'copy':

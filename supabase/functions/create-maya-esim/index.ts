@@ -89,17 +89,55 @@ serve(async (req) => {
   }
 
   try {
+    // Validate request method
+    if (req.method !== 'POST') {
+      return new Response(
+        JSON.stringify({ error: 'Method not allowed' }),
+        { status: 405, headers: corsHeaders }
+      );
+    }
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const { plan_id, order_id } = await req.json();
-    console.log(`Creating Maya eSIM for plan_id: ${plan_id}, order_id: ${order_id}`);
+    const body = await req.json();
+    const { plan_id, order_id, correlationId } = body;
+    console.log(`Creating Maya eSIM for plan_id: ${plan_id}, order_id: ${order_id}, correlation: ${correlationId}`);
 
-    if (!plan_id || !order_id) {
+    // Input validation
+    if (!plan_id || typeof plan_id !== 'string') {
       return new Response(
-        JSON.stringify({ error: 'Missing plan_id or order_id' }),
+        JSON.stringify({ error: 'Valid plan_id is required' }),
+        { status: 400, headers: corsHeaders }
+      );
+    }
+
+    if (!order_id || typeof order_id !== 'string') {
+      return new Response(
+        JSON.stringify({ error: 'Valid order_id is required' }),
+        { status: 400, headers: corsHeaders }
+      );
+    }
+
+    // Verify order exists and is valid
+    const { data: orderCheck, error: orderCheckError } = await supabaseClient
+      .from('orders')
+      .select('id, status, agent_id')
+      .eq('id', order_id)
+      .single();
+
+    if (orderCheckError || !orderCheck) {
+      console.error('Order verification failed:', orderCheckError);
+      return new Response(
+        JSON.stringify({ error: 'Order not found or invalid' }),
+        { status: 404, headers: corsHeaders }
+      );
+    }
+
+    if (orderCheck.status !== 'pending') {
+      return new Response(
+        JSON.stringify({ error: 'Order is not in pending status' }),
         { status: 400, headers: corsHeaders }
       );
     }

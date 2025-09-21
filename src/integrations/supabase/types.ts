@@ -529,6 +529,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      audit_sensitive_operation: {
+        Args: {
+          _details?: Json
+          _operation: string
+          _record_id: string
+          _table_name: string
+        }
+        Returns: undefined
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -538,6 +547,14 @@ export type Database = {
       }
       profile_markups_equal: {
         Args: { _id: string; _markup_type: string; _markup_value: number }
+        Returns: boolean
+      }
+      validate_agent_order_access: {
+        Args: { _agent_id: string; _order_id: string }
+        Returns: boolean
+      }
+      validate_agent_wallet_access: {
+        Args: { _agent_id: string }
         Returns: boolean
       }
     }

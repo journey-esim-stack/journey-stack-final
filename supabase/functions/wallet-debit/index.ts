@@ -26,10 +26,35 @@ serve(async (req) => {
   }
 
   try {
+    // Validate request method
+    if (req.method !== "POST") {
+      return new Response(JSON.stringify({ error: "Method not allowed" }), {
+        status: 405,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // Generate correlation ID for tracing across functions
     const correlationId = crypto.randomUUID();
     
-    const { amount, description, reference_id, cart_items, customer_info, device_info } = await req.json();
+    const body = await req.json();
+    const { amount, description, reference_id, cart_items, customer_info, device_info } = body;
+
+    // Input validation
+    if (typeof amount !== "number" || amount <= 0) {
+      return new Response(JSON.stringify({ error: "Invalid amount" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Rate limiting check - prevent excessive requests
+    if (amount > 10000) {  // $10,000 limit per transaction
+      return new Response(JSON.stringify({ error: "Amount exceeds maximum limit" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     if (typeof amount !== "number" || amount <= 0) {
       throw new Error("amount must be a positive number");
     }
@@ -41,12 +66,27 @@ serve(async (req) => {
     );
 
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) throw new Error("Missing Authorization header");
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: "Missing Authorization header" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    
     const token = authHeader.replace("Bearer ", "");
     const { data: userData, error: userErr } = await supabase.auth.getUser(token);
-    if (userErr) throw new Error(`Auth failed: ${userErr.message}`);
+    if (userErr || !userData.user) {
+      await logTrace(supabase, 'auth_failed', {
+        error: userErr?.message || "Invalid token",
+        ip: req.headers.get("x-forwarded-for") || "unknown",
+        correlationId
+      });
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     const user = userData.user;
-    if (!user) throw new Error("User not authenticated");
 
     // Get agent profile
     const { data: profile, error: profileErr } = await supabase

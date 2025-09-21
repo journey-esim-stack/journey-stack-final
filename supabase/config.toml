@@ -1,7 +1,7 @@
 project_id = "cccktfactlzxuprpyhgh"
 
 [functions.create-esim]
-verify_jwt = false
+verify_jwt = true
 
 [functions.test-esim]
 verify_jwt = false
@@ -10,13 +10,13 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.get-admin-inventory]
-verify_jwt = false
+verify_jwt = true
 
 [functions.get-admin-users]
-verify_jwt = false
+verify_jwt = true
 
 [functions.get-esim-details]
-verify_jwt = false
+verify_jwt = true
 
 [functions.esim-webhook]
 verify_jwt = false
@@ -25,13 +25,34 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.create-maya-esim]
-verify_jwt = false
+verify_jwt = true
 
 [functions.process-maya-topup]
-verify_jwt = false
+verify_jwt = true
 
 [functions.get-maya-esim-status]
-verify_jwt = false
+verify_jwt = true
 
 [functions.get-maya-topup-plans]
+verify_jwt = true
+
+[functions.create-topup]
+verify_jwt = true
+
+[functions.sync-topups]
+verify_jwt = true
+
+[functions.confirm-topup]
+verify_jwt = true
+
+[functions.get-topup-plans]
+verify_jwt = true
+
+[functions.realtime-maya-sync]
 verify_jwt = false
+
+[functions.sync-esim-plans]
+verify_jwt = false
+
+[functions.wallet-debit]
+verify_jwt = true

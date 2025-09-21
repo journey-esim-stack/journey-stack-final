@@ -13,6 +13,14 @@ serve(async (req) => {
   }
 
   try {
+    // Validate request method
+    if (req.method !== 'POST') {
+      return new Response(
+        JSON.stringify({ error: 'Method not allowed' }),
+        { status: 405, headers: corsHeaders }
+      );
+    }
+
     // Authenticate user
     const authHeader = req.headers.get('authorization');
     if (!authHeader) {
@@ -38,13 +46,52 @@ serve(async (req) => {
       );
     }
 
-    const { iccid, package_code, agent_id, amount } = await req.json();
+    const body = await req.json();
+    const { iccid, package_code, agent_id, amount } = body;
     console.log(`Processing Maya topup: ICCID=${iccid}, package=${package_code}, amount=${amount}`);
 
-    if (!iccid || !package_code || !agent_id || !amount) {
+    // Input validation
+    if (!iccid || typeof iccid !== 'string' || iccid.length < 15 || iccid.length > 22) {
       return new Response(
-        JSON.stringify({ error: 'Missing required parameters' }),
+        JSON.stringify({ error: 'Valid ICCID is required (15-22 digits)' }),
         { status: 400, headers: corsHeaders }
+      );
+    }
+
+    if (!package_code || typeof package_code !== 'string') {
+      return new Response(
+        JSON.stringify({ error: 'Valid package code is required' }),
+        { status: 400, headers: corsHeaders }
+      );
+    }
+
+    if (!agent_id || typeof agent_id !== 'string') {
+      return new Response(
+        JSON.stringify({ error: 'Valid agent ID is required' }),
+        { status: 400, headers: corsHeaders }
+      );
+    }
+
+    if (typeof amount !== 'number' || amount <= 0 || amount > 1000) {
+      return new Response(
+        JSON.stringify({ error: 'Amount must be between 0 and $1000' }),
+        { status: 400, headers: corsHeaders }
+      );
+    }
+
+    // Verify agent access
+    const { data: agentCheck } = await supabaseClient
+      .from('agent_profiles')
+      .select('id, user_id, status')
+      .eq('id', agent_id)
+      .eq('user_id', user.id)
+      .eq('status', 'approved')
+      .single();
+
+    if (!agentCheck) {
+      return new Response(
+        JSON.stringify({ error: 'Access denied - agent verification failed' }),
+        { status: 403, headers: corsHeaders }
       );
     }
 

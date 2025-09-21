@@ -752,7 +752,7 @@ Instructions:
                         </div>
                         <p className="text-sm text-muted-foreground">
                           {esimDetails.network.connected 
-                            ? `Signal: ${esimDetails.network.signal_strength}% • Last seen: ${format(new Date(), "MMM dd, HH:mm")}`
+                            ? `Last seen: ${format(new Date(), "MMM dd, HH:mm")}`
                             : "Not connected to any network"
                           }
                         </p>

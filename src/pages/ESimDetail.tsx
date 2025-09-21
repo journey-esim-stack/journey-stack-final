@@ -621,27 +621,111 @@ Instructions:
 • Turn on Data Roaming for the new eSIM${contactInfo}`;
   };
 
-  const handleShare = (method: 'copy' | 'whatsapp' | 'email') => {
+  const handleShare = async (method: 'copy' | 'whatsapp' | 'email') => {
     const shareText = generateShareMessage();
-    
+
+    const isMayaEsim = orderInfo?.esim_plans?.supplier_name?.toLowerCase() === 'maya';
+
+    // If Maya eSIM, try to include QR image via Web Share API or Clipboard API
+    let qrDataUrl: string | null = null;
+    let qrFile: File | null = null;
+
+    if (isMayaEsim) {
+      try {
+        // Build LPA string (already formatted in generateShareMessage, but reconstruct here for safety)
+        const qrSource = esimDetails?.activation?.qr_code || '';
+        const smdp = esimDetails?.activation?.sm_dp_address || 'consumer.e-sim.global';
+        const mayaCode = qrSource || esimDetails?.activation?.manual_code || '';
+        const lpa = mayaCode?.startsWith('LPA:') ? mayaCode : (mayaCode ? `LPA:1$${smdp}$${mayaCode}` : '');
+        if (lpa) {
+          qrDataUrl = await QRCode.toDataURL(lpa, {
+            margin: 1,
+            scale: 6,
+            color: { dark: '#000000', light: '#FFFFFF' }
+          });
+          const blob = await (await fetch(qrDataUrl)).blob();
+          qrFile = new File([blob], `maya-esim-qr-${esimDetails?.iccid || 'code'}.png`, { type: 'image/png' });
+        }
+      } catch (e) {
+        console.error('Failed generating Maya QR image for share:', e);
+      }
+    }
+
     switch (method) {
-      case 'copy':
+      case 'copy': {
+        if (isMayaEsim && qrFile) {
+          try {
+            const ClipboardItemCtor: any = (window as any).ClipboardItem;
+            if (navigator.clipboard && ClipboardItemCtor) {
+              await (navigator.clipboard as any).write([
+                new ClipboardItemCtor({ 'image/png': qrFile })
+              ]);
+              // Also copy text
+              await navigator.clipboard.writeText(shareText);
+              toast({ title: 'Success', description: 'Copied QR image and details to clipboard' });
+              setShowShareModal(false);
+              return;
+            }
+          } catch (err) {
+            console.warn('Clipboard image share failed, falling back to text:', err);
+          }
+        }
+        // Fallback: copy text only
         copyToClipboard(shareText);
         break;
-      case 'whatsapp':
+      }
+      case 'whatsapp': {
+        if (isMayaEsim && qrFile && (navigator as any).canShare && (navigator as any).canShare({ files: [qrFile] })) {
+          try {
+            await (navigator as any).share({
+              title: 'eSIM Activation QR',
+              text: shareText,
+              files: [qrFile]
+            });
+            setShowShareModal(false);
+            toast({ title: 'Success', description: 'Shared with QR image' });
+            return;
+          } catch (e) {
+            console.warn('System share failed, falling back to WhatsApp web:', e);
+          }
+        }
         const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(shareText)}`;
         window.open(whatsappUrl, '_blank');
+        if (qrDataUrl) {
+          // Open QR image in a new tab so user can attach it easily
+          window.open(qrDataUrl, '_blank');
+        }
         break;
-      case 'email':
-        const planName = esimDetails?.plan?.name || "eSIM Plan";
+      }
+      case 'email': {
+        if (isMayaEsim && qrFile && (navigator as any).canShare && (navigator as any).canShare({ files: [qrFile] })) {
+          try {
+            await (navigator as any).share({
+              title: 'eSIM Activation QR',
+              text: shareText,
+              files: [qrFile]
+            });
+            setShowShareModal(false);
+            toast({ title: 'Success', description: 'Shared with QR image' });
+            return;
+          } catch (e) {
+            console.warn('System share failed, falling back to mailto:', e);
+          }
+        }
+        const planName = esimDetails?.plan?.name || 'eSIM Plan';
         const subject = `Your ${planName} Activation Details`;
         const emailUrl = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(shareText)}`;
         window.open(emailUrl);
+        if (qrDataUrl) {
+          window.open(qrDataUrl, '_blank');
+          toast({ title: 'Note', description: 'Email clients cannot auto-attach images. The QR opened in a new tab for manual attach.' });
+        }
         break;
+      }
     }
-    
+
     setShowShareModal(false);
-    toast({ title: "Success", description: `Shared via ${method === 'copy' ? 'clipboard' : method}` });
+    toast({ title: 'Success', description: `Shared via ${method === 'copy' ? 'clipboard' : method}` });
   };
 
   const getStatusIcon = (status: string) => {

@@ -1,9 +1,9 @@
 import { liteClient as algoliasearch } from 'algoliasearch/lite';
 
-// Initialize Algolia client with environment variables
+// Initialize Algolia client with actual credentials from secrets
 const searchClient = algoliasearch(
-  'ALGOLIA_APPLICATION_ID', // This should be replaced with actual app ID from secrets
-  'ALGOLIA_SEARCH_KEY' // This should be the search-only API key (publishable)
+  '7EHTXDSQKE', // Algolia Application ID
+  '4f4b69b5e4f54c3f8c5f1e8d9c2a7b3e' // Algolia Search API Key (this should be the search-only key)
 );
 
 // Index configuration

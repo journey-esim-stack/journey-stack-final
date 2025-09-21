@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
-import { InstantSearch, SearchBox, Hits, RefinementList, Stats, Pagination, Configure } from 'react-instantsearch';
-import { searchClient, ESIM_PLANS_INDEX } from "@/lib/algolia";
+import { InstantSearch, SearchBox, Hits, RefinementList, Stats, Pagination, Configure, useSearchBox, useHits } from 'react-instantsearch';
+import { liteClient as algoliasearch } from 'algoliasearch/lite';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Globe, Clock, Database, Wifi, ShoppingCart, Check, Search as SearchIcon } from "lucide-react";
+import { Globe, Clock, Database, Wifi, ShoppingCart, Check, Search as SearchIcon, AlertCircle } from "lucide-react";
 import Layout from "@/components/Layout";
 import { getCountryFlag } from "@/utils/countryFlags";
 import { useCart } from "@/contexts/CartContext";
@@ -27,6 +27,59 @@ interface EsimPlan {
   supplier_name: string;
   admin_only: boolean;
   agent_price?: number;
+}
+
+function NoResultsMessage() {
+  return (
+    <div className="col-span-full flex flex-col items-center justify-center py-12 text-center">
+      <AlertCircle className="h-12 w-12 text-muted-foreground mb-4" />
+      <h3 className="text-lg font-semibold text-foreground mb-2">No Plans Found</h3>
+      <p className="text-muted-foreground max-w-md">
+        The Algolia search index may not be set up yet or may be empty. 
+        Please run the Algolia setup first to sync your eSIM plans.
+      </p>
+      <Button variant="outline" className="mt-4" onClick={() => window.location.href = '/algolia-setup'}>
+        <Database className="h-4 w-4 mr-2" />
+        Setup Algolia
+      </Button>
+    </div>
+  );
+}
+
+function SearchResults({ agentMarkup }: { agentMarkup: { type: string; value: number } }) {
+  const { hits } = useHits();
+  
+  const transformHits = (hits: any[]) => {
+    return hits.map(hit => {
+      const basePrice = Number(hit.wholesale_price) || 0;
+      let agentPrice = basePrice;
+      
+      if (agentMarkup.type === 'percent') {
+        agentPrice = basePrice * (1 + agentMarkup.value / 100);
+      } else {
+        agentPrice = basePrice + agentMarkup.value;
+      }
+      
+      return {
+        ...hit,
+        agent_price: agentPrice
+      };
+    });
+  };
+
+  const transformedHits = transformHits(hits);
+
+  if (transformedHits.length === 0) {
+    return <NoResultsMessage />;
+  }
+
+  return (
+    <>
+      {transformedHits.map((hit) => (
+        <PlanHit key={hit.objectID} hit={hit} />
+      ))}
+    </>
+  );
 }
 
 function PlanHit({ hit }: { hit: EsimPlan }) {
@@ -164,11 +217,20 @@ function PlanHit({ hit }: { hit: EsimPlan }) {
 export default function AlgoliaPlans() {
   const [userId, setUserId] = useState<string | null>(null);
   const [agentMarkup, setAgentMarkup] = useState({ type: 'percent', value: 300 });
+  const [searchClient, setSearchClient] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [algoliaError, setAlgoliaError] = useState<string | null>(null);
+  const { toast } = useToast();
 
   useEffect(() => {
-    (async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
+    const initializeAlgolia = async () => {
+      try {
+        // Get user data first
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          throw new Error('User not authenticated');
+        }
+        
         setUserId(user.id);
         
         // Fetch agent markup
@@ -186,27 +248,90 @@ export default function AlgoliaPlans() {
               : 300
           });
         }
+
+        // Create Algolia client with test credentials for now
+        // In production, you should get these from your backend
+        const client = algoliasearch(
+          'YourAppID', // This needs to be your actual Algolia App ID
+          'YourSearchKey' // This needs to be your actual Algolia Search API Key
+        );
+        
+        console.log('Algolia client initialized');
+        setSearchClient(client);
+        
+      } catch (error) {
+        console.error('Failed to initialize Algolia:', error);
+        setAlgoliaError('Failed to initialize search. The Algolia index may not be configured yet.');
+        toast({
+          title: "Search Unavailable",
+          description: "Please set up Algolia integration first.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
       }
-    })();
+    };
+
+    initializeAlgolia();
   }, []);
 
-  const transformHits = (hits: any[]) => {
-    return hits.map(hit => {
-      const basePrice = Number(hit.wholesale_price) || 0;
-      let agentPrice = basePrice;
-      
-      if (agentMarkup.type === 'percent') {
-        agentPrice = basePrice * (1 + agentMarkup.value / 100);
-      } else {
-        agentPrice = basePrice + agentMarkup.value;
-      }
-      
-      return {
-        ...hit,
-        agent_price: agentPrice
-      };
-    });
-  };
+  if (isLoading) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        </div>
+      </Layout>
+    );
+  }
+
+  if (algoliaError || !searchClient) {
+    return (
+      <Layout>
+        <div className="space-y-8">
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-3xl font-bold text-foreground">Algolia eSIM Plans</h1>
+                <p className="text-muted-foreground mt-2">
+                  Advanced search powered by Algolia
+                </p>
+              </div>
+              <Badge variant="secondary" className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
+                <AlertCircle className="h-4 w-4 mr-1" />
+                Setup Required
+              </Badge>
+            </div>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-amber-600">
+                <AlertCircle className="h-5 w-5" />
+                Algolia Setup Required
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-muted-foreground">
+                The Algolia search integration needs to be configured before you can use this page. 
+                Please run the Algolia setup to sync your eSIM plans to the search index.
+              </p>
+              <div className="flex gap-3">
+                <Button onClick={() => window.location.href = '/algolia-setup'}>
+                  <Database className="h-4 w-4 mr-2" />
+                  Setup Algolia Integration
+                </Button>
+                <Button variant="outline" onClick={() => window.location.href = '/plans'}>
+                  <SearchIcon className="h-4 w-4 mr-2" />
+                  Use Legacy Plans Page
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
@@ -219,14 +344,19 @@ export default function AlgoliaPlans() {
                 Advanced search powered by Algolia - Test implementation
               </p>
             </div>
-            <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-              <SearchIcon className="h-4 w-4 mr-1" />
-              Algolia Search
-            </Badge>
+            <div className="flex items-center gap-2">
+              <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                <SearchIcon className="h-4 w-4 mr-1" />
+                Algolia Search
+              </Badge>
+              <Button variant="outline" size="sm" onClick={() => window.location.href = '/plans'}>
+                Legacy Plans
+              </Button>
+            </div>
           </div>
         </div>
 
-        <InstantSearch searchClient={searchClient} indexName={ESIM_PLANS_INDEX}>
+        <InstantSearch searchClient={searchClient} indexName="esim_plans">
           <Configure 
             hitsPerPage={24}
             filters="is_active:true AND admin_only:false"
@@ -306,14 +436,9 @@ export default function AlgoliaPlans() {
                 />
               </div>
 
-              <Hits 
-                hitComponent={({ hit }) => <PlanHit hit={transformHits([hit])[0]} />}
-                classNames={{
-                  root: '',
-                  list: 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6',
-                  item: ''
-                }}
-              />
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                <SearchResults agentMarkup={agentMarkup} />
+              </div>
 
               <div className="flex justify-center">
                 <Pagination 

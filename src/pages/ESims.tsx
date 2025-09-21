@@ -635,17 +635,18 @@ const ESims = () => {
             ) : (
               <div className="overflow-x-auto">
                 <Table>
-                  <TableHeader>
-                    <TableRow className="border-b border-border/50">
-                      <TableHead className="text-muted-foreground font-medium">eSIM ICCID</TableHead>
-                      <TableHead className="text-muted-foreground font-medium">Date Assigned</TableHead>
-                      <TableHead className="text-muted-foreground font-medium">Country</TableHead>
-                      <TableHead className="text-muted-foreground font-medium">Data Plan</TableHead>
-                      <TableHead className="text-muted-foreground font-medium">Device</TableHead>
-                      <TableHead className="text-muted-foreground font-medium">Status</TableHead>
-                      <TableHead className="text-muted-foreground font-medium">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
+                   <TableHeader>
+                     <TableRow className="border-b border-border/50">
+                       <TableHead className="text-muted-foreground font-medium">eSIM ICCID</TableHead>
+                       <TableHead className="text-muted-foreground font-medium">Date Assigned</TableHead>
+                       <TableHead className="text-muted-foreground font-medium">Country</TableHead>
+                       <TableHead className="text-muted-foreground font-medium">Data Plan</TableHead>
+                       <TableHead className="text-muted-foreground font-medium">Device</TableHead>
+                       <TableHead className="text-muted-foreground font-medium">Status</TableHead>
+                       <TableHead className="text-muted-foreground font-medium">Network Status</TableHead>
+                       <TableHead className="text-muted-foreground font-medium">Actions</TableHead>
+                     </TableRow>
+                   </TableHeader>
                   <TableBody>
                     {filteredOrders.map((order) => (
                       <TableRow 
@@ -697,21 +698,84 @@ const ESims = () => {
                             )}
                           </div>
                         </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Badge className={`${getStatusColor(order.status, order.real_status, order.esim_plans?.supplier_name)} inline-flex items-center justify-center px-2.5 py-1 text-xs font-medium rounded-full whitespace-nowrap border`}>
-                              {statusLoading.has(order.id) ? (
-                                <div className="flex items-center gap-1">
-                                  <div className="animate-spin rounded-full h-3 w-3 border-b border-current"></div>
-                                  Loading...
-                                </div>
-                              ) : (
-                                getStatusText(order.status, order.real_status, order.esim_plans?.supplier_name)
-                              )}
-                            </Badge>
-                          </div>
-                        </TableCell>
-                        <TableCell>
+                         <TableCell>
+                           <div className="flex items-center gap-2">
+                             <Badge className={`${getStatusColor(order.status, order.real_status, order.esim_plans?.supplier_name)} inline-flex items-center justify-center px-2.5 py-1 text-xs font-medium rounded-full whitespace-nowrap border`}>
+                               {statusLoading.has(order.id) ? (
+                                 <div className="flex items-center gap-1">
+                                   <div className="animate-spin rounded-full h-3 w-3 border-b border-current"></div>
+                                   Loading...
+                                 </div>
+                               ) : (
+                                 getStatusText(order.status, order.real_status, order.esim_plans?.supplier_name)
+                               )}
+                             </Badge>
+                           </div>
+                         </TableCell>
+                         <TableCell>
+                           {order.status === "completed" && order.esim_iccid ? (
+                             <div className="flex items-center gap-2">
+                               {statusLoading.has(order.id) ? (
+                                 <div className="flex items-center gap-1 text-gray-500">
+                                   <RefreshCw className="h-3 w-3 animate-spin" />
+                                   <span className="text-xs">Checking...</span>
+                                 </div>
+                               ) : (
+                                 (() => {
+                                   const supplierName = order.esim_plans?.supplier_name?.toLowerCase();
+                                   const isMaya = supplierName === 'maya';
+                                   
+                                   if (isMaya && order.real_status) {
+                                     const status = MayaStatusParser.getProcessedStatus(order.real_status, 'maya');
+                                     return (
+                                       <Badge 
+                                         className={status.isConnected ? 
+                                           "bg-green-100 text-green-800 border-green-200 inline-flex items-center justify-center px-2.5 py-1 text-xs font-medium rounded-full whitespace-nowrap border" : 
+                                           "bg-gray-100 text-gray-800 border-gray-200 inline-flex items-center justify-center px-2.5 py-1 text-xs font-medium rounded-full whitespace-nowrap border"
+                                         }
+                                       >
+                                         <Activity className="h-3 w-3 mr-1" />
+                                         {status.isConnected ? "Connected" : "Not Connected"}
+                                       </Badge>
+                                     );
+                                   } else if (order.real_status) {
+                                     const statusLower = order.real_status.toLowerCase();
+                                     const isConnected = statusLower.includes('enabled') || 
+                                                        statusLower.includes('active') || 
+                                                        statusLower.includes('connected') ||
+                                                        statusLower === 'installed' ||
+                                                        statusLower === 'provisioned';
+                                     
+                                     return (
+                                       <Badge 
+                                         className={isConnected ? 
+                                           "bg-green-100 text-green-800 border-green-200 inline-flex items-center justify-center px-2.5 py-1 text-xs font-medium rounded-full whitespace-nowrap border" : 
+                                           "bg-gray-100 text-gray-800 border-gray-200 inline-flex items-center justify-center px-2.5 py-1 text-xs font-medium rounded-full whitespace-nowrap border"
+                                         }
+                                       >
+                                         <Activity className="h-3 w-3 mr-1" />
+                                         {isConnected ? "Connected" : "Not Connected"}
+                                       </Badge>
+                                     );
+                                   } else {
+                                     return (
+                                       <Badge className="bg-gray-100 text-gray-800 border-gray-200 inline-flex items-center justify-center px-2.5 py-1 text-xs font-medium rounded-full whitespace-nowrap border">
+                                         <Activity className="h-3 w-3 mr-1" />
+                                         Unknown
+                                       </Badge>
+                                     );
+                                   }
+                                 })()
+                               )}
+                             </div>
+                           ) : (
+                             <Badge className="bg-gray-100 text-gray-800 border-gray-200 inline-flex items-center justify-center px-2.5 py-1 text-xs font-medium rounded-full whitespace-nowrap border">
+                               <Activity className="h-3 w-3 mr-1" />
+                               N/A
+                             </Badge>
+                           )}
+                         </TableCell>
+                         <TableCell>
                           <div className="flex items-center gap-2">
                             {order.esim_iccid && order.status === "completed" && (
                               <Button

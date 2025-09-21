@@ -129,7 +129,7 @@ serve(async (req) => {
       .from('esim_plans')
       .select(`
         *,
-        agent_pricing(
+        agent_pricing!inner(
           agent_id,
           retail_price
         )
@@ -143,8 +143,6 @@ serve(async (req) => {
         { status: 500, headers: corsHeaders }
       );
     }
-
-    console.log(`Found ${plans?.length || 0} active eSIM plans`);
 
     // Transform plans data for Algolia
     const algoliaRecords = plans?.map(plan => {

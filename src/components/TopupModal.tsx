@@ -71,9 +71,22 @@ const TopupModal = ({ isOpen, onClose, iccid, packageCode, onTopupComplete }: To
   const fetchTopupPlans = async () => {
     setLoading(true);
     try {
-      console.log(`Fetching topup plans for ICCID ${iccid}`);
+      // First, check if this is a Maya eSIM by looking up the order
+      const { data: orderData, error: orderError } = await supabase
+        .from('orders')
+        .select('plan_id, esim_plans(supplier_name)')
+        .eq('esim_iccid', iccid)
+        .single();
 
-      const { data, error } = await supabase.functions.invoke('get-topup-plans', {
+      let functionName = 'get-topup-plans'; // Default to eSIM Access
+      
+      if (!orderError && orderData?.esim_plans?.supplier_name === 'maya') {
+        functionName = 'get-maya-topup-plans';
+      }
+
+      console.log(`Using ${functionName} for ICCID ${iccid}`);
+
+      const { data, error } = await supabase.functions.invoke(functionName, {
         body: { iccid, packageCode },
       });
 
@@ -105,22 +118,28 @@ const TopupModal = ({ isOpen, onClose, iccid, packageCode, onTopupComplete }: To
 
     setProcessing(plan.packageCode);
     try {
-      // Get order details for agent_id
+      // Check if this is a Maya eSIM by looking up the order
       const { data: orderData, error: orderError } = await supabase
         .from('orders')
-        .select('agent_id')
+        .select('plan_id, agent_id, esim_plans(supplier_name)')
         .eq('esim_iccid', iccid)
         .single();
 
-      console.log(`Processing topup for ICCID ${iccid}`);
+      let functionName = 'process-topup'; // Default to eSIM Access
+      
+      if (!orderError && orderData?.esim_plans?.supplier_name === 'maya') {
+        functionName = 'process-maya-topup';
+      }
+
+      console.log(`Using ${functionName} for topup of ICCID ${iccid}`);
 
       const currentRetailPrice = Number(calculatePrice(plan.wholesale_price).toFixed(2));
-      const { data, error } = await supabase.functions.invoke('process-topup', {
+      const { data, error } = await supabase.functions.invoke(functionName, {
         body: {
           iccid,
           package_code: plan.packageCode,
           agent_id: orderData?.agent_id,
-          amount: currentRetailPrice, // Use current retail price for wallet deduction
+          amount: currentRetailPrice,
         },
       });
 

@@ -11,6 +11,7 @@ export interface CartItem {
   agentPrice: number;
   currency: string;
   quantity: number;
+  supplier_name?: string;
 }
 
 interface CartState {

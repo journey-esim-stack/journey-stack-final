@@ -436,7 +436,8 @@ export default function Plans() {
       dataAmount: plan.data_amount,
       validityDays: days,
       agentPrice: price,
-      currency: selectedCurrency
+      currency: selectedCurrency,
+      supplier_name: plan.supplier_name
     });
 
     setAddedToCart(prev => new Set(prev).add(plan.id));

@@ -113,8 +113,8 @@ serve(async (req) => {
       hitsPerPage: 24,
       maxValuesPerFacet: 100,
       typoTolerance: {
-        minWordSizefor1Typo: 4,
-        minWordSizefor2Typos: 8
+        minWordSizeFor1Typo: 4,
+        minWordSizeFor2Typos: 8
       },
       removeWordsIfNoResults: 'allOptional',
       queryType: 'prefixLast',

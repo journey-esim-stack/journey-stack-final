@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { InstantSearch, Configure, useSearchBox, useHits, useRefinementList, useStats, usePagination } from 'react-instantsearch';
-import { liteClient as algoliasearch } from 'algoliasearch/lite';
+import { getSearchClient } from "@/lib/algolia";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -447,16 +447,8 @@ export default function AlgoliaPlans() {
           localStorage.setItem(`agent_markup_${user.id}`, JSON.stringify(markup));
         }
 
-        // Fetch Algolia credentials with retry
-        const { data: creds, error: credsError } = await supabase.functions.invoke('get-algolia-credentials');
-        if (credsError || !creds?.appId || !creds?.apiKey) {
-          throw new Error(`Failed to load Algolia credentials: ${credsError?.message || 'No credentials returned'}`);
-        }
-
-        const client = algoliasearch(
-          creds.appId,
-          creds.apiKey
-        );
+        // Get dynamic Algolia client
+        const client = await getSearchClient();
         
         // Validate client with a test search
         try {

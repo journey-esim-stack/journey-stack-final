@@ -623,109 +623,78 @@ Instructions:
 
   const handleShare = async (method: 'copy' | 'whatsapp' | 'email') => {
     const shareText = generateShareMessage();
-
     const isMayaEsim = orderInfo?.esim_plans?.supplier_name?.toLowerCase() === 'maya';
 
-    // If Maya eSIM, try to include QR image via Web Share API or Clipboard API
-    let qrDataUrl: string | null = null;
-    let qrFile: File | null = null;
+    let qrImageUrl: string | null = null;
 
     if (isMayaEsim) {
       try {
-        // Build LPA string (already formatted in generateShareMessage, but reconstruct here for safety)
+        // Build LPA string for Maya eSIM
         const qrSource = esimDetails?.activation?.qr_code || '';
         const smdp = esimDetails?.activation?.sm_dp_address || 'consumer.e-sim.global';
         const mayaCode = qrSource || esimDetails?.activation?.manual_code || '';
         const lpa = mayaCode?.startsWith('LPA:') ? mayaCode : (mayaCode ? `LPA:1$${smdp}$${mayaCode}` : '');
+        
         if (lpa) {
-          qrDataUrl = await QRCode.toDataURL(lpa, {
+          // Generate QR code as blob
+          const qrDataUrl = await QRCode.toDataURL(lpa, {
             margin: 1,
             scale: 6,
             color: { dark: '#000000', light: '#FFFFFF' }
           });
+          
+          // Convert to blob and upload to Supabase Storage
           const blob = await (await fetch(qrDataUrl)).blob();
-          qrFile = new File([blob], `maya-esim-qr-${esimDetails?.iccid || 'code'}.png`, { type: 'image/png' });
+          const fileName = `maya-esim-qr-${esimDetails?.iccid || Date.now()}.png`;
+          
+          const { data: uploadData, error: uploadError } = await supabase.storage
+            .from('qr-codes')
+            .upload(fileName, blob, {
+              contentType: 'image/png',
+              upsert: true
+            });
+            
+          if (!uploadError && uploadData) {
+            // Get public URL
+            const { data: urlData } = supabase.storage
+              .from('qr-codes')
+              .getPublicUrl(fileName);
+            qrImageUrl = urlData.publicUrl;
+          }
         }
       } catch (e) {
-        console.error('Failed generating Maya QR image for share:', e);
+        console.error('Failed generating/uploading Maya QR image:', e);
       }
     }
 
+    // Add QR image URL to share text if available
+    const finalShareText = qrImageUrl 
+      ? `${shareText}\n\nQR Code Image: ${qrImageUrl}`
+      : shareText;
+
     switch (method) {
-      case 'copy': {
-        if (isMayaEsim && qrFile) {
-          try {
-            const ClipboardItemCtor: any = (window as any).ClipboardItem;
-            if (navigator.clipboard && ClipboardItemCtor) {
-              await (navigator.clipboard as any).write([
-                new ClipboardItemCtor({ 'image/png': qrFile })
-              ]);
-              // Also copy text
-              await navigator.clipboard.writeText(shareText);
-              toast({ title: 'Success', description: 'Copied QR image and details to clipboard' });
-              setShowShareModal(false);
-              return;
-            }
-          } catch (err) {
-            console.warn('Clipboard image share failed, falling back to text:', err);
-          }
-        }
-        // Fallback: copy text only
-        copyToClipboard(shareText);
+      case 'copy':
+        copyToClipboard(finalShareText);
         break;
-      }
-      case 'whatsapp': {
-        if (isMayaEsim && qrFile && (navigator as any).canShare && (navigator as any).canShare({ files: [qrFile] })) {
-          try {
-            await (navigator as any).share({
-              title: 'eSIM Activation QR',
-              text: shareText,
-              files: [qrFile]
-            });
-            setShowShareModal(false);
-            toast({ title: 'Success', description: 'Shared with QR image' });
-            return;
-          } catch (e) {
-            console.warn('System share failed, falling back to WhatsApp web:', e);
-          }
-        }
-        const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(shareText)}`;
+      case 'whatsapp':
+        const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(finalShareText)}`;
         window.open(whatsappUrl, '_blank');
-        if (qrDataUrl) {
-          // Open QR image in a new tab so user can attach it easily
-          window.open(qrDataUrl, '_blank');
-        }
         break;
-      }
-      case 'email': {
-        if (isMayaEsim && qrFile && (navigator as any).canShare && (navigator as any).canShare({ files: [qrFile] })) {
-          try {
-            await (navigator as any).share({
-              title: 'eSIM Activation QR',
-              text: shareText,
-              files: [qrFile]
-            });
-            setShowShareModal(false);
-            toast({ title: 'Success', description: 'Shared with QR image' });
-            return;
-          } catch (e) {
-            console.warn('System share failed, falling back to mailto:', e);
-          }
-        }
+      case 'email':
         const planName = esimDetails?.plan?.name || 'eSIM Plan';
         const subject = `Your ${planName} Activation Details`;
-        const emailUrl = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(shareText)}`;
+        const emailUrl = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(finalShareText)}`;
         window.open(emailUrl);
-        if (qrDataUrl) {
-          window.open(qrDataUrl, '_blank');
-          toast({ title: 'Note', description: 'Email clients cannot auto-attach images. The QR opened in a new tab for manual attach.' });
-        }
         break;
-      }
     }
 
     setShowShareModal(false);
-    toast({ title: 'Success', description: `Shared via ${method === 'copy' ? 'clipboard' : method}` });
+    toast({ 
+      title: 'Success', 
+      description: qrImageUrl 
+        ? `Shared via ${method === 'copy' ? 'clipboard' : method} with QR image link`
+        : `Shared via ${method === 'copy' ? 'clipboard' : method}`
+    });
   };
 
   const getStatusIcon = (status: string) => {

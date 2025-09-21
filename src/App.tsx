@@ -24,6 +24,7 @@ import TopupSuccess from "./pages/TopupSuccess";
 import TopupCanceled from "./pages/TopupCanceled";
 import Profile from "./pages/Profile";
 import QrView from "./pages/QrView";
+import AlgoliaSetup from "./pages/AlgoliaSetup";
 
 const App = () => (
   <TooltipProvider>
@@ -52,6 +53,7 @@ const App = () => (
           <Route path="/profile" element={<AgentApprovalGuard><Profile /></AgentApprovalGuard>} />
           <Route path="/wallet/topup-success" element={<AgentApprovalGuard><TopupSuccess /></AgentApprovalGuard>} />
           <Route path="/wallet/topup-canceled" element={<AgentApprovalGuard><TopupCanceled /></AgentApprovalGuard>} />
+          <Route path="/algolia-setup" element={<AgentApprovalGuard><AlgoliaSetup /></AgentApprovalGuard>} />
           
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />

@@ -314,26 +314,31 @@ const ESims = () => {
 
   const getStatusColor = (status: string, realStatus?: string, supplierName?: string) => {
     let currentStatus = realStatus || status;
+    let mayaState: string | undefined;
     
-    // For Maya eSIMs, parse JSON and extract network_status
+    // For Maya eSIMs, parse JSON and extract network_status and state
     if (supplierName?.toLowerCase() === 'maya' && realStatus) {
       try {
         const mayaData = JSON.parse(realStatus);
         const networkStatus = mayaData.network_status || mayaData.esim?.network_status;
+        mayaState = mayaData.state || mayaData.esim?.state;
         if (networkStatus) {
           currentStatus = networkStatus;
         }
+        // Override: if state is RELEASED and network is ENABLED, treat as NOT_ACTIVE (awaiting activation)
+        if (mayaState === 'RELEASED' && String(currentStatus).toUpperCase() === 'ENABLED') {
+          currentStatus = 'NOT_ACTIVE';
+        }
       } catch (e) {
-        // Fallback to existing status if JSON parsing fails
         console.log('Failed to parse Maya status JSON:', e);
       }
     }
     
-    switch (currentStatus.toLowerCase()) {
+    switch (String(currentStatus).toLowerCase()) {
       case "enabled":
         return "bg-green-100 text-green-800 border-green-200";
       case "not_active":
-        return "bg-yellow-100 text-yellow-800 border-yellow-200"; // Yellow for awaiting connection
+        return "bg-yellow-100 text-yellow-800 border-yellow-200"; // Awaiting connection
       case "disabled":
         return "bg-red-100 text-red-800 border-red-200";
       case "inactive":
@@ -363,24 +368,29 @@ const ESims = () => {
   
   const getStatusText = (status: string, realStatus?: string, supplierName?: string) => {
     let currentStatus = realStatus || status;
+    let mayaState: string | undefined;
     
-    // For Maya eSIMs, parse JSON and extract network_status
+    // For Maya eSIMs, parse JSON and extract network_status and state
     if (supplierName?.toLowerCase() === 'maya' && realStatus) {
       try {
         const mayaData = JSON.parse(realStatus);
         const networkStatus = mayaData.network_status || mayaData.esim?.network_status;
+        mayaState = mayaData.state || mayaData.esim?.state;
         if (networkStatus) {
           currentStatus = networkStatus;
         }
+        // Override: if state is RELEASED and network is ENABLED, treat as NOT_ACTIVE (awaiting activation)
+        if (mayaState === 'RELEASED' && String(currentStatus).toUpperCase() === 'ENABLED') {
+          currentStatus = 'NOT_ACTIVE';
+        }
       } catch (e) {
-        // Fallback to existing status if JSON parsing fails
         console.log('Failed to parse Maya status JSON:', e);
       }
     }
     
-    // Return Maya network_status with clear descriptions
+    // Return Maya status with clear descriptions
     if (supplierName?.toLowerCase() === 'maya') {
-      switch (currentStatus.toUpperCase()) {
+      switch (String(currentStatus).toUpperCase()) {
         case 'ENABLED':
           return 'CONNECTED';
         case 'NOT_ACTIVE':
@@ -388,11 +398,11 @@ const ESims = () => {
         case 'DISABLED':
           return 'SUSPENDED';
         default:
-          return currentStatus.toUpperCase();
+          return String(currentStatus).toUpperCase();
       }
     }
     
-    switch (currentStatus.toLowerCase()) {
+    switch (String(currentStatus).toLowerCase()) {
       case "active":
       case "activated":
       case "connected":
@@ -418,7 +428,7 @@ const ESims = () => {
       case "failed":
         return "Failed";
       default:
-        return currentStatus.charAt(0).toUpperCase() + currentStatus.slice(1);
+        return String(currentStatus).charAt(0).toUpperCase() + String(currentStatus).slice(1);
     }
   };
 

@@ -386,13 +386,20 @@ const ESimDetail = () => {
         if (isMayaEsim) {
           try {
             const parsed = typeof raw === 'string' && raw.trim().startsWith('{') ? JSON.parse(raw) : raw;
+            const stateVal = parsed?.state;
             networkStatusVal = parsed?.network_status;
-            // Use network_status directly as requested by user
-            if (networkStatusVal) {
-              currentStatusText = networkStatusVal; // Show network_status directly (ENABLED, NOT_ACTIVE, DISABLED)
+            // Map using Maya rules: if state is RELEASED and network is ENABLED => NOT_ACTIVE (awaiting)
+            if (stateVal === 'RELEASED' && networkStatusVal === 'ENABLED') {
+              currentStatusText = 'NOT_ACTIVE';
+              networkConnected = false;
+              isActive = false;
+            } else {
+              if (networkStatusVal) {
+                currentStatusText = networkStatusVal;
+              }
+              networkConnected = networkStatusVal === 'ENABLED' && stateVal !== 'RELEASED';
+              isActive = networkConnected;
             }
-            networkConnected = networkStatusVal === 'ENABLED';
-            isActive = networkConnected;
           } catch {
             // If parsing fails, fall back to simple text
             isActive = /IN_USE|Active|ENABLED/i.test(currentStatusText);
@@ -451,24 +458,16 @@ const ESimDetail = () => {
           mayaApiData: isMayaEsim ? apiData.status : null
         });
         
-        // Maya status mapping according to official docs
+        // Maya status mapping: use network_status but override when state is RELEASED
         if (isMayaEsim && apiData.status) {
           const mayaStatus = apiData.status;
           const state = mayaStatus.state;
-          const serviceStatus = mayaStatus.service_status;
           const networkStatus = mayaStatus.network_status;
           
-          console.log('ESimDetail - Maya status fields:', { state, serviceStatus, networkStatus });
+          console.log('ESimDetail - Maya status fields:', { state, networkStatus });
           
-          // Map according to Maya's official reference table
-          if (serviceStatus === 'inactive' || networkStatus === 'DISABLED') {
-            currentStatus = 'Expired / Suspended';
-          } else if (state === 'RELEASED' && serviceStatus === 'active' && networkStatus === 'ENABLED') {
-            currentStatus = 'Activated / Active';
-          } else if (state === 'RELEASED' && serviceStatus === 'active' && networkStatus === 'NOT_ACTIVE') {
-            currentStatus = 'Awaiting Activation';
-          } else if (state === 'REVOKED' || state === 'DELETED') {
-            currentStatus = 'Revoked / Deleted';
+          if (state === 'RELEASED' && networkStatus === 'ENABLED') {
+            currentStatus = 'NOT_ACTIVE'; // Awaiting activation
           } else {
             currentStatus = networkStatus || 'Unknown';
           }
@@ -482,12 +481,12 @@ const ESimDetail = () => {
         
         // Determine if active based on status
         const isActive = isMayaEsim
-          ? currentStatus === 'ENABLED'  // For Maya, ENABLED = active
+          ? (apiData.status?.network_status === 'ENABLED' && apiData.status?.state !== 'RELEASED')
           : currentStatus === 'IN_USE';
         
-        // For Maya, 'Connected' should track network_status === 'ENABLED'
+        // For Maya, 'Connected' requires network_status === 'ENABLED' and state not RELEASED
         const networkConnected = isMayaEsim
-          ? (apiData.status?.network_status === 'ENABLED')
+          ? (apiData.status?.network_status === 'ENABLED' && apiData.status?.state !== 'RELEASED')
           : (isActive || apiData.obj?.network?.connected || false);
         
         // For Maya eSIMs: Only set expiry date if network is ENABLED (connected)

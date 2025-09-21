@@ -34,6 +34,7 @@ interface Order {
     country_code: string;
     data_amount: string;
     validity_days: number;
+    supplier_name: string;
   };
   device_brands?: {
     brand_name: string;
@@ -148,7 +149,8 @@ const ESims = () => {
             country_name,
             country_code,
             data_amount,
-            validity_days
+            validity_days,
+            supplier_name
           ),
           device_brands (
             brand_name
@@ -197,40 +199,68 @@ const ESims = () => {
 
     for (const order of completedOrders) {
       try {
-        const { data: eSimDetails, error } = await supabase.functions.invoke('get-esim-details', {
+        // Check if this is a Maya eSIM
+        const isMayaEsim = order.esim_plans?.supplier_name === 'maya';
+        
+        // Use appropriate status endpoint based on supplier
+        const functionName = isMayaEsim ? 'get-maya-esim-status' : 'get-esim-details';
+        const { data: eSimDetails, error } = await supabase.functions.invoke(functionName, {
           body: { iccid: order.esim_iccid }
         });
 
-        if (!error && eSimDetails?.success && eSimDetails.obj) {
+        if (!error && eSimDetails?.success) {
           const orderIndex = updatedOrders.findIndex(o => o.id === order.id);
           if (orderIndex !== -1) {
-            // Map API status to our status format
-            const apiStatus = eSimDetails.obj.status || eSimDetails.obj.state;
             let realStatus = "inactive";
             
-            if (apiStatus) {
-              switch (apiStatus.toLowerCase()) {
-                case "active":
-                case "activated":
-                case "connected":
-                case "online":
-                  realStatus = "active";
-                  break;
-                case "inactive":
-                case "not_activated":
-                case "not_active":
-                case "offline":
-                  realStatus = "inactive";
-                  break;
-                case "suspended":
-                case "blocked":
-                  realStatus = "suspended";
-                  break;
-                case "expired":
-                  realStatus = "expired";
-                  break;
-                default:
-                  realStatus = "inactive";
+            if (isMayaEsim) {
+              // For Maya eSIMs, use service_status for inventory display
+              const serviceStatus = eSimDetails.status?.service_status;
+              if (serviceStatus) {
+                switch (serviceStatus.toLowerCase()) {
+                  case "active":
+                    realStatus = "active";
+                    break;
+                  case "inactive":
+                    realStatus = "inactive";
+                    break;
+                  case "suspended":
+                    realStatus = "suspended";
+                    break;
+                  case "expired":
+                    realStatus = "expired";
+                    break;
+                  default:
+                    realStatus = "inactive";
+                }
+              }
+            } else {
+              // For eSIM Access, use existing logic
+              const apiStatus = eSimDetails.obj?.status || eSimDetails.obj?.state;
+              if (apiStatus) {
+                switch (apiStatus.toLowerCase()) {
+                  case "active":
+                  case "activated":
+                  case "connected":
+                  case "online":
+                    realStatus = "active";
+                    break;
+                  case "inactive":
+                  case "not_activated":
+                  case "not_active":
+                  case "offline":
+                    realStatus = "inactive";
+                    break;
+                  case "suspended":
+                  case "blocked":
+                    realStatus = "suspended";
+                    break;
+                  case "expired":
+                    realStatus = "expired";
+                    break;
+                  default:
+                    realStatus = "inactive";
+                }
               }
             }
             

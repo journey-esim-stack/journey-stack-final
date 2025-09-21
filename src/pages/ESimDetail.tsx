@@ -235,7 +235,8 @@ const ESimDetail = () => {
               country_name,
               country_code,
               data_amount,
-              validity_days
+              validity_days,
+              supplier_name
             )
           `)
           .eq("esim_iccid", iccid)
@@ -270,8 +271,12 @@ const ESimDetail = () => {
         setTopupHistory(topupData);
       }
 
+      // Check if this is a Maya eSIM and use appropriate API
+      const isMayaEsim = orderData.esim_plans?.supplier_name === 'maya';
+      const functionName = isMayaEsim ? 'get-maya-esim-status' : 'get-esim-details';
+      
       // Fetch real-time details from provider API
-      const { data: apiData, error: apiError } = await supabase.functions.invoke('get-esim-details', {
+      const { data: apiData, error: apiError } = await supabase.functions.invoke(functionName, {
         body: { iccid }
       });
 
@@ -316,8 +321,16 @@ const ESimDetail = () => {
       } else {
         // Use real-time status data when available, prioritizing webhook data
         const realtimeStatus = statusData?.esim_status || orderData.real_status;
-        const apiStatus = apiData.obj?.status;
-        const currentStatus = realtimeStatus || apiStatus || "Unknown";
+        let currentStatus = realtimeStatus || "Unknown";
+        
+        // For Maya eSIMs, use network_status for management display
+        if (isMayaEsim && apiData.status?.network_status) {
+          currentStatus = apiData.status.network_status;
+        } else if (!isMayaEsim) {
+          // For eSIM Access, use existing logic
+          const apiStatus = apiData.obj?.status;
+          currentStatus = realtimeStatus || apiStatus || "Unknown";
+        }
         const isActive = currentStatus === 'IN_USE';
         const expiryDate = orderData.esim_expiry_date || apiData.obj?.plan?.expiresAt;
 

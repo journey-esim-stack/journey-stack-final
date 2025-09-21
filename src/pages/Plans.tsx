@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Layout from "@/components/Layout";
-import AlgoliaSearch from "@/components/AlgoliaSearch";
+
 import { SkeletonCard } from "@/components/ui/skeleton-card";
 import { useToast } from "@/hooks/use-toast";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
@@ -35,9 +35,6 @@ interface EsimPlan {
 }
 
 export default function Plans() {
-  // Use Algolia search by default
-  const [useAlgoliaSearch, setUseAlgoliaSearch] = useState(true);
-  
   // Legacy search state
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedRegion, setSelectedRegion] = useState<string>("all");
@@ -212,7 +209,7 @@ export default function Plans() {
   const { data: plans = [], isLoading, error } = useQuery<EsimPlan[]>({
     queryKey: ['esim-plans', userId],
     queryFn: fetchPlans,
-    enabled: !!userId && !useAlgoliaSearch,
+    enabled: !!userId,
     staleTime: 5 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
   });
@@ -412,33 +409,6 @@ export default function Plans() {
     });
   };
 
-  if (useAlgoliaSearch) {
-    return (
-      <Layout>
-        <div className="container mx-auto px-4 py-8 space-y-8">
-          <div className="text-center mb-8">
-            <h1 className="text-4xl font-bold mb-4">
-              eSIM Plans
-            </h1>
-            <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-              Search and browse thousands of eSIM plans with instant results and smart filtering
-            </p>
-          </div>
-
-          <div className="mb-6">
-            <Tabs value={useAlgoliaSearch ? "algolia" : "legacy"} onValueChange={(value) => setUseAlgoliaSearch(value === "algolia")}>
-              <TabsList className="grid w-full max-w-md mx-auto grid-cols-2">
-                <TabsTrigger value="algolia">Smart Search</TabsTrigger>
-                <TabsTrigger value="legacy">Legacy Search</TabsTrigger>
-              </TabsList>
-            </Tabs>
-          </div>
-
-          <AlgoliaSearch />
-        </div>
-      </Layout>
-    );
-  }
 
   return (
     <Layout>
@@ -452,14 +422,6 @@ export default function Plans() {
           </p>
         </div>
 
-        <div className="mb-6">
-          <Tabs value={useAlgoliaSearch ? "algolia" : "legacy"} onValueChange={(value) => setUseAlgoliaSearch(value === "algolia")}>
-            <TabsList className="grid w-full max-w-md mx-auto grid-cols-2">
-              <TabsTrigger value="algolia">Smart Search</TabsTrigger>
-              <TabsTrigger value="legacy">Legacy Search</TabsTrigger>
-            </TabsList>
-          </Tabs>
-        </div>
 
         {isLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">

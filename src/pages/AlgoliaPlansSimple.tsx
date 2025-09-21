@@ -211,32 +211,51 @@ export default function AlgoliaPlansSimple() {
 
       const optionalWords = buildOptionalWords(query);
 
-      const index = (client as any).initIndex('esim_plans');
-      const response = await index.search(query, {
-        hitsPerPage: 1000,
-        filters: 'is_active:true AND admin_only:false',
-        typoTolerance: true,
-        ignorePlurals: true,
-        removeStopWords: true,
-        queryLanguages: ['en'],
-        optionalWords,
+      // Algolia v5 client: use client.search with request params object
+      const initial = await (client as any).search({
+        requests: [
+          {
+            indexName: 'esim_plans',
+            params: {
+              query,
+              hitsPerPage: 1000,
+              page: 0,
+              filters: 'is_active:true AND admin_only:false',
+              typoTolerance: true,
+              ignorePlurals: true,
+              removeStopWords: true,
+              queryLanguages: ['en'],
+              optionalWords,
+            },
+          },
+        ],
       });
       
-      const allHits: any[] = Array.isArray((response as any)?.hits) ? [...(response as any).hits] : [];
-      const nbPages = (response as any)?.nbPages ?? 1;
+      const first = (initial as any)?.results?.[0] || {};
+      const allHits: any[] = Array.isArray(first.hits) ? [...first.hits] : [];
+      const nbPages = first.nbPages ?? 1;
       let page = 1;
       while (page < nbPages && allHits.length < 5000) {
-        const next = await index.search(query, {
-          hitsPerPage: 1000,
-          filters: 'is_active:true AND admin_only:false',
-          typoTolerance: true,
-          ignorePlurals: true,
-          removeStopWords: true,
-          queryLanguages: ['en'],
-          optionalWords,
-          page,
+        const nextResp = await (client as any).search({
+          requests: [
+            {
+              indexName: 'esim_plans',
+              params: {
+                query,
+                hitsPerPage: 1000,
+                page,
+                filters: 'is_active:true AND admin_only:false',
+                typoTolerance: true,
+                ignorePlurals: true,
+                removeStopWords: true,
+                queryLanguages: ['en'],
+                optionalWords,
+              },
+            },
+          ],
         });
-        if (Array.isArray((next as any)?.hits)) allHits.push(...(next as any).hits);
+        const next = (nextResp as any)?.results?.[0] || {};
+        if (Array.isArray(next.hits)) allHits.push(...next.hits);
         page++;
       }
       setAllPlans(allHits as EsimPlan[]);

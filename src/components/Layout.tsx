@@ -102,7 +102,10 @@ export default function Layout({ children }: LayoutProps) {
                 <img 
                   src="/lovable-uploads/1e1f433f-d326-4551-ba07-4e6b9e5c259f.png" 
                   alt="Journey Stack" 
-                  className="h-12 md:h-16 w-auto object-contain shrink-0"
+                  className="h-12 md:h-16 w-auto object-contain shrink-0 transition-none"
+                  loading="eager"
+                  decoding="sync"
+                  style={{ imageRendering: 'crisp-edges' }}
                 />
               </Link>
               <div className="hidden md:flex items-center space-x-1">

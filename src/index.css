@@ -224,4 +224,21 @@ All colors MUST be HSL.
   .focus-ring {
     @apply focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2;
   }
+
+  /* Prevent layout shifts and image flickering */
+  img {
+    @apply transition-none;
+  }
+
+  /* Navigation stability */
+  nav img {
+    min-height: 3rem; /* 48px for mobile */
+    min-width: auto;
+  }
+
+  @media (min-width: 768px) {
+    nav img {
+      min-height: 4rem; /* 64px for desktop */
+    }
+  }
 }

@@ -97,9 +97,6 @@ function PlanCard({ plan, agentMarkup }: { plan: EsimPlan; agentMarkup: { type: 
             <CardDescription className="flex items-center gap-2 mt-2 text-muted-foreground">
               <span className="text-lg">{flag}</span>
               <span className="font-medium">{plan.country_name}</span>
-              <Badge variant="outline" className="text-xs">
-                {plan.supplier_name === 'esim_access' ? 'eSIM Access' : 'Maya'}
-              </Badge>
             </CardDescription>
           </div>
           <div className="text-right flex-shrink-0">
@@ -179,9 +176,9 @@ export default function AlgoliaPlansSimple() {
   
   // Filter states
   const [selectedCountry, setSelectedCountry] = useState<string>("");
-  const [selectedSupplier, setSelectedSupplier] = useState<string>("");
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 1000]);
   const [validityFilter, setValidityFilter] = useState<string>("");
+  const [dataFilter, setDataFilter] = useState<string>("");
   const [sortBy, setSortBy] = useState<string>("price-asc");
   
   const { toast } = useToast();
@@ -197,7 +194,7 @@ export default function AlgoliaPlansSimple() {
         requests: [{
           indexName: 'esim_plans',
           query: query,
-          hitsPerPage: 200, // Get more results for filtering
+          hitsPerPage: 1000, // Get more results for filtering
           filters: 'is_active:true AND admin_only:false'
         }]
       });
@@ -228,8 +225,16 @@ export default function AlgoliaPlansSimple() {
       filtered = filtered.filter(plan => plan.country_name === selectedCountry);
     }
     
-    if (selectedSupplier) {
-      filtered = filtered.filter(plan => plan.supplier_name === selectedSupplier);
+    if (dataFilter) {
+      const dataValue = parseFloat(dataFilter);
+      filtered = filtered.filter(plan => {
+        const planDataValue = extractDataValue(plan.data_amount);
+        if (dataFilter === "1") return planDataValue <= 1000; // ≤1GB
+        if (dataFilter === "5") return planDataValue > 1000 && planDataValue <= 5000; // 1-5GB
+        if (dataFilter === "10") return planDataValue > 5000 && planDataValue <= 10000; // 5-10GB
+        if (dataFilter === "unlimited") return plan.data_amount.toLowerCase().includes('unlimited');
+        return planDataValue > 10000; // >10GB
+      });
     }
     
     if (validityFilter) {
@@ -294,7 +299,7 @@ export default function AlgoliaPlansSimple() {
     });
     
     setPlans(filtered);
-  }, [allPlans, selectedCountry, selectedSupplier, validityFilter, priceRange, sortBy, agentMarkup]);
+  }, [allPlans, selectedCountry, validityFilter, dataFilter, priceRange, sortBy, agentMarkup]);
   
   const extractDataValue = (dataStr: string): number => {
     const match = dataStr.match(/(\d+(?:\.\d+)?)\s*(GB|MB|TB)/i);
@@ -328,13 +333,12 @@ export default function AlgoliaPlansSimple() {
   
   // Get unique values for filters
   const uniqueCountries = [...new Set(allPlans.map(plan => plan.country_name))].sort();
-  const uniqueSuppliers = [...new Set(allPlans.map(plan => plan.supplier_name))].sort();
   
   const clearFilters = () => {
     setSelectedCountry("");
-    setSelectedSupplier("");
     setPriceRange([0, 1000]);
     setValidityFilter("");
+    setDataFilter("");
     setSortBy("price-asc");
   };
 
@@ -409,18 +413,18 @@ export default function AlgoliaPlansSimple() {
                 </div>
 
                 <div>
-                  <label className="text-sm font-medium mb-2 block">Supplier</label>
-                  <Select value={selectedSupplier || "all"} onValueChange={(value) => setSelectedSupplier(value === "all" ? "" : value)}>
+                  <label className="text-sm font-medium mb-2 block">Data Amount</label>
+                  <Select value={dataFilter || "all"} onValueChange={(value) => setDataFilter(value === "all" ? "" : value)}>
                     <SelectTrigger>
-                      <SelectValue placeholder="All suppliers" />
+                      <SelectValue placeholder="Any data amount" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">All suppliers</SelectItem>
-                      {uniqueSuppliers.map(supplier => (
-                        <SelectItem key={supplier} value={supplier}>
-                          {supplier === 'esim_access' ? 'eSIM Access' : supplier}
-                        </SelectItem>
-                      ))}
+                      <SelectItem value="all">Any data amount</SelectItem>
+                      <SelectItem value="1">≤ 1GB</SelectItem>
+                      <SelectItem value="5">1-5GB</SelectItem>
+                      <SelectItem value="10">5-10GB</SelectItem>
+                      <SelectItem value="more">10GB+</SelectItem>
+                      <SelectItem value="unlimited">Unlimited</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

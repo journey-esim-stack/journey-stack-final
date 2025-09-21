@@ -171,8 +171,11 @@ export default function Dashboard() {
             body: { iccid: o.esim_iccid }
           });
           if (!error && data?.success) {
-            const status = MayaStatusParser.getProcessedStatus(data.status, 'maya');
-            return { iccid: o.esim_iccid, status: status.statusText, connected: status.isConnected };
+            const networkStatus = data.status?.network_status || data.status?.esim?.network_status;
+            const state = data.status?.state || data.status?.esim?.state;
+            // For Maya: Connected requires network_status === 'ENABLED' and state !== 'RELEASED'
+            const connected = (networkStatus === 'ENABLED' && state !== 'RELEASED');
+            return { iccid: o.esim_iccid, status: data.status?.network_status || 'unknown', connected };
           }
         } else {
           // For eSIM Access eSIMs, use the general status API
@@ -181,7 +184,8 @@ export default function Dashboard() {
           });
           if (!error && (data?.success === true || String(data?.success).toLowerCase() === 'true')) {
             const status = data?.obj?.status || data?.obj?.esimStatus || 'unknown';
-            const connected = Boolean(data?.obj?.network?.connected) || (String(status).toUpperCase() === 'IN_USE');
+            // For eSIM Access: Check obj.network.connected
+            const connected = Boolean(data?.obj?.network?.connected);
             return { iccid: o.esim_iccid, status, connected };
           }
         }

@@ -725,46 +725,55 @@ const ESims = () => {
                                    const supplierName = order.esim_plans?.supplier_name?.toLowerCase();
                                    const isMaya = supplierName === 'maya';
                                    
+                                   // Use the same logic as ESimDetail page for network connectivity
+                                   let isConnected = false;
+                                   
                                    if (isMaya && order.real_status) {
-                                     const status = MayaStatusParser.getProcessedStatus(order.real_status, 'maya');
-                                     return (
-                                       <Badge 
-                                         className={status.isConnected ? 
-                                           "bg-green-100 text-green-800 border-green-200 inline-flex items-center justify-center px-2.5 py-1 text-xs font-medium rounded-full whitespace-nowrap border" : 
-                                           "bg-gray-100 text-gray-800 border-gray-200 inline-flex items-center justify-center px-2.5 py-1 text-xs font-medium rounded-full whitespace-nowrap border"
-                                         }
-                                       >
-                                         <Activity className="h-3 w-3 mr-1" />
-                                         {status.isConnected ? "Connected" : "Not Connected"}
-                                       </Badge>
-                                     );
-                                   } else if (order.real_status) {
-                                     const statusLower = order.real_status.toLowerCase();
-                                     const isConnected = statusLower.includes('enabled') || 
-                                                        statusLower.includes('active') || 
-                                                        statusLower.includes('connected') ||
-                                                        statusLower === 'installed' ||
-                                                        statusLower === 'provisioned';
-                                     
-                                     return (
-                                       <Badge 
-                                         className={isConnected ? 
-                                           "bg-green-100 text-green-800 border-green-200 inline-flex items-center justify-center px-2.5 py-1 text-xs font-medium rounded-full whitespace-nowrap border" : 
-                                           "bg-gray-100 text-gray-800 border-gray-200 inline-flex items-center justify-center px-2.5 py-1 text-xs font-medium rounded-full whitespace-nowrap border"
-                                         }
-                                       >
-                                         <Activity className="h-3 w-3 mr-1" />
-                                         {isConnected ? "Connected" : "Not Connected"}
-                                       </Badge>
-                                     );
-                                   } else {
-                                     return (
-                                       <Badge className="bg-gray-100 text-gray-800 border-gray-200 inline-flex items-center justify-center px-2.5 py-1 text-xs font-medium rounded-full whitespace-nowrap border">
-                                         <Activity className="h-3 w-3 mr-1" />
-                                         Unknown
-                                       </Badge>
-                                     );
+                                     try {
+                                       const parsed = typeof order.real_status === 'string' && order.real_status.trim().startsWith('{') 
+                                         ? JSON.parse(order.real_status) 
+                                         : order.real_status;
+                                       
+                                       // For Maya: Connected requires network_status === 'ENABLED' and state !== 'RELEASED'
+                                       const networkStatus = parsed?.network_status || parsed?.esim?.network_status;
+                                       const state = parsed?.state || parsed?.esim?.state;
+                                       isConnected = (networkStatus === 'ENABLED' && state !== 'RELEASED');
+                                     } catch (e) {
+                                       console.error('Failed to parse Maya real_status:', e);
+                                       isConnected = false;
+                                     }
+                                   } else if (!isMaya && order.real_status) {
+                                     try {
+                                       const parsed = typeof order.real_status === 'string' && order.real_status.trim().startsWith('{') 
+                                         ? JSON.parse(order.real_status) 
+                                         : null;
+                                       
+                                       // For eSIM Access: Check obj.network.connected
+                                       if (parsed && parsed.obj && parsed.obj.network) {
+                                         isConnected = Boolean(parsed.obj.network.connected);
+                                       } else {
+                                         // Fallback: assume connected if status indicates active use
+                                         const statusLower = order.real_status.toLowerCase();
+                                         isConnected = statusLower === 'in_use';
+                                       }
+                                     } catch (e) {
+                                       // Fallback for non-JSON status
+                                       const statusLower = order.real_status.toLowerCase();
+                                       isConnected = statusLower === 'in_use';
+                                     }
                                    }
+                                   
+                                   return (
+                                     <Badge 
+                                       className={isConnected ? 
+                                         "bg-green-100 text-green-800 border-green-200 inline-flex items-center justify-center px-2.5 py-1 text-xs font-medium rounded-full whitespace-nowrap border" : 
+                                         "bg-gray-100 text-gray-800 border-gray-200 inline-flex items-center justify-center px-2.5 py-1 text-xs font-medium rounded-full whitespace-nowrap border"
+                                       }
+                                     >
+                                       <Activity className="h-3 w-3 mr-1" />
+                                       {isConnected ? "Connected" : "Not Connected"}
+                                     </Badge>
+                                   );
                                  })()
                                )}
                              </div>

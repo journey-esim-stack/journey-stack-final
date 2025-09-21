@@ -753,7 +753,7 @@ Instructions:
                         <p className="text-sm text-muted-foreground">
                           {esimDetails.network.connected 
                             ? `Last seen: ${format(new Date(), "MMM dd, HH:mm")}`
-                            : "Not connected to any network"
+                            : "Not connected to network"
                           }
                         </p>
                       </div>

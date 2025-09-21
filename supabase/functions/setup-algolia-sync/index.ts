@@ -127,14 +127,9 @@ serve(async (req) => {
     // Get current eSIM plans data
     const { data: plans, error: plansError } = await supabaseClient
       .from('esim_plans')
-      .select(`
-        *,
-        agent_pricing!inner(
-          agent_id,
-          retail_price
-        )
-      `)
-      .eq('is_active', true);
+      .select('*')
+      .eq('is_active', true)
+      .eq('admin_only', false);
 
     if (plansError) {
       console.error('Error fetching plans:', plansError);
@@ -153,9 +148,7 @@ serve(async (req) => {
       return {
         objectID: plan.id,
         ...plan,
-        data_amount_value: dataAmountValue,
-        // Include agent pricing as nested object for personalized search
-        agent_pricing: plan.agent_pricing || []
+        data_amount_value: dataAmountValue
       };
     }) || [];
 

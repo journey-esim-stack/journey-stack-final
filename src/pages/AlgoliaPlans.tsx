@@ -46,6 +46,21 @@ function NoResultsMessage() {
   );
 }
 
+function CustomSearchBox() {
+  const { query, refine } = useSearchBox();
+  return (
+    <div className="relative">
+      <input
+        type="search"
+        value={query}
+        onChange={(e) => refine(e.currentTarget.value)}
+        placeholder="Search plans, countries..."
+        className="w-full px-3 py-2 border border-input bg-background text-sm rounded-md focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+      />
+    </div>
+  );
+}
+
 function SearchResults({ agentMarkup }: { agentMarkup: { type: string; value: number } }) {
   const { hits } = useHits();
   
@@ -374,16 +389,7 @@ export default function AlgoliaPlans() {
                   <CardTitle className="text-lg">Search</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <SearchBox 
-                    placeholder="Search plans, countries..."
-                    classNames={{
-                      root: 'relative',
-                      form: 'relative',
-                      input: 'w-full px-3 py-2 border border-input bg-background text-sm rounded-md focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent',
-                      submit: 'absolute right-2 top-1/2 transform -translate-y-1/2',
-                      reset: 'absolute right-8 top-1/2 transform -translate-y-1/2'
-                    }}
-                  />
+                  <CustomSearchBox />
                 </CardContent>
               </Card>
 

@@ -333,20 +333,22 @@ const ESims = () => {
       case "enabled":
         return "bg-green-100 text-green-800 border-green-200";
       case "not_active":
+        return "bg-yellow-100 text-yellow-800 border-yellow-200"; // Yellow for awaiting connection
+      case "disabled":
+        return "bg-red-100 text-red-800 border-red-200";
       case "inactive":
       case "not_activated":
       case "offline":
       case "released":
         return "bg-blue-100 text-blue-800 border-blue-200";
-      case "disabled":
-      case "suspended":
-      case "blocked":
-        return "bg-orange-100 text-orange-800 border-orange-200";
       case "active":
       case "activated":
       case "connected":
       case "online":
         return "bg-green-100 text-green-800 border-green-200";
+      case "suspended":
+      case "blocked":
+        return "bg-orange-100 text-orange-800 border-orange-200";
       case "expired":
         return "bg-red-100 text-red-800 border-red-200";
       case "pending":
@@ -376,9 +378,18 @@ const ESims = () => {
       }
     }
     
-    // Return Maya network_status directly as display text
+    // Return Maya network_status with clear descriptions
     if (supplierName?.toLowerCase() === 'maya') {
-      return currentStatus.toUpperCase();
+      switch (currentStatus.toUpperCase()) {
+        case 'ENABLED':
+          return 'CONNECTED';
+        case 'NOT_ACTIVE':
+          return 'NOT CONNECTED';
+        case 'DISABLED':
+          return 'SUSPENDED';
+        default:
+          return currentStatus.toUpperCase();
+      }
     }
     
     switch (currentStatus.toLowerCase()) {

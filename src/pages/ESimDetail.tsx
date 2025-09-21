@@ -117,7 +117,7 @@ interface ESIMDetails {
     name: string;
     validity: number;
     data_amount: string;
-    expires_at: string;
+    expires_at: string | null; // Can be null for non-connected Maya eSIMs
     plan_id: string;
   };
   activation: {
@@ -404,8 +404,11 @@ const ESimDetail = () => {
           networkConnected = isActive;
         }
 
-        const expiryDate = orderData.esim_expiry_date || 
-          (isActive ? new Date(Date.now() + (orderData.esim_plans?.validity_days || 30) * 24 * 60 * 60 * 1000).toISOString() : null);
+        // For Maya eSIMs: Only set expiry date if network is ENABLED (connected)
+        const shouldHaveExpiryDate = isMayaEsim ? networkConnected : isActive;
+        const expiryDate = shouldHaveExpiryDate 
+          ? (orderData.esim_expiry_date || new Date(Date.now() + (orderData.esim_plans?.validity_days || 30) * 24 * 60 * 60 * 1000).toISOString())
+          : null;
 
         const basicDetails: ESIMDetails = {
           iccid: iccid || "",
@@ -417,7 +420,7 @@ const ESimDetail = () => {
           },
           network: {
             connected: networkConnected,
-            operator: isMayaEsim ? (networkConnected ? "Network Enabled" : "Not Connected") : (networkConnected ? "Connected" : "Not Connected"),
+            operator: isMayaEsim ? (networkConnected ? "Connected to Network" : "Not Connected") : (networkConnected ? "Connected" : "Not Connected"),
             country: orderData.esim_plans?.country_name || "Unknown",
             signal_strength: networkConnected ? 85 : 0
           },
@@ -425,7 +428,7 @@ const ESimDetail = () => {
             name: orderData.esim_plans?.title || "Unknown Plan",
             validity: orderData.esim_plans?.validity_days || 30,
             data_amount: orderData.esim_plans?.data_amount || "3GB",
-            expires_at: expiryDate || new Date(Date.now() + (orderData.esim_plans?.validity_days || 30) * 24 * 60 * 60 * 1000).toISOString(),
+            expires_at: expiryDate,
             plan_id: orderData.esim_plans?.id || ""
           },
           activation: {
@@ -487,7 +490,11 @@ const ESimDetail = () => {
           ? (apiData.status?.network_status === 'ENABLED')
           : (isActive || apiData.obj?.network?.connected || false);
         
-        const expiryDate = orderData.esim_expiry_date || apiData.obj?.plan?.expiresAt;
+        // For Maya eSIMs: Only set expiry date if network is ENABLED (connected)
+        const shouldHaveExpiryDate = isMayaEsim ? networkConnected : isActive;
+        const expiryDate = shouldHaveExpiryDate 
+          ? (orderData.esim_expiry_date || apiData.obj?.plan?.expiresAt)
+          : null;
 
         console.log('ESimDetail - Final status for transform:', currentStatus);
 
@@ -503,7 +510,7 @@ const ESimDetail = () => {
           network: {
             connected: networkConnected,
             operator: isMayaEsim
-              ? (networkConnected ? "Network Enabled" : "Not Connected")
+              ? (networkConnected ? "Connected to Network" : "Not Connected")
               : (networkConnected ? (apiData.obj?.network?.operator || "Network Operator") : "Not Connected"),
             country: (!isMayaEsim ? (apiData.obj?.network?.country) : undefined) || orderData.esim_plans?.country_name || "Unknown",
             signal_strength: (isMayaEsim ? (networkConnected ? 85 : 0) : (networkConnected ? parseInt(apiData.obj?.network?.signalStrength || "85") : 0))
@@ -512,7 +519,7 @@ const ESimDetail = () => {
             name: orderData.esim_plans?.title || "Unknown Plan",
             validity: orderData.esim_plans?.validity_days || 30,
             data_amount: orderData.esim_plans?.data_amount || "3GB",
-            expires_at: expiryDate || new Date(Date.now() + (orderData.esim_plans?.validity_days || 30) * 24 * 60 * 60 * 1000).toISOString(),
+            expires_at: expiryDate, // Will be null if not connected for Maya eSIMs
             plan_id: orderData.esim_plans?.id || ""
           },
           activation: {
@@ -896,8 +903,8 @@ Instructions:
                     </div>
                   </div>
 
-                  {/* Expiration (show only when connected) */}
-                  {esimDetails.network.connected && (
+                  {/* Expiration (show only when connected and has expiry date) */}
+                  {esimDetails.network.connected && esimDetails.plan.expires_at && (
                     <div className="text-center">
                       <p className="text-sm text-muted-foreground mb-2">Expiration</p>
                       <div className="text-sm">
@@ -905,6 +912,19 @@ Instructions:
                       </div>
                       <div className="text-xs text-muted-foreground">
                         {format(new Date(esimDetails.plan.expires_at), "HH:mm:ss")}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Not Connected Status for Maya eSIMs */}
+                  {!esimDetails.network.connected && orderInfo?.esim_plans?.supplier_name?.toLowerCase() === 'maya' && (
+                    <div className="text-center">
+                      <p className="text-sm text-muted-foreground mb-2">Status</p>
+                      <div className="text-sm text-orange-600 font-medium">
+                        Awaiting Network Connection
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        No expiry until connected
                       </div>
                     </div>
                   )}

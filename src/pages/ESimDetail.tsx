@@ -625,75 +625,107 @@ Instructions:
     const shareText = generateShareMessage();
     const isMayaEsim = orderInfo?.esim_plans?.supplier_name?.toLowerCase() === 'maya';
 
+    // Prepare QR image for Maya eSIMs
+    let qrBlob: Blob | null = null;
+    let qrFile: File | null = null;
     let qrImageUrl: string | null = null;
 
-    if (isMayaEsim) {
-      try {
-        // Build LPA string for Maya eSIM
+    try {
+      if (isMayaEsim) {
         const qrSource = esimDetails?.activation?.qr_code || '';
         const smdp = esimDetails?.activation?.sm_dp_address || 'consumer.e-sim.global';
         const mayaCode = qrSource || esimDetails?.activation?.manual_code || '';
         const lpa = mayaCode?.startsWith('LPA:') ? mayaCode : (mayaCode ? `LPA:1$${smdp}$${mayaCode}` : '');
-        
+
         if (lpa) {
-          // Generate QR code as blob
-          const qrDataUrl = await QRCode.toDataURL(lpa, {
+          const dataUrl = await QRCode.toDataURL(lpa, {
             margin: 1,
             scale: 6,
             color: { dark: '#000000', light: '#FFFFFF' }
           });
-          
-          // Convert to blob and upload to Supabase Storage
-          const blob = await (await fetch(qrDataUrl)).blob();
-          const fileName = `maya-esim-qr-${esimDetails?.iccid || Date.now()}.png`;
-          
-          const { data: uploadData, error: uploadError } = await supabase.storage
-            .from('qr-codes')
-            .upload(fileName, blob, {
-              contentType: 'image/png',
-              upsert: true
-            });
-            
-          if (!uploadError && uploadData) {
-            // Get public URL
-            const { data: urlData } = supabase.storage
-              .from('qr-codes')
-              .getPublicUrl(fileName);
-            qrImageUrl = urlData.publicUrl;
-          }
+          qrBlob = await (await fetch(dataUrl)).blob();
+          qrFile = new File([qrBlob], `maya-esim-qr-${esimDetails?.iccid || Date.now()}.png`, { type: 'image/png' });
         }
-      } catch (e) {
-        console.error('Failed generating/uploading Maya QR image:', e);
+      }
+    } catch (e) {
+      console.error('QR generation error:', e);
+    }
+
+    // Try native share/clipboard first when possible
+    if (isMayaEsim) {
+      if (method === 'copy' && qrBlob) {
+        try {
+          const ClipboardItemCtor: any = (window as any).ClipboardItem;
+          if (navigator.clipboard && ClipboardItemCtor) {
+            await (navigator.clipboard as any).write([
+              new ClipboardItemCtor({ 'image/png': qrBlob })
+            ]);
+            await navigator.clipboard.writeText(shareText);
+            setShowShareModal(false);
+            toast({ title: 'Success', description: 'Copied QR image and details to clipboard' });
+            return;
+          }
+        } catch (e) {
+          console.warn('Clipboard image write failed:', e);
+        }
+      }
+
+      if ((method === 'whatsapp' || method === 'email') && qrFile && (navigator as any).canShare && (navigator as any).canShare({ files: [qrFile] })) {
+        try {
+          await (navigator as any).share({ title: 'eSIM Activation QR', text: shareText, files: [qrFile] });
+          setShowShareModal(false);
+          toast({ title: 'Success', description: 'Shared with QR image' });
+          return;
+        } catch (e) {
+          console.warn('System share failed:', e);
+        }
       }
     }
 
-    // Add QR image URL to share text if available
-    const finalShareText = qrImageUrl 
-      ? `${shareText}\n\nQR Code Image: ${qrImageUrl}`
-      : shareText;
+    // Fallback: upload QR image to Supabase Storage and include public URL
+    if (isMayaEsim && qrBlob) {
+      try {
+        const fileName = `maya-esim-qr/${esimDetails?.iccid || Date.now()}.png`;
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('qr-codes')
+          .upload(fileName, qrBlob, { contentType: 'image/png', upsert: true });
+        if (!uploadError && uploadData) {
+          const { data: urlData } = supabase.storage
+            .from('qr-codes')
+            .getPublicUrl(fileName);
+          qrImageUrl = urlData.publicUrl;
+        } else {
+          console.warn('QR upload failed:', uploadError);
+        }
+      } catch (e) {
+        console.warn('QR upload exception:', e);
+      }
+    }
+
+    const finalShareText = qrImageUrl ? `${shareText}\n\nQR Code Image: ${qrImageUrl}` : shareText;
 
     switch (method) {
       case 'copy':
         copyToClipboard(finalShareText);
         break;
-      case 'whatsapp':
+      case 'whatsapp': {
         const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(finalShareText)}`;
         window.open(whatsappUrl, '_blank');
         break;
-      case 'email':
+      }
+      case 'email': {
         const planName = esimDetails?.plan?.name || 'eSIM Plan';
         const subject = `Your ${planName} Activation Details`;
         const emailUrl = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(finalShareText)}`;
         window.open(emailUrl);
         break;
+      }
     }
 
     setShowShareModal(false);
     toast({ 
       title: 'Success', 
-      description: qrImageUrl 
-        ? `Shared via ${method === 'copy' ? 'clipboard' : method} with QR image link`
-        : `Shared via ${method === 'copy' ? 'clipboard' : method}`
+      description: qrImageUrl ? 'Shared with QR image link' : `Shared via ${method === 'copy' ? 'clipboard' : method}`
     });
   };
 

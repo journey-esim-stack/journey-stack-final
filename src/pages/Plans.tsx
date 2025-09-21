@@ -1,22 +1,26 @@
-import { useEffect, useState, useMemo } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import Layout from "@/components/Layout";
+import AlgoliaSearch from "@/components/AlgoliaSearch";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { SkeletonCard } from "@/components/ui/skeleton-card";
+
+// Keep legacy search for comparison
+import { useEffect, useMemo } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
-// Fixed imports - using Router instead of HotspotIcon
 import { Search, Globe, Clock, Database, Wifi, Router, ShoppingCart, Check, ArrowUpDown, ChevronLeft, ChevronRight } from "lucide-react";
-import Layout from "@/components/Layout";
 import { getCountryFlag, getRegion, getAllRegions } from "@/utils/countryFlags";
 import { useCart } from "@/contexts/CartContext";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import RegionalPlanDropdown from "@/components/RegionalPlanDropdown";
-import { SkeletonCard } from "@/components/ui/skeleton-card";
 
 
 interface EsimPlan {
@@ -35,8 +39,11 @@ interface EsimPlan {
   agent_price?: number; // Calculated agent price based on markup
 }
 
-// Plans page component - updated to fix import issue
+// Plans page component - updated to use Algolia search
 export default function Plans() {
+  const [useAlgoliaSearch, setUseAlgoliaSearch] = useState(true);
+  
+  // Legacy search state (kept for comparison)
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedRegion, setSelectedRegion] = useState<string>("all");
   const [selectedCountry, setSelectedCountry] = useState<string>("all");
@@ -490,16 +497,35 @@ export default function Plans() {
           <p className="text-muted-foreground text-lg mb-6">
             Browse curated data plans for your customers. Sell better eSIMs, faster with smart filtering, local pricing, instant downloads.
           </p>
-          <div className="flex items-center justify-start gap-2 mt-4 text-sm text-muted-foreground">
-            <Globe className="h-4 w-4" />
-            <span>{plans.length} plans available</span>
-            <span>•</span>
-            <Database className="h-4 w-4" />
-            <span>{regions.length} regions covered</span>
+          
+          <div className="flex items-center justify-between">
+            <div className="flex items-center justify-start gap-2 text-sm text-muted-foreground">
+              <Globe className="h-4 w-4" />
+              <span>{plans.length} plans available</span>
+              <span>•</span>
+              <Database className="h-4 w-4" />
+              <span>{regions.length} regions covered</span>
+            </div>
+            
+            <Button asChild variant="outline">
+              <a href="/algolia-plans">
+                ⚡ Try New Smart Search
+              </a>
+            </Button>
           </div>
         </div>
 
-        {/* Search and Filter Section */}
+        {/* Search Toggle */}
+        <div className="flex justify-center">
+          <Tabs value={useAlgoliaSearch ? "algolia" : "legacy"} onValueChange={(value) => setUseAlgoliaSearch(value === "algolia")}>
+            <TabsList className="grid w-[400px] grid-cols-2">
+              <TabsTrigger value="algolia">Algolia Search (New)</TabsTrigger>
+              <TabsTrigger value="legacy">Legacy Search</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
+
+        {/* Legacy Search - Keeping Original Functionality */}
         <Card className="glass-card">
           <CardContent className="p-6">
             <div className="flex flex-col md:flex-row gap-4">

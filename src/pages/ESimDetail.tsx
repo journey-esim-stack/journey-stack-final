@@ -485,12 +485,12 @@ const ESimDetail = () => {
           isMayaEsim,
           realtimeStatus,
           currentStatus,
-          mayaApiData: isMayaEsim ? apiData.status : null
+          mayaApiData: isMayaEsim ? apiData.esim : null
         });
         
         // Maya status mapping: use network_status but override when state is RELEASED
-        if (isMayaEsim && apiData.status) {
-          const mayaStatus = apiData.status;
+        if (isMayaEsim && apiData.esim) {
+          const mayaStatus = apiData.esim;
           const state = mayaStatus.state;
           const networkStatus = mayaStatus.network_status;
           
@@ -511,12 +511,12 @@ const ESimDetail = () => {
         
         // Determine if active based on status
         const isActive = isMayaEsim
-          ? (apiData.status?.network_status === 'ENABLED' && apiData.status?.state !== 'RELEASED')
+          ? (apiData.esim?.network_status === 'ENABLED' && apiData.esim?.state !== 'RELEASED')
           : currentStatus === 'IN_USE';
         
         // For Maya, 'Connected' requires network_status === 'ENABLED' and state not RELEASED
         const networkConnected = isMayaEsim
-          ? (apiData.status?.network_status === 'ENABLED' && apiData.status?.state !== 'RELEASED')
+          ? (apiData.esim?.network_status === 'ENABLED' && apiData.esim?.state !== 'RELEASED')
           : (isActive || apiData.obj?.network?.connected || false);
         
         // For Maya eSIMs: Only set expiry date if network is ENABLED (connected)
@@ -529,7 +529,7 @@ const ESimDetail = () => {
 
         // Transform API response to match our interface
         const transformedData: ESIMDetails = {
-          iccid: (isMayaEsim ? (apiData.status?.iccid || iccid) : (apiData.obj?.iccid || iccid)) || "",
+          iccid: (isMayaEsim ? (apiData.esim?.iccid || iccid) : (apiData.obj?.iccid || iccid)) || "",
           status: currentStatus,
           data_usage: {
             used: parseFloat((!isMayaEsim ? apiData.obj?.dataUsage?.used : undefined) || "0"),
@@ -553,13 +553,13 @@ const ESimDetail = () => {
           },
           activation: {
             qr_code: isMayaEsim 
-              ? (apiData.status?.activation_code || orderData.esim_qr_code || "")
+              ? (apiData.esim?.activation_code || orderData.esim_qr_code || "")
               : (orderData.esim_qr_code || ""),
             manual_code: isMayaEsim 
-              ? (apiData.status?.manual_code || (orderData as any).manual_code || orderData.activation_code || "")
+              ? (apiData.esim?.manual_code || (orderData as any).manual_code || orderData.activation_code || "")
               : ((orderData as any).manual_code || orderData.activation_code || ""),
             sm_dp_address: isMayaEsim 
-              ? (apiData.status?.smdp_address || "consumer.e-sim.global")
+              ? (apiData.esim?.smdp_address || "consumer.e-sim.global")
               : ((orderData as any).smdp_address || "consumer.e-sim.global")
           },
           sessions: []

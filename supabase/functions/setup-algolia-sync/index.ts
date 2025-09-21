@@ -72,37 +72,55 @@ serve(async (req) => {
     // Create index for eSIM plans
     const indexName = 'esim_plans';
     
-    // Configure index settings
+    // Configure optimized index settings based on implementation guide
     const indexSettings = {
       searchableAttributes: [
         'title',
-        'description', 
-        'country_name',
+        'country_name', 
         'data_amount',
-        'unordered(country_code)'
+        'description'
       ],
       attributesForFaceting: [
-        'country_code',
-        'country_name',
-        'supplier_name',
-        'currency',
-        'is_active',
-        'data_amount_value',
-        'validity_days'
+        'filterOnly(country_name)',
+        'filterOnly(supplier_name)', 
+        'filterOnly(validity_days)',
+        'filterOnly(is_active)',
+        'filterOnly(admin_only)',
+        'searchable(country_name)'
       ],
       customRanking: [
-        'desc(is_active)',
-        'asc(retail_price)'
+        'desc(data_amount_value)',
+        'asc(wholesale_price)',
+        'desc(updated_at)'
       ],
       ranking: [
-        'words',
         'typo',
-        'geo',
+        'geo', 
+        'words',
+        'filters',
         'proximity',
-        'attribute',
+        'attribute', 
         'exact',
         'custom'
-      ]
+      ],
+      attributesToRetrieve: [
+        'objectID', 'id', 'title', 'description', 'country_name', 
+        'country_code', 'data_amount', 'validity_days', 'wholesale_price', 
+        'currency', 'supplier_name', 'is_active', 'admin_only'
+      ],
+      attributesToHighlight: ['title', 'country_name', 'data_amount'],
+      attributesToSnippet: ['description:20'],
+      hitsPerPage: 24,
+      maxValuesPerFacet: 100,
+      typoTolerance: {
+        minWordSizefor1Typo: 4,
+        minWordSizefor2Typos: 8
+      },
+      removeWordsIfNoResults: 'allOptional',
+      queryType: 'prefixLast',
+      highlightPreTag: '<mark>',
+      highlightPostTag: '</mark>',
+      snippetEllipsisText: '…'
     };
 
     // Set index settings
@@ -139,16 +157,41 @@ serve(async (req) => {
       );
     }
 
-    // Transform plans data for Algolia
+    // Transform plans data for Algolia with enhanced data processing
     const algoliaRecords = plans?.map(plan => {
-      // Extract numeric value from data_amount for filtering
-      const dataAmountMatch = plan.data_amount.match(/(\d+(?:\.\d+)?)/);
-      const dataAmountValue = dataAmountMatch ? parseFloat(dataAmountMatch[1]) : 0;
+      // Extract numeric value from data_amount for better filtering and sorting
+      const extractDataValue = (dataStr: string): number => {
+        const match = dataStr.match(/(\d+(?:\.\d+)?)\s*(GB|MB|TB)/i);
+        if (!match) return 0;
+        
+        const [, value, unit] = match;
+        const numValue = parseFloat(value);
+        
+        switch (unit.toUpperCase()) {
+          case 'TB': return numValue * 1000000;
+          case 'GB': return numValue * 1000;
+          case 'MB': return numValue;
+          default: return numValue;
+        }
+      };
       
       return {
         objectID: plan.id,
-        ...plan,
-        data_amount_value: dataAmountValue
+        id: plan.id,
+        title: plan.title,
+        description: plan.description || '',
+        country_name: plan.country_name,
+        country_code: plan.country_code,
+        data_amount: plan.data_amount,
+        data_amount_value: extractDataValue(plan.data_amount),
+        validity_days: plan.validity_days,
+        wholesale_price: parseFloat(plan.wholesale_price),
+        currency: plan.currency,
+        supplier_name: plan.supplier_name,
+        is_active: plan.is_active,
+        admin_only: plan.admin_only,
+        created_at: plan.created_at,
+        updated_at: plan.updated_at,
       };
     }) || [];
 

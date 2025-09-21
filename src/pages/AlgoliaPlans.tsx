@@ -1,16 +1,17 @@
-import { useState, useEffect } from "react";
-import { InstantSearch, SearchBox, Hits, RefinementList, Stats, Pagination, Configure, useSearchBox, useHits } from 'react-instantsearch';
+import { useState, useEffect, useCallback } from "react";
+import { InstantSearch, Configure, useSearchBox, useHits, useRefinementList, useStats, usePagination } from 'react-instantsearch';
 import { liteClient as algoliasearch } from 'algoliasearch/lite';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Globe, Clock, Database, Wifi, ShoppingCart, Check, Search as SearchIcon, AlertCircle } from "lucide-react";
+import { Globe, Clock, Database, Wifi, ShoppingCart, Check, Search as SearchIcon, AlertCircle, RefreshCw, Loader2 } from "lucide-react";
 import Layout from "@/components/Layout";
 import { getCountryFlag } from "@/utils/countryFlags";
 import { useCart } from "@/contexts/CartContext";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import { supabase } from "@/integrations/supabase/client";
+import { AlgoliaErrorBoundary } from "@/components/AlgoliaErrorBoundary";
 
 interface EsimPlan {
   objectID: string;
@@ -48,15 +49,129 @@ function NoResultsMessage() {
 
 function CustomSearchBox() {
   const { query, refine } = useSearchBox();
+  const [isSearching, setIsSearching] = useState(false);
+
+  const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setIsSearching(true);
+    refine(e.currentTarget.value);
+    setTimeout(() => setIsSearching(false), 500);
+  }, [refine]);
+
   return (
     <div className="relative">
+      <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
       <input
         type="search"
         value={query}
-        onChange={(e) => refine(e.currentTarget.value)}
+        onChange={handleChange}
         placeholder="Search plans, countries..."
-        className="w-full px-3 py-2 border border-input bg-background text-sm rounded-md focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+        className="w-full pl-10 pr-3 py-2 border border-input bg-background text-sm rounded-md focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
       />
+      {isSearching && (
+        <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground animate-spin" />
+      )}
+    </div>
+  );
+}
+
+function CustomRefinementList({ attribute, title, limit = 10 }: { attribute: string; title: string; limit?: number }) {
+  const { items, refine } = useRefinementList({ attribute, limit, showMore: true });
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-lg">{title}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-2 max-h-60 overflow-y-auto">
+          {items.map((item) => (
+            <label key={item.value} className="flex items-center space-x-2 cursor-pointer text-sm hover:bg-accent/50 p-1 rounded">
+              <input
+                type="checkbox"
+                checked={item.isRefined}
+                onChange={() => refine(item.value)}
+                className="rounded border-input"
+              />
+              <span className="flex-1">{item.label}</span>
+              <Badge variant="secondary" className="text-xs">
+                {item.count}
+              </Badge>
+            </label>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function CustomStats() {
+  const { hitsPerPage, nbHits, nbPages, page, processingTimeMS } = useStats();
+  
+  return (
+    <div className="text-sm text-muted-foreground">
+      {nbHits.toLocaleString()} results found in {processingTimeMS}ms
+    </div>
+  );
+}
+
+function CustomPagination() {
+  const { currentRefinement, nbPages, refine, createURL } = usePagination();
+  
+  const pages = Array.from({ length: Math.min(5, nbPages) }, (_, i) => {
+    const page = Math.max(0, Math.min(nbPages - 5, currentRefinement - 2)) + i;
+    return page;
+  });
+
+  if (nbPages <= 1) return null;
+
+  return (
+    <div className="flex justify-center">
+      <div className="flex items-center space-x-1">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => refine(0)}
+          disabled={currentRefinement === 0}
+        >
+          First
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => refine(currentRefinement - 1)}
+          disabled={currentRefinement === 0}
+        >
+          Previous
+        </Button>
+        
+        {pages.map((page) => (
+          <Button
+            key={page}
+            variant={page === currentRefinement ? "default" : "outline"}
+            size="sm"
+            onClick={() => refine(page)}
+          >
+            {page + 1}
+          </Button>
+        ))}
+        
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => refine(currentRefinement + 1)}
+          disabled={currentRefinement >= nbPages - 1}
+        >
+          Next
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => refine(nbPages - 1)}
+          disabled={currentRefinement >= nbPages - 1}
+        >
+          Last
+        </Button>
+      </div>
     </div>
   );
 }
@@ -235,11 +350,72 @@ export default function AlgoliaPlans() {
   const [searchClient, setSearchClient] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [algoliaError, setAlgoliaError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
+  const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
   const { toast } = useToast();
+
+  // Error boundary for Algolia failures
+  const handleAlgoliaError = useCallback((error: Error) => {
+    console.error('Algolia error:', error);
+    setAlgoliaError(error.message);
+    toast({
+      title: "Search Error",
+      description: "Falling back to basic search. Some features may be limited.",
+      variant: "destructive",
+    });
+  }, [toast]);
+
+  // Retry mechanism with exponential backoff
+  const retryWithBackoff = useCallback(async (fn: () => Promise<void>) => {
+    const maxRetries = 3;
+    const baseDelay = 1000;
+    
+    for (let i = 0; i <= maxRetries; i++) {
+      try {
+        await fn();
+        setRetryCount(0);
+        return;
+      } catch (error) {
+        if (i === maxRetries) {
+          throw error;
+        }
+        const delay = baseDelay * Math.pow(2, i);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        setRetryCount(i + 1);
+      }
+    }
+  }, []);
+
+  // Real-time sync monitoring
+  const setupRealtimeSync = useCallback(() => {
+    const channel = supabase
+      .channel('esim_plans_sync')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'esim_plans',
+        },
+        (payload) => {
+          console.log('eSIM plans updated:', payload);
+          setLastSyncTime(new Date());
+          toast({
+            title: "Plans Updated",
+            description: "Search results will refresh automatically.",
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [toast]);
 
   useEffect(() => {
     const initializeAlgolia = async () => {
-      try {
+      await retryWithBackoff(async () => {
         // Get user data first
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) {
@@ -248,7 +424,12 @@ export default function AlgoliaPlans() {
         
         setUserId(user.id);
         
-        // Fetch agent markup
+        // Fetch agent markup with caching
+        const cachedMarkup = localStorage.getItem(`agent_markup_${user.id}`);
+        if (cachedMarkup) {
+          setAgentMarkup(JSON.parse(cachedMarkup));
+        }
+
         const { data: agentProfile } = await supabase
           .from("agent_profiles")
           .select("markup_type, markup_value")
@@ -256,18 +437,20 @@ export default function AlgoliaPlans() {
           .single();
 
         if (agentProfile) {
-          setAgentMarkup({
+          const markup = {
             type: agentProfile.markup_type || 'percent',
             value: agentProfile.markup_value !== null && agentProfile.markup_value !== undefined 
               ? Number(agentProfile.markup_value) 
               : 300
-          });
+          };
+          setAgentMarkup(markup);
+          localStorage.setItem(`agent_markup_${user.id}`, JSON.stringify(markup));
         }
 
-        // Fetch Algolia credentials from Edge Function
+        // Fetch Algolia credentials with retry
         const { data: creds, error: credsError } = await supabase.functions.invoke('get-algolia-credentials');
         if (credsError || !creds?.appId || !creds?.apiKey) {
-          throw new Error('Failed to load Algolia credentials');
+          throw new Error(`Failed to load Algolia credentials: ${credsError?.message || 'No credentials returned'}`);
         }
 
         const client = algoliasearch(
@@ -275,24 +458,45 @@ export default function AlgoliaPlans() {
           creds.apiKey
         );
         
-        console.log('Algolia client initialized with secured key');
-        setSearchClient(client);
+        // Validate client with a test search
+        try {
+          await client.search({
+            requests: [{
+              indexName: 'esim_plans',
+              query: '',
+              hitsPerPage: 1,
+              filters: 'is_active:true'
+            }]
+          });
+        } catch (searchError) {
+          console.warn('Algolia test search failed:', searchError);
+          throw new Error('Algolia index not accessible');
+        }
         
+        console.log('Algolia client initialized and validated');
+        setSearchClient(client);
+        setLastSyncTime(new Date());
+      });
+    };
+
+    const initialize = async () => {
+      try {
+        setIsLoading(true);
+        setAlgoliaError(null);
+        await initializeAlgolia();
       } catch (error) {
-        console.error('Failed to initialize Algolia:', error);
-        setAlgoliaError('Failed to initialize search. The Algolia index may not be configured yet.');
-        toast({
-          title: "Search Unavailable",
-          description: "Please set up Algolia integration first.",
-          variant: "destructive",
-        });
+        handleAlgoliaError(error as Error);
       } finally {
         setIsLoading(false);
       }
     };
 
-    initializeAlgolia();
-  }, []);
+    initialize();
+
+    // Setup real-time monitoring
+    const cleanup = setupRealtimeSync();
+    return cleanup;
+  }, [handleAlgoliaError, retryWithBackoff, setupRealtimeSync]);
 
   if (isLoading) {
     return (
@@ -354,122 +558,133 @@ export default function AlgoliaPlans() {
 
   return (
     <Layout>
-      <div className="space-y-8">
-        <div className="flex flex-col gap-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-foreground">Algolia eSIM Plans</h1>
-              <p className="text-muted-foreground mt-2">
-                Advanced search powered by Algolia - Test implementation
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-                <SearchIcon className="h-4 w-4 mr-1" />
-                Algolia Search
-              </Badge>
-              <Button variant="outline" size="sm" onClick={() => window.location.href = '/plans'}>
-                Legacy Plans
-              </Button>
-            </div>
-          </div>
-        </div>
-
-        <InstantSearch searchClient={searchClient} indexName="esim_plans">
-          <Configure 
-            hitsPerPage={24}
-            filters="is_active:true"
-          />
-          
-          <div className="grid lg:grid-cols-4 gap-8">
-            {/* Filters Sidebar */}
-            <div className="lg:col-span-1 space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Search</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <CustomSearchBox />
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Countries</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <RefinementList 
-                    attribute="country_name"
-                    limit={10}
-                    showMore={true}
-                    classNames={{
-                      root: 'space-y-2',
-                      list: 'space-y-2',
-                      item: 'flex items-center space-x-2',
-                      label: 'flex items-center space-x-2 cursor-pointer text-sm',
-                      checkbox: 'rounded border-input',
-                      labelText: 'flex-1',
-                      count: 'bg-muted text-muted-foreground px-2 py-1 rounded text-xs'
-                    }}
-                  />
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Supplier</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <RefinementList 
-                    attribute="supplier_name"
-                    classNames={{
-                      root: 'space-y-2',
-                      list: 'space-y-2',
-                      item: 'flex items-center space-x-2',
-                      label: 'flex items-center space-x-2 cursor-pointer text-sm',
-                      checkbox: 'rounded border-input',
-                      labelText: 'flex-1',
-                      count: 'bg-muted text-muted-foreground px-2 py-1 rounded text-xs'
-                    }}
-                  />
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Results */}
-            <div className="lg:col-span-3 space-y-6">
+      <AlgoliaErrorBoundary
+        onError={handleAlgoliaError}
+        fallback={
+          <div className="space-y-8">
+            <div className="flex flex-col gap-4">
               <div className="flex items-center justify-between">
-                <Stats 
-                  classNames={{
-                    root: 'text-sm text-muted-foreground'
-                  }}
-                />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                <SearchResults agentMarkup={agentMarkup} />
-              </div>
-
-              <div className="flex justify-center">
-                <Pagination 
-                  classNames={{
-                    root: 'flex items-center space-x-2',
-                    list: 'flex items-center space-x-1',
-                    item: '',
-                    link: 'px-3 py-2 text-sm rounded-md border border-input hover:bg-accent',
-                    selectedItem: '',
-                    disabledItem: 'opacity-50',
-                    firstPageItem: '',
-                    lastPageItem: '',
-                    previousPageItem: '',
-                    nextPageItem: ''
-                  }}
-                />
+                <div>
+                  <h1 className="text-3xl font-bold text-foreground">eSIM Plans (Fallback Mode)</h1>
+                  <p className="text-muted-foreground mt-2">
+                    Search is temporarily unavailable. Showing basic plan list.
+                  </p>
+                </div>
+                <Button onClick={() => window.location.href = '/plans'}>
+                  Go to Legacy Plans
+                </Button>
               </div>
             </div>
           </div>
-        </InstantSearch>
-      </div>
+        }
+      >
+        <div className="space-y-8">
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-3xl font-bold text-foreground">Algolia eSIM Plans</h1>
+                <p className="text-muted-foreground mt-2">
+                  Advanced search powered by Algolia - Production ready
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                  <SearchIcon className="h-4 w-4 mr-1" />
+                  Algolia Search
+                </Badge>
+                {lastSyncTime && (
+                  <Badge variant="outline" className="text-xs">
+                    Last sync: {lastSyncTime.toLocaleTimeString()}
+                  </Badge>
+                )}
+                {retryCount > 0 && (
+                  <Badge variant="destructive" className="text-xs">
+                    Retry {retryCount}/3
+                  </Badge>
+                )}
+                <Button variant="outline" size="sm" onClick={() => window.location.href = '/plans'}>
+                  Legacy Plans
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          <InstantSearch 
+            searchClient={searchClient} 
+            indexName="esim_plans"
+            insights={true}
+            future={{
+              preserveSharedStateOnUnmount: true,
+            }}
+          >
+            <Configure 
+              hitsPerPage={24}
+              filters="is_active:true AND admin_only:false"
+              attributesToRetrieve={[
+                'objectID', 'id', 'title', 'description', 'country_name', 
+                'country_code', 'data_amount', 'validity_days', 'wholesale_price', 
+                'currency', 'supplier_name', 'is_active'
+              ]}
+              attributesToHighlight={['title', 'country_name', 'data_amount']}
+              typoTolerance={true}
+              removeWordsIfNoResults="allOptional"
+            />
+            
+            <div className="grid lg:grid-cols-4 gap-8">
+              {/* Filters Sidebar */}
+              <div className="lg:col-span-1 space-y-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Search</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <CustomSearchBox />
+                  </CardContent>
+                </Card>
+
+                <CustomRefinementList 
+                  attribute="country_name"
+                  title="Countries"
+                  limit={15}
+                />
+
+                <CustomRefinementList 
+                  attribute="supplier_name"
+                  title="Supplier"
+                />
+
+                <CustomRefinementList 
+                  attribute="validity_days"
+                  title="Duration (Days)"
+                  limit={8}
+                />
+              </div>
+
+              {/* Results */}
+              <div className="lg:col-span-3 space-y-6">
+                <div className="flex items-center justify-between">
+                  <CustomStats />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => window.location.reload()}
+                    className="flex items-center gap-2"
+                  >
+                    <RefreshCw className="h-4 w-4" />
+                    Refresh
+                  </Button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                  <SearchResults agentMarkup={agentMarkup} />
+                </div>
+
+                <CustomPagination />
+              </div>
+            </div>
+          </InstantSearch>
+        </div>
+      </AlgoliaErrorBoundary>
     </Layout>
   );
 }

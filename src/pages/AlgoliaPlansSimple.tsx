@@ -228,6 +228,7 @@ export default function AlgoliaPlansSimple() {
   };
 
   const searchPlans = useCallback(async (query: string = "") => {
+    console.log('searchPlans called with query:', query);
     setIsLoading(true);
     setError(null);
     
@@ -513,6 +514,7 @@ export default function AlgoliaPlansSimple() {
 
   useEffect(() => {
     // Load initial plans
+    console.log('Initial plans loading effect triggered');
     searchPlans();
   }, [searchPlans]);
   
@@ -553,6 +555,7 @@ export default function AlgoliaPlansSimple() {
   };
 
   const handleSearchSubmit = (query: string) => {
+    console.log('Search submitted:', query);
     if (query.trim()) {
       addToHistory(query);
       setSearchQuery(query);

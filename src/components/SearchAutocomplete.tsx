@@ -138,6 +138,7 @@ export const SearchAutocomplete: React.FC<SearchAutocompleteProps> = ({
   }, [suggestions]);
 
   const handleSelect = (suggestion: Suggestion) => {
+    console.log('handleSelect called with:', suggestion);
     const resolvedValue = suggestion.type === 'country' 
       ? resolveCountryName(suggestion.value) 
       : suggestion.value;
@@ -155,9 +156,11 @@ export const SearchAutocomplete: React.FC<SearchAutocompleteProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const resolvedValue = resolveCountryName(inputValue);
-    onSearch(resolvedValue);
-    setOpen(false);
+    if (inputValue.trim()) {
+      const resolvedValue = resolveCountryName(inputValue);
+      onSearch(resolvedValue);
+      setOpen(false);
+    }
   };
 
   return (

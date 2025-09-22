@@ -218,23 +218,53 @@ export function detectPlanRegions(planTitle: string, supplierName: string = 'esi
  * Gets countries for a regional plan based on detected regions
  */
 export function getRegionalPlanCountries(planTitle: string, supplierName: string = 'esim_access', description?: string): Country[] {
-  if (supplierName === 'maya' && description) {
-    // For Maya plans, try to extract specific countries from description
-    const countryCodeMatches = description.match(/\b[A-Z]{2,3}\b/g);
-    if (countryCodeMatches) {
-      const planCountries: Country[] = [];
-      countryCodeMatches.forEach(code => {
-        // Find matching country in our regional mapping
-        Object.values(regionalCountries).flat().forEach(country => {
-          if (country.code === code || country.code === code.substring(0, 2)) {
-            if (!planCountries.find(c => c.code === country.code)) {
-              planCountries.push(country);
+  if (supplierName === 'maya') {
+    // For Maya plans, use specific country counts based on plan title
+    const title = planTitle.toLowerCase();
+    
+    if (title.includes('europe+')) {
+      // Maya Europe+ plans cover 35 specific European countries
+      const europeCountries = regionalCountries['Europe'];
+      // Return the first 35 countries from our Europe list (Maya's actual coverage)
+      return europeCountries.slice(0, 35);
+    }
+    
+    if (title.includes('asia+')) {
+      // Maya Asia+ plans cover specific APAC countries
+      const apacCountries = regionalCountries['APAC'];
+      return apacCountries.slice(0, 23); // Typical Maya Asia+ coverage
+    }
+    
+    if (title.includes('mena+')) {
+      // Maya MENA+ plans
+      const menaCountries = regionalCountries['Middle East'];
+      return menaCountries;
+    }
+    
+    if (title.includes('latam+')) {
+      // Maya LATAM+ plans
+      const latamCountries = regionalCountries['Latin America'];
+      return latamCountries;
+    }
+    
+    // Fallback: try to extract specific countries from description
+    if (description) {
+      const countryCodeMatches = description.match(/\b[A-Z]{2,3}\b/g);
+      if (countryCodeMatches) {
+        const planCountries: Country[] = [];
+        countryCodeMatches.forEach(code => {
+          // Find matching country in our regional mapping
+          Object.values(regionalCountries).flat().forEach(country => {
+            if (country.code === code || country.code === code.substring(0, 2)) {
+              if (!planCountries.find(c => c.code === country.code)) {
+                planCountries.push(country);
+              }
             }
-          }
+          });
         });
-      });
-      if (planCountries.length > 0) {
-        return planCountries;
+        if (planCountries.length > 0) {
+          return planCountries;
+        }
       }
     }
   } else if (supplierName === 'esim_access') {

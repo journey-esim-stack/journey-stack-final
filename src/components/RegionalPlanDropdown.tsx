@@ -26,9 +26,15 @@ export default function RegionalPlanDropdown({ planTitle, countryCode, supplierN
   const [isOpen, setIsOpen] = useState(false);
   const countries = getRegionalCoverage(planTitle, countryCode, supplierName, description);
   
-  // Extract area count from title (e.g., "20 areas")
-  const areaMatch = planTitle.match(/(\d+)\s+areas?/i);
-  const areaCount = areaMatch ? areaMatch[1] : countries.length.toString();
+  // Extract area count - prioritize actual country count for Maya plans
+  let areaCount: string;
+  if (supplierName === 'maya') {
+    areaCount = countries.length.toString();
+  } else {
+    // For eSIM Access, extract from title (e.g., "20 areas")
+    const areaMatch = planTitle.match(/(\d+)\s+areas?/i);
+    areaCount = areaMatch ? areaMatch[1] : countries.length.toString();
+  }
   
   if (countries.length === 0) {
     return null;

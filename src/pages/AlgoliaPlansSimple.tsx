@@ -184,6 +184,10 @@ export default function AlgoliaPlansSimple() {
   
   const { toast } = useToast();
 
+  // In preview environments, Algolia adds a query param that causes 400s.
+  // Force direct Supabase search to guarantee a working page.
+  const FORCE_FALLBACK = typeof window !== 'undefined' && window.location.hostname.includes('lovable.app');
+
   // Synonyms mapping for client-side assistance (Algolia expects boolean `synonyms` param; custom lists are index-level only)
   const synonymsMap: Record<string, string[]> = {
     uae: ["dubai", "united arab emirates"],
@@ -207,6 +211,27 @@ export default function AlgoliaPlansSimple() {
     setError(null);
     
     try {
+      if (FORCE_FALLBACK) {
+        const pageSize = 1000;
+        let from = 0; let to = pageSize - 1; let supaHits: any[] = [];
+        while (true) {
+          const { data, error } = await supabase
+            .from('esim_plans')
+            .select('*')
+            .eq('is_active', true)
+            .eq('admin_only', false)
+            .range(from, to);
+          if (error) throw error;
+          if (!data || data.length === 0) break;
+          supaHits.push(...data);
+          if (data.length < pageSize) break;
+          from += pageSize; to += pageSize;
+        }
+        setAllPlans(supaHits as unknown as EsimPlan[]);
+        setPlans(supaHits as unknown as EsimPlan[]);
+        return;
+      }
+
       const client = await getSearchClient();
 
       const optionalWords = buildOptionalWords(query);

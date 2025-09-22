@@ -1,18 +1,24 @@
-import { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
 import { useToast } from "@/hooks/use-toast";
-import { Globe, Clock, Database, Wifi, ShoppingCart, Check, Search as SearchIcon, AlertCircle, RefreshCw, Loader2 } from "lucide-react";
+import { getSearchClient, ESIM_PLANS_INDEX } from "@/lib/algolia";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { useAgentMarkup } from "@/hooks/useAgentMarkup";
+import { useCart } from "@/contexts/CartContext";
+import { Globe, Clock, Database, Wifi, ShoppingCart, Check, Search as SearchIcon, AlertCircle, RefreshCw, Loader2, Plus, Search, Filter, MapPin, Zap } from "lucide-react";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
+import { SearchAutocomplete } from "@/components/SearchAutocomplete";
+import { useSearchHistory } from "@/hooks/useSearchHistory";
+import { resolveCountryName, getCountryVariations } from "@/utils/countryMapping";
 import Layout from "@/components/Layout";
 import { getCountryFlag } from "@/utils/countryFlags";
-import { useCart } from "@/contexts/CartContext";
 import { useCurrency } from "@/contexts/CurrencyContext";
-import { getSearchClient } from "@/lib/algolia";
-import { supabase } from "@/integrations/supabase/client";
 
 interface EsimPlan {
   objectID: string;
@@ -184,6 +190,9 @@ export default function AlgoliaPlansSimple() {
   const [sortBy, setSortBy] = useState<string>("price-asc");
   
   const { toast } = useToast();
+  const { addToCart } = useCart();
+  const { selectedCurrency, convertPrice } = useCurrency();
+  const { searchHistory, addToHistory } = useSearchHistory();
 
   // In preview environments, Algolia adds a query param that causes 400s.
   // Force direct Supabase search to guarantee a working page.
@@ -345,17 +354,28 @@ export default function AlgoliaPlansSimple() {
   const applyFiltersAndSorting = useCallback(() => {
     let filtered = [...allPlans];
     
-    // Apply text search first
+    // Apply text search first with enhanced country matching
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(plan => 
-        plan.title?.toLowerCase().includes(query) ||
-        plan.country_name?.toLowerCase().includes(query) ||
-        plan.description?.toLowerCase().includes(query) ||
-        // Handle UAE/Dubai synonyms
-        (query.includes('uae') && (plan.country_name?.toLowerCase().includes('dubai') || plan.country_name?.toLowerCase().includes('united arab emirates'))) ||
-        (query.includes('dubai') && (plan.country_name?.toLowerCase().includes('uae') || plan.country_name?.toLowerCase().includes('united arab emirates')))
-      );
+      filtered = filtered.filter(plan => {
+        // Basic text matching
+        const basicMatch = plan.title?.toLowerCase().includes(query) ||
+          plan.country_name?.toLowerCase().includes(query) ||
+          plan.description?.toLowerCase().includes(query);
+        
+        if (basicMatch) return true;
+        
+        // Enhanced country matching using variations
+        if (plan.country_name) {
+          const countryVariations = getCountryVariations(plan.country_name);
+          return countryVariations.some(variation => 
+            variation.toLowerCase().includes(query) ||
+            query.includes(variation.toLowerCase())
+          );
+        }
+        
+        return false;
+      });
     }
     
     // Apply filters
@@ -508,8 +528,18 @@ export default function AlgoliaPlansSimple() {
     } else {
       // Clear other filters when selecting a specific country
       setSelectedRegionType("");
-      setSelectedCountry(country);
+      const resolvedCountry = resolveCountryName(country);
+      setSelectedCountry(resolvedCountry);
       setSearchQuery(country);
+      addToHistory(country); // Add to search history
+    }
+  };
+
+  const handleSearchSubmit = (query: string) => {
+    if (query.trim()) {
+      addToHistory(query);
+      setSearchQuery(query);
+      searchPlans(query);
     }
   };
   

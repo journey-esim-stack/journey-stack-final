@@ -8,22 +8,23 @@ interface RegionalPlanDropdownProps {
   planTitle: string;
   countryCode: string;
   supplierName?: string;
+  description?: string;
 }
 
 // Get regional coverage using the new mapping system
-const getRegionalCoverage = (planTitle: string, countryCode: string, supplierName: string = 'esim_access'): Country[] => {
+const getRegionalCoverage = (planTitle: string, countryCode: string, supplierName: string = 'esim_access', description?: string): Country[] => {
   // Return early if not a regional plan
   if (!isRegionalPlan(countryCode)) {
     return [];
   }
 
   // Use the new standardized regional mapping system
-  return getRegionalPlanCountries(planTitle, supplierName);
+  return getRegionalPlanCountries(planTitle, supplierName, description);
 };
 
-export default function RegionalPlanDropdown({ planTitle, countryCode, supplierName }: RegionalPlanDropdownProps) {
+export default function RegionalPlanDropdown({ planTitle, countryCode, supplierName, description }: RegionalPlanDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const countries = getRegionalCoverage(planTitle, countryCode, supplierName);
+  const countries = getRegionalCoverage(planTitle, countryCode, supplierName, description);
   
   // Extract area count from title (e.g., "20 areas")
   const areaMatch = planTitle.match(/(\d+)\s+areas?/i);

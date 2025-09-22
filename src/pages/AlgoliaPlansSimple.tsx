@@ -105,7 +105,8 @@ function PlanCard({ plan, calculatePrice }: { plan: EsimPlan; calculatePrice?: (
                 <RegionalPlanDropdown 
                   planTitle={plan.title} 
                   countryCode={plan.country_code} 
-                  supplierName={plan.supplier_name} 
+                  supplierName={plan.supplier_name}
+                  description={plan.description}
                 />
               )}
             </CardDescription>

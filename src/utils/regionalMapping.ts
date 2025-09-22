@@ -145,9 +145,13 @@ export const regionalCountries: Record<StandardRegion, Country[]> = {
 // Maya supplier region mapping
 const mayaRegionMapping: Record<string, StandardRegion[]> = {
   'apac region': ['APAC'],
+  'asia+': ['APAC'],
   'europe region': ['Europe'],
+  'europe+': ['Europe'],
   'mena region': ['Middle East'],
+  'mena+': ['Middle East'],
   'latam region': ['Latin America'],
+  'latam+': ['Latin America'],
   'global': ['Global']
 };
 
@@ -203,14 +207,53 @@ export function detectPlanRegions(planTitle: string, supplierName: string = 'esi
 /**
  * Gets countries for a regional plan based on detected regions
  */
-export function getRegionalPlanCountries(planTitle: string, supplierName: string = 'esim_access'): Country[] {
+export function getRegionalPlanCountries(planTitle: string, supplierName: string = 'esim_access', description?: string): Country[] {
+  if (supplierName === 'maya' && description) {
+    // For Maya plans, try to extract specific countries from description
+    const countryCodeMatches = description.match(/\b[A-Z]{2,3}\b/g);
+    if (countryCodeMatches) {
+      const planCountries: Country[] = [];
+      countryCodeMatches.forEach(code => {
+        // Find matching country in our regional mapping
+        Object.values(regionalCountries).flat().forEach(country => {
+          if (country.code === code || country.code === code.substring(0, 2)) {
+            if (!planCountries.find(c => c.code === country.code)) {
+              planCountries.push(country);
+            }
+          }
+        });
+      });
+      if (planCountries.length > 0) {
+        return planCountries;
+      }
+    }
+  } else if (supplierName === 'esim_access') {
+    // For eSIM Access, parse area count from title
+    const areaMatch = planTitle.match(/(\d+)\s+areas?/i);
+    if (areaMatch) {
+      const regions = detectPlanRegions(planTitle, supplierName);
+      const areaCount = parseInt(areaMatch[1]);
+      const countries: Set<Country> = new Set();
+
+      regions.forEach(region => {
+        regionalCountries[region].forEach(country => {
+          if (!Array.from(countries).find(c => c.code === country.code)) {
+            countries.add(country);
+          }
+        });
+      });
+
+      // Return only the specified number of areas
+      return Array.from(countries).slice(0, areaCount);
+    }
+  }
+
+  // Fallback: return all countries for detected regions
   const regions = detectPlanRegions(planTitle, supplierName);
   const countries: Set<Country> = new Set();
 
   regions.forEach(region => {
     regionalCountries[region].forEach(country => {
-      // Use a unique key to avoid duplicates
-      const key = `${country.code}`;
       if (!Array.from(countries).find(c => c.code === country.code)) {
         countries.add(country);
       }

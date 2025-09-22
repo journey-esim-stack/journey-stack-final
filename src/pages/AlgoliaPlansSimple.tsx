@@ -184,8 +184,7 @@ export default function AlgoliaPlansSimple() {
   const [allPlans, setAllPlans] = useState<EsimPlan[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [agentMarkup, setAgentMarkup] = useState({ type: 'percent', value: 300 });
-  const { markup: realAgentMarkup, calculatePrice } = useAgentMarkup();
+  const { markup: realAgentMarkup, calculatePrice, loading: markupLoading, isConnected } = useAgentMarkup();
   
   // Filter states
   const [selectedCountry, setSelectedCountry] = useState<string>("");
@@ -753,30 +752,58 @@ export default function AlgoliaPlansSimple() {
           {/* Results */}
           <div className="lg:col-span-3 space-y-6">
 
-        {error && (
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-2 text-red-600">
-                <AlertCircle className="h-5 w-5" />
-                <span>{error}</span>
-                <Button variant="outline" size="sm" onClick={() => searchPlans(searchQuery)}>
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                  Retry
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+            {/* Real-time Connection Status */}
+            {!isConnected && (
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <AlertCircle className="h-4 w-4 text-yellow-600" />
+                    <span className="text-yellow-800 text-sm">
+                      Real-time updates temporarily unavailable. Prices may not update automatically.
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {error && (
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-2 text-red-600">
+                    <AlertCircle className="h-5 w-5" />
+                    <span>{error}</span>
+                    <Button variant="outline" size="sm" onClick={() => searchPlans(searchQuery)}>
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                      Retry
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             <div className="flex items-center justify-between">
-              <p className="text-muted-foreground">
-                {plans.length} of {allPlans.length} plans found
-              </p>
-              <Button variant="outline" size="sm" onClick={() => searchPlans(searchQuery)}>
+              <h2 className="text-xl font-semibold">
+                Available Plans ({plans.length})
+                {markupLoading && (
+                  <span className="text-sm text-muted-foreground ml-2">
+                    (Loading pricing...)
+                  </span>
+                )}
+              </h2>
+              <Button
+                onClick={() => searchPlans(searchQuery)}
+                variant="outline"
+                size="sm"
+                disabled={isLoading}
+              >
                 <RefreshCw className="h-4 w-4 mr-2" />
                 Refresh
               </Button>
             </div>
+            
+            <p className="text-muted-foreground">
+              {plans.length} of {allPlans.length} plans found
+            </p>
 
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 gap-6">
               {isLoading ? (

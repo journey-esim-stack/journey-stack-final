@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
-import { Loader2, Globe, Settings, CheckCircle, XCircle, Plus, Minus } from "lucide-react";
+import { Loader2, Globe, Settings, CheckCircle, XCircle, Plus, Minus, RefreshCw } from "lucide-react";
 import Layout from "@/components/Layout";
 
 interface SupplierConfig {
@@ -254,6 +254,60 @@ export default function AdminSuppliers() {
     }
   };
 
+  const runComprehensiveSync = async () => {
+    try {
+      setSaving(true);
+      const { data, error } = await supabase.functions.invoke('sync-all-plans');
+      
+      if (error) throw error;
+      
+      if (data.success) {
+        toast({
+          title: "Comprehensive Sync Completed",
+          description: `Total active plans: ${data.total_active_plans}`,
+        });
+      } else {
+        toast({
+          title: "Sync Completed with Errors",
+          description: data.message,
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Sync error:', error);
+      toast({
+        title: "Sync Failed",
+        description: error.message || "Failed to sync all plans",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const syncESIMPlans = async () => {
+    try {
+      setSaving(true);
+      const { data, error } = await supabase.functions.invoke('sync-esim-plans');
+      
+      if (error) throw error;
+      
+      toast({
+        title: "eSIM Access Plans Synced",
+        description: `Successfully synced eSIM Access plans`,
+      });
+    } catch (error) {
+      console.error('Sync error:', error);
+      toast({
+        title: "Sync Failed",
+        description: error.message || "Failed to sync eSIM Access plans",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
   if (loading) {
     return (
       <Layout>
@@ -445,10 +499,60 @@ export default function AdminSuppliers() {
             <CardTitle>Actions</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex flex-wrap gap-4">
-              <Button onClick={saveSettings} disabled={saving}>
-                {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                Save Settings
+            <div className="space-y-4">
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Button 
+                  onClick={runComprehensiveSync} 
+                  disabled={saving}
+                  className="bg-primary hover:bg-primary/90 flex-1"
+                >
+                  {saving ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Syncing...
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="mr-2 h-4 w-4" />
+                      Sync All Plans
+                    </>
+                  )}
+                </Button>
+                
+                <Button 
+                  onClick={syncESIMPlans} 
+                  disabled={saving}
+                  variant="outline"
+                  className="flex-1"
+                >
+                  {saving ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Syncing...
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="mr-2 h-4 w-4" />
+                      Sync eSIM Access Only
+                    </>
+                  )}
+                </Button>
+              </div>
+              
+              <Button 
+                onClick={saveSettings} 
+                disabled={saving}
+                variant="secondary"
+                className="w-full"
+              >
+                {saving ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  "Save Configuration Settings"
+                )}
               </Button>
             </div>
           </CardContent>

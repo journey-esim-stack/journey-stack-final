@@ -116,6 +116,9 @@ export default function AdminAgents() {
 
   const saveAgent = async (agent: AgentProfileRow) => {
     try {
+      // Optimistic update - update UI immediately
+      setAgents(prev => prev.map(a => a.id === agent.id ? agent : a));
+      
       const updateData: any = { 
         markup_type: agent.markup_type, 
         markup_value: agent.markup_value 
@@ -133,15 +136,38 @@ export default function AdminAgents() {
         .from("agent_profiles")
         .update(updateData)
         .eq("id", agent.id);
+        
       if (error) throw error;
       
-      toast({ title: "Saved", description: `Updated ${agent.company_name}` });
+      toast({ 
+        title: "Saved", 
+        description: `Updated ${agent.company_name}${
+          updateData.markup_type && updateData.markup_value 
+            ? ` - Markup: ${updateData.markup_value}${updateData.markup_type === 'percent' ? '%' : ' USD'}`
+            : ''
+        }` 
+      });
       
-      // Refresh the data to ensure UI reflects the changes
-      await fetchAgents();
+      // Call audit function for markup changes
+      if (updateData.markup_type && updateData.markup_value) {
+        await supabase.rpc('audit_sensitive_operation', {
+          _table_name: 'agent_profiles',
+          _operation: 'markup_update',
+          _record_id: agent.id,
+          _details: {
+            old_markup_type: agent.markup_type,
+            old_markup_value: agent.markup_value,
+            new_markup_type: updateData.markup_type,
+            new_markup_value: updateData.markup_value
+          }
+        });
+      }
+      
     } catch (err) {
       console.error("Save error:", err);
       toast({ title: "Error", description: "Failed to save", variant: "destructive" });
+      // Revert optimistic update on error
+      await fetchAgents();
     }
   };
 

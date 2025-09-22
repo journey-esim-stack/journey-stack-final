@@ -10,24 +10,37 @@ interface AgentMarkup {
 export const useAgentMarkup = () => {
   const [markup, setMarkup] = useState<AgentMarkup | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isConnected, setIsConnected] = useState(true);
 
   const calculatePrice = (wholesalePrice: number, markupData?: AgentMarkup) => {
     const currentMarkup = markupData || markup;
-    if (!currentMarkup) return wholesalePrice * 4; // 300% markup = 4x price
+    
+    // Default to 300% markup if no markup is set
+    if (!currentMarkup) {
+      return wholesalePrice * 4; // 300% markup = 4x price (100% + 300% = 400% = 4x)
+    }
 
     const type = currentMarkup.markup_type?.toLowerCase();
     if (type === 'percent') {
+      // For percent type: add the markup percentage to 100%
       return wholesalePrice * (1 + currentMarkup.markup_value / 100);
     } else if (type === 'fixed' || type === 'flat') {
+      // For flat type: add the fixed amount
       return wholesalePrice + currentMarkup.markup_value;
     }
-    return wholesalePrice * 4; // 300% markup = 4x price
+    
+    // Fallback to default 300% markup
+    return wholesalePrice * 4;
   };
 
   const fetchMarkup = async () => {
     try {
+      setLoading(true);
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) {
+        setLoading(false);
+        return;
+      }
 
       const { data: profile, error } = await supabase
         .from('agent_profiles')
@@ -35,11 +48,22 @@ export const useAgentMarkup = () => {
         .eq('user_id', user.id)
         .single();
 
-      if (error) throw error;
-      setMarkup(profile);
+      if (error) {
+        if (error.code === 'PGRST116') {
+          // No profile found - this is normal for new users
+          console.log('No agent profile found - using default markup');
+          setMarkup({ markup_type: 'percent', markup_value: 300 });
+        } else {
+          throw error;
+        }
+      } else {
+        setMarkup(profile);
+      }
     } catch (error) {
       console.error('Error fetching markup:', error);
       toast.error('Failed to fetch pricing information');
+      // Set default markup even on error to ensure app functionality
+      setMarkup({ markup_type: 'percent', markup_value: 300 });
     } finally {
       setLoading(false);
     }
@@ -59,23 +83,54 @@ export const useAgentMarkup = () => {
           table: 'agent_profiles',
         },
         async (payload) => {
-          // Check if this update is for the current user
-          const { data: { user } } = await supabase.auth.getUser();
-          if (user && payload.new.user_id === user.id) {
-            setMarkup({
-              markup_type: payload.new.markup_type,
-              markup_value: payload.new.markup_value,
-            });
-            toast.success('Pricing updated automatically');
+          try {
+            // Check if this update is for the current user
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user && payload.new.user_id === user.id) {
+              const newMarkup = {
+                markup_type: payload.new.markup_type,
+                markup_value: payload.new.markup_value,
+              };
+              setMarkup(newMarkup);
+              setIsConnected(true);
+              toast.success('Pricing updated automatically', {
+                description: `New markup: ${newMarkup.markup_value}${newMarkup.markup_type === 'percent' ? '%' : ' USD'}`
+              });
+            }
+          } catch (error) {
+            console.error('Error handling markup update:', error);
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          setIsConnected(true);
+        } else if (status === 'CHANNEL_ERROR') {
+          setIsConnected(false);
+          toast.error('Real-time connection lost. Prices may not update automatically.');
+        }
+      });
+
+    // Heartbeat to maintain connection
+    const heartbeat = setInterval(() => {
+      if (channel.state === 'joined') {
+        setIsConnected(true);
+      } else {
+        setIsConnected(false);
+      }
+    }, 30000);
 
     return () => {
+      clearInterval(heartbeat);
       supabase.removeChannel(channel);
     };
   }, []);
 
-  return { markup, loading, calculatePrice, refetch: fetchMarkup };
+  return { 
+    markup, 
+    loading, 
+    calculatePrice, 
+    refetch: fetchMarkup,
+    isConnected 
+  };
 };

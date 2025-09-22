@@ -225,26 +225,25 @@ export function getRegionalPlanCountries(planTitle: string, supplierName: string
     if (title.includes('europe+')) {
       // Maya Europe+ plans cover 35 specific European countries
       const europeCountries = regionalCountries['Europe'];
-      // Return the first 35 countries from our Europe list (Maya's actual coverage)
       return europeCountries.slice(0, 35);
     }
     
     if (title.includes('asia+')) {
-      // Maya Asia+ plans cover specific APAC countries
+      // Maya Asia+ plans cover 13 specific APAC countries
       const apacCountries = regionalCountries['APAC'];
-      return apacCountries.slice(0, 23); // Typical Maya Asia+ coverage
+      return apacCountries.slice(0, 13);
     }
     
     if (title.includes('mena+')) {
-      // Maya MENA+ plans
+      // Maya MENA+ plans cover 18 Middle East countries
       const menaCountries = regionalCountries['Middle East'];
-      return menaCountries;
+      return menaCountries.slice(0, 18);
     }
     
     if (title.includes('latam+')) {
-      // Maya LATAM+ plans
+      // Maya LATAM+ plans cover 17 Latin America countries
       const latamCountries = regionalCountries['Latin America'];
-      return latamCountries;
+      return latamCountries.slice(0, 17);
     }
     
     // Fallback: try to extract specific countries from description

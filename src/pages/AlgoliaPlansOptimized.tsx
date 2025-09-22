@@ -28,7 +28,7 @@ interface EsimPlan {
   validity_days: number;
   currency: string;
   is_active: boolean;
-  agent_price: number;
+  wholesale_price: number;
 }
 
 // Enhanced Search Box with analytics tracking
@@ -127,21 +127,24 @@ const PlanCard = ({ plan }: { plan: EsimPlan }) => {
   const [isAdding, setIsAdding] = useState(false);
   const { toast } = useToast();
 
-  const handleAddToCart = async () => {
-    setIsAdding(true);
-    try {
-      await addToCart({
-        id: `${plan.id}-${Date.now()}`,
-        planId: plan.id,
-        title: plan.title,
-        countryName: plan.country_name,
-        countryCode: plan.country_code,
-        dataAmount: plan.data_amount,
-        validityDays: plan.validity_days,
-        agentPrice: plan.agent_price,
-        currency: plan.currency,
-        
-      });
+const { calculatePrice } = useAgentMarkup();
+
+const handleAddToCart = async () => {
+  setIsAdding(true);
+  try {
+    const priceUSD = calculatePrice?.(plan.wholesale_price || 0) ?? 0;
+    await addToCart({
+      id: `${plan.id}-${Date.now()}`,
+      planId: plan.id,
+      title: plan.title,
+      countryName: plan.country_name,
+      countryCode: plan.country_code,
+      dataAmount: plan.data_amount,
+      validityDays: plan.validity_days,
+      agentPrice: priceUSD,
+      currency: plan.currency,
+      
+    });
       
       toast({
         title: "Added to cart",
@@ -203,10 +206,10 @@ const PlanCard = ({ plan }: { plan: EsimPlan }) => {
         </div>
 
         <div className="mt-4 space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-lg font-bold text-primary">
-              {getCurrencySymbol()}{convertPrice(plan.agent_price).toFixed(2)}
-            </span>
+<div className="flex items-center justify-between">
+  <span className="text-lg font-bold text-primary">
+    {getCurrencySymbol()}{convertPrice((useAgentMarkup().calculatePrice?.(plan.wholesale_price || 0) ?? 0)).toFixed(2)}
+  </span>
             {isDayPass && (
               <Badge variant="outline" className="text-xs">
                 Day Pass
@@ -233,30 +236,30 @@ const SearchResults = () => {
   const { hits } = useHits<EsimPlan>();
   const { markup, calculatePrice } = useAgentMarkup();
 
-  const enhancedHits = useMemo(() => {
-    return hits.map(hit => ({
-      ...hit,
-      agent_price: hit.agent_price || 0
-    }));
-  }, [hits, calculatePrice]);
+const enhancedHits = useMemo(() => {
+  return hits.map(hit => ({
+    ...hit,
+    wholesale_price: (hit as any).wholesale_price ?? 0
+  }));
+}, [hits]);
 
-  if (!enhancedHits.length) {
-    return (
-      <div className="text-center py-12">
-        <Database className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-        <h3 className="text-lg font-semibold mb-2">No plans found</h3>
-        <p className="text-muted-foreground">Try adjusting your search or filters</p>
-      </div>
-    );
-  }
-
+if (!enhancedHits.length) {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-      {enhancedHits.map((plan) => (
-        <PlanCard key={plan.objectID} plan={plan} />
-      ))}
+    <div className="text-center py-12">
+      <Database className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+      <h3 className="text-lg font-semibold mb-2">No plans found</h3>
+      <p className="text-muted-foreground">Try adjusting your search or filters</p>
     </div>
   );
+}
+
+return (
+  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+    {enhancedHits.map((plan) => (
+      <PlanCard key={plan.objectID} plan={plan as any} />
+    ))}
+  </div>
+);
 };
 
 // Enhanced Pagination

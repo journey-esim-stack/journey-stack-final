@@ -34,7 +34,7 @@ interface EsimPlan {
   currency: string;
   is_active: boolean;
   admin_only: boolean;
-  agent_price?: number;
+  wholesale_price: number;
 }
 
 function PlanCard({ plan, calculatePrice }: { plan: EsimPlan; calculatePrice?: (price: number) => number }) {
@@ -43,9 +43,10 @@ function PlanCard({ plan, calculatePrice }: { plan: EsimPlan; calculatePrice?: (
   const { toast } = useToast();
   const { addToCart } = useCart();
   const { convertPrice, getCurrencySymbol } = useCurrency();
+  const { calculatePrice: calc } = useAgentMarkup();
 
-  // Use agent price directly from plan data
-  const agentPrice = plan.agent_price || 0;
+  // Compute agent price from wholesale using markup (USD base)
+  const agentPrice = calc?.(plan.wholesale_price || 0) ?? 0;
 
   // Detect Day Pass plans
   const isDayPass = (plan: EsimPlan) => {
@@ -54,24 +55,24 @@ function PlanCard({ plan, calculatePrice }: { plan: EsimPlan; calculatePrice?: (
     return /\/\s*day\b/.test(t) || t.includes('daily') || /\/\s*day\b/.test(d) || d.includes('daily');
   };
 
-  const handleAddToCart = () => {
-    const days = isDayPass(plan) ? dayPassDays : plan.validity_days;
-    const price = isDayPass(plan) ? agentPrice * dayPassDays : agentPrice;
+const handleAddToCart = () => {
+  const days = isDayPass(plan) ? dayPassDays : plan.validity_days;
+  const priceUSD = isDayPass(plan) ? agentPrice * dayPassDays : agentPrice;
 
-    const cartItem = {
-      id: plan.id,
-      planId: plan.id,
-      title: plan.title,
-      countryName: plan.country_name,
-      countryCode: plan.country_code,
-      dataAmount: plan.data_amount,
-      validityDays: days,
-      agentPrice: price,
-      currency: plan.currency,
-      
-    };
+  const cartItem = {
+    id: plan.id,
+    planId: plan.id,
+    title: plan.title,
+    countryName: plan.country_name,
+    countryCode: plan.country_code,
+    dataAmount: plan.data_amount,
+    validityDays: days,
+    agentPrice: priceUSD,
+    currency: plan.currency,
+    
+  };
 
-    addToCart(cartItem);
+  addToCart(cartItem);
     setAddedToCart(true);
     
     toast({
@@ -82,10 +83,10 @@ function PlanCard({ plan, calculatePrice }: { plan: EsimPlan; calculatePrice?: (
     setTimeout(() => setAddedToCart(false), 2000);
   };
 
-  const flag = getCountryFlag(plan.country_code);
-  const isDayPassPlan = isDayPass(plan);
-  const displayPrice = isDayPassPlan ? agentPrice * dayPassDays : agentPrice;
-  const convertedPrice = convertPrice(displayPrice || 0);
+const flag = getCountryFlag(plan.country_code);
+const isDayPassPlan = isDayPass(plan);
+const displayPriceUSD = (isDayPassPlan ? agentPrice * dayPassDays : agentPrice) || 0;
+const convertedPrice = convertPrice(displayPriceUSD);
 
   return (
     <Card className="h-full hover:shadow-lg transition-all duration-200 border border-border/50 hover:border-border group">
@@ -415,36 +416,36 @@ export default function AlgoliaPlansSimple() {
       }
     }
     
-    // Apply price filter (calculate agent price for filtering)
-    filtered = filtered.filter(plan => {
-      const agentPrice = plan.agent_price || 0;
-      return agentPrice >= priceRange[0] && agentPrice <= priceRange[1];
-    });
+// Apply price filter (calculate agent price for filtering)
+filtered = filtered.filter(plan => {
+  const priceUSD = (calculatePrice?.(plan.wholesale_price || 0) ?? 0);
+  return priceUSD >= priceRange[0] && priceUSD <= priceRange[1];
+});
     
-    // Apply sorting
-    filtered.sort((a, b) => {
-      const aAgentPrice = a.agent_price || 0;
-      const bAgentPrice = b.agent_price || 0;
-      
-      switch (sortBy) {
-        case 'price-asc':
-          return aAgentPrice - bAgentPrice;
-        case 'price-desc':
-          return bAgentPrice - aAgentPrice;
-        case 'data-desc':
-          return extractDataValue(b.data_amount) - extractDataValue(a.data_amount);
-        case 'data-asc':
-          return extractDataValue(a.data_amount) - extractDataValue(b.data_amount);
-        case 'validity-asc':
-          return a.validity_days - b.validity_days;
-        case 'validity-desc':
-          return b.validity_days - a.validity_days;
-        case 'country':
-          return a.country_name.localeCompare(b.country_name);
-        default:
-          return 0;
-      }
-    });
+// Apply sorting
+filtered.sort((a, b) => {
+  const aPrice = (calculatePrice?.(a.wholesale_price || 0) ?? 0);
+  const bPrice = (calculatePrice?.(b.wholesale_price || 0) ?? 0);
+  
+  switch (sortBy) {
+    case 'price-asc':
+      return aPrice - bPrice;
+    case 'price-desc':
+      return bPrice - aPrice;
+    case 'data-desc':
+      return extractDataValue(b.data_amount) - extractDataValue(a.data_amount);
+    case 'data-asc':
+      return extractDataValue(a.data_amount) - extractDataValue(b.data_amount);
+    case 'validity-asc':
+      return a.validity_days - b.validity_days;
+    case 'validity-desc':
+      return b.validity_days - a.validity_days;
+    case 'country':
+      return a.country_name.localeCompare(b.country_name);
+    default:
+      return 0;
+  }
+});
     
     setPlans(filtered);
   }, [allPlans, selectedCountry, selectedRegionType, validityFilter, dataFilter, priceRange, sortBy, calculatePrice, searchQuery]);

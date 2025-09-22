@@ -16,7 +16,7 @@ interface CartSidebarProps {
 
 export default function CartSidebar({ isOpen: externalIsOpen, onOpenChange }: CartSidebarProps = {}) {
   const { state, updateQuantity, removeFromCart, clearCart } = useCart();
-  const { getCurrencySymbol, selectedCurrency } = useCurrency();
+  const { getCurrencySymbol, selectedCurrency, convertPrice } = useCurrency();
   const [internalIsOpen, setInternalIsOpen] = useState(false);
   const [showCheckout, setShowCheckout] = useState(false);
 
@@ -114,9 +114,9 @@ export default function CartSidebar({ isOpen: externalIsOpen, onOpenChange }: Ca
                             </span>
                           </div>
                           <div className="flex items-center justify-between mt-2">
-                            <span className="font-bold text-primary">
-                              {getCurrencySymbol()}{item.agentPrice.toFixed(2)} {selectedCurrency}
-                            </span>
+<span className="font-bold text-primary">
+  {getCurrencySymbol()}{convertPrice(item.agentPrice).toFixed(2)} {selectedCurrency}
+</span>
                             <div className="flex items-center gap-2">
                               <Button
                                 variant="outline"
@@ -157,9 +157,9 @@ export default function CartSidebar({ isOpen: externalIsOpen, onOpenChange }: Ca
               <div className="border-t border-glass-border pt-4 space-y-4">
                 <div className="flex justify-between items-center">
                   <span className="font-semibold">Total:</span>
-                  <span className="font-bold text-lg text-primary">
-                    {getCurrencySymbol()}{state.total.toFixed(2)} {selectedCurrency}
-                  </span>
+<span className="font-bold text-lg text-primary">
+  {getCurrencySymbol()}{convertPrice(state.total).toFixed(2)} {selectedCurrency}
+</span>
                 </div>
 
                 <div className="space-y-2">

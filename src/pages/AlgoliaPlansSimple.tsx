@@ -346,7 +346,11 @@ export default function AlgoliaPlansSimple() {
     
     // Apply filters
     if (selectedCountry) {
-      filtered = filtered.filter(plan => plan.country_name === selectedCountry);
+      if (selectedCountry === "Multi-Country & Regional") {
+        filtered = filtered.filter(plan => isMultiCountryPlan(plan));
+      } else {
+        filtered = filtered.filter(plan => plan.country_name === selectedCountry);
+      }
     }
     
     if (dataFilter) {
@@ -468,6 +472,9 @@ export default function AlgoliaPlansSimple() {
     if (country === "All Countries") {
       setSelectedCountry("");
       setSearchQuery("");
+    } else if (country === "Multi-Country & Regional") {
+      setSelectedCountry("Multi-Country & Regional");
+      setSearchQuery("");
     } else {
       setSelectedCountry(country);
       setSearchQuery(country);
@@ -485,8 +492,25 @@ export default function AlgoliaPlansSimple() {
     setSortBy("price-asc");
   };
 
+  // Function to detect multi-country/regional plans
+  const isMultiCountryPlan = (plan: EsimPlan) => {
+    const title = plan.title?.toLowerCase() || '';
+    const description = plan.description?.toLowerCase() || '';
+    const countryName = plan.country_name?.toLowerCase() || '';
+    
+    const multiCountryKeywords = [
+      'europe', 'asia', 'africa', 'americas', 'global', 'worldwide', 'international',
+      'regional', 'multi', 'multiple', 'roaming', 'travel', 'countries'
+    ];
+    
+    return multiCountryKeywords.some(keyword => 
+      title.includes(keyword) || description.includes(keyword) || countryName.includes(keyword)
+    );
+  };
+
   const popularCountries = [
     { name: "All Countries", flag: "🌍" },
+    { name: "Multi-Country & Regional", flag: "🌐", isMultiCountry: true },
     { name: "UAE", flag: "🇦🇪", alt: "Dubai" },
     { name: "Singapore", flag: "🇸🇬" },
     { name: "United Kingdom", flag: "🇬🇧", display: "UK" },
@@ -579,7 +603,8 @@ export default function AlgoliaPlansSimple() {
                       <SelectValue placeholder="All countries" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">All countries</SelectItem>
+                     <SelectItem value="all">All countries</SelectItem>
+                      <SelectItem value="Multi-Country & Regional">🌐 Multi-Country & Regional</SelectItem>
                       {uniqueCountries.map(country => (
                         <SelectItem key={country} value={country}>{country}</SelectItem>
                       ))}

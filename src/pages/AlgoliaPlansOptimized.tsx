@@ -28,8 +28,7 @@ interface EsimPlan {
   validity_days: number;
   currency: string;
   is_active: boolean;
-  wholesale_price: number;
-  agent_price?: number;
+  agent_price: number;
 }
 
 // Enhanced Search Box with analytics tracking
@@ -125,13 +124,10 @@ const EnhancedRefinementList = ({ attribute, title, icon }: { attribute: string;
 const PlanCard = ({ plan }: { plan: EsimPlan }) => {
   const { addToCart } = useCart();
   const { convertPrice, selectedCurrency, getCurrencySymbol } = useCurrency();
-  const { calculatePrice } = useAgentMarkup();
   const [isAdding, setIsAdding] = useState(false);
   const { toast } = useToast();
 
   const handleAddToCart = async () => {
-    const agentPrice = calculatePrice(plan.agent_price || 0);
-    
     setIsAdding(true);
     try {
       await addToCart({
@@ -142,7 +138,7 @@ const PlanCard = ({ plan }: { plan: EsimPlan }) => {
         countryCode: plan.country_code,
         dataAmount: plan.data_amount,
         validityDays: plan.validity_days,
-        agentPrice: agentPrice,
+        agentPrice: plan.agent_price,
         currency: plan.currency,
         
       });
@@ -163,7 +159,6 @@ const PlanCard = ({ plan }: { plan: EsimPlan }) => {
   };
 
   const isDayPass = plan.data_amount?.toLowerCase().includes('day');
-  const agentPrice = calculatePrice(plan.agent_price || 0);
   const countryFlag = getCountryFlag(plan.country_code);
 
   return (
@@ -210,7 +205,7 @@ const PlanCard = ({ plan }: { plan: EsimPlan }) => {
         <div className="mt-4 space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-lg font-bold text-primary">
-              {getCurrencySymbol()}{convertPrice(agentPrice).toFixed(2)}
+              {getCurrencySymbol()}{convertPrice(plan.agent_price).toFixed(2)}
             </span>
             {isDayPass && (
               <Badge variant="outline" className="text-xs">
@@ -241,7 +236,7 @@ const SearchResults = () => {
   const enhancedHits = useMemo(() => {
     return hits.map(hit => ({
       ...hit,
-      agent_price: calculatePrice(hit.wholesale_price || 0)
+      agent_price: hit.agent_price || 0
     }));
   }, [hits, calculatePrice]);
 

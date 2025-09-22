@@ -150,6 +150,15 @@ serve(async (req) => {
     switch (operation) {
       case 'INSERT':
       case 'UPDATE':
+        // Only sync if the record is active and not admin-only
+        if (!record.is_active || record.admin_only) {
+          console.log(`Skipping sync for inactive/admin-only record: ${recordId}`);
+          return new Response(
+            JSON.stringify({ success: true, message: 'Record skipped (inactive/admin-only)' }),
+            { status: 200, headers: corsHeaders }
+          );
+        }
+        
         const algoliaRecord = await transformSupabaseToAlgolia(record);
         
         algoliaResponse = await fetch(`${algoliaUrl}/${recordId}`, {

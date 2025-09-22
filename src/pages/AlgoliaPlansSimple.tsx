@@ -345,6 +345,19 @@ export default function AlgoliaPlansSimple() {
   const applyFiltersAndSorting = useCallback(() => {
     let filtered = [...allPlans];
     
+    // Apply text search first
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(plan => 
+        plan.title?.toLowerCase().includes(query) ||
+        plan.country_name?.toLowerCase().includes(query) ||
+        plan.description?.toLowerCase().includes(query) ||
+        // Handle UAE/Dubai synonyms
+        (query.includes('uae') && (plan.country_name?.toLowerCase().includes('dubai') || plan.country_name?.toLowerCase().includes('united arab emirates'))) ||
+        (query.includes('dubai') && (plan.country_name?.toLowerCase().includes('uae') || plan.country_name?.toLowerCase().includes('united arab emirates')))
+      );
+    }
+    
     // Apply filters
     if (selectedCountry) {
       filtered = filtered.filter(plan => plan.country_name === selectedCountry);
@@ -444,7 +457,7 @@ export default function AlgoliaPlansSimple() {
     });
     
     setPlans(filtered);
-  }, [allPlans, selectedCountry, validityFilter, dataFilter, priceRange, sortBy, agentMarkup]);
+  }, [allPlans, selectedCountry, selectedRegionType, validityFilter, dataFilter, priceRange, sortBy, agentMarkup, searchQuery]);
   
   const extractDataValue = (dataStr: string): number => {
     const match = dataStr.match(/(\d+(?:\.\d+)?)\s*(GB|MB|TB)/i);
@@ -471,14 +484,16 @@ export default function AlgoliaPlansSimple() {
     applyFiltersAndSorting();
   }, [applyFiltersAndSorting]);
 
-  // Real-time search as user types
+  // Real-time search as user types - only search if we need fresh data
   useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      searchPlans(searchQuery);
-    }, 300); // Debounce search
-    
-    return () => clearTimeout(timeoutId);
-  }, [searchQuery, searchPlans]);
+    if (searchQuery.trim() && allPlans.length === 0) {
+      const timeoutId = setTimeout(() => {
+        searchPlans(searchQuery);
+      }, 300); // Debounce search
+      
+      return () => clearTimeout(timeoutId);
+    }
+  }, [searchQuery, searchPlans, allPlans.length]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -488,8 +503,11 @@ export default function AlgoliaPlansSimple() {
   const handleCountryPillClick = (country: string) => {
     if (country === "All Countries") {
       setSelectedCountry("");
+      setSelectedRegionType("");
       setSearchQuery("");
     } else {
+      // Clear other filters when selecting a specific country
+      setSelectedRegionType("");
       setSelectedCountry(country);
       setSearchQuery(country);
     }
@@ -601,7 +619,7 @@ export default function AlgoliaPlansSimple() {
                     {popularCountries.map((country) => (
                       <Button
                         key={country.name}
-                        variant={selectedCountry === country.name || (country.name === "All Countries" && !selectedCountry) ? "default" : "outline"}
+                        variant={selectedCountry === country.name || (country.name === "All Countries" && !selectedCountry && !selectedRegionType && !searchQuery.trim()) ? "default" : "outline"}
                         size="sm"
                         onClick={() => handleCountryPillClick(country.name)}
                         className="h-8 px-3 rounded-full"
@@ -634,7 +652,12 @@ export default function AlgoliaPlansSimple() {
               <CardContent className="space-y-4">
                 <div>
                   <label className="text-sm font-medium mb-2 block">Country</label>
-                  <Select value={selectedCountry || "all"} onValueChange={(value) => setSelectedCountry(value === "all" ? "" : value)}>
+                  <Select value={selectedCountry || "all"} onValueChange={(value) => {
+                    const newCountry = value === "all" ? "" : value;
+                    setSelectedCountry(newCountry);
+                    // Clear region filter when selecting a country
+                    if (newCountry) setSelectedRegionType("");
+                  }}>
                     <SelectTrigger>
                       <SelectValue placeholder="All countries" />
                     </SelectTrigger>
@@ -649,7 +672,12 @@ export default function AlgoliaPlansSimple() {
 
                 <div>
                   <label className="text-sm font-medium mb-2 block">Region Type</label>
-                  <Select value={selectedRegionType || "all"} onValueChange={(value) => setSelectedRegionType(value === "all" ? "" : value)}>
+                  <Select value={selectedRegionType || "all"} onValueChange={(value) => {
+                    const newRegion = value === "all" ? "" : value;
+                    setSelectedRegionType(newRegion);
+                    // Clear country filter when selecting a region
+                    if (newRegion) setSelectedCountry("");
+                  }}>
                     <SelectTrigger className="bg-background">
                       <SelectValue placeholder="All regions" />
                     </SelectTrigger>

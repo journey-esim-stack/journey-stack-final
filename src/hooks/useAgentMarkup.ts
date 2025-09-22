@@ -57,7 +57,12 @@ export const useAgentMarkup = () => {
           throw error;
         }
       } else {
-        setMarkup(profile);
+        // Profile exists, use its values or defaults if null
+        const markupData = {
+          markup_type: profile.markup_type || 'percent',
+          markup_value: profile.markup_value ?? 300
+        };
+        setMarkup(markupData);
       }
     } catch (error) {
       console.error('Error fetching markup:', error);

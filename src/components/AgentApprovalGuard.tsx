@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import { useAuthState } from '@/hooks/useAuthState';
 
 interface AgentApprovalGuardProps {
   children: React.ReactNode;
@@ -9,21 +10,29 @@ interface AgentApprovalGuardProps {
 
 export default function AgentApprovalGuard({ children }: AgentApprovalGuardProps) {
   const [isApproved, setIsApproved] = useState<boolean | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isCheckingApproval, setIsCheckingApproval] = useState(false);
+  const { user, loading: authLoading, initialized } = useAuthState();
   const navigate = useNavigate();
 
   useEffect(() => {
-    checkAgentApproval();
-  }, []);
+    if (!initialized) return;
+    
+    if (!user) {
+      console.log('AgentApprovalGuard: No user found, redirecting to auth');
+      navigate('/auth');
+      return;
+    }
 
-  const checkAgentApproval = async () => {
+    checkAgentApproval(user);
+  }, [user, initialized, navigate]);
+
+  const checkAgentApproval = async (authUser: any) => {
+    setIsCheckingApproval(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      console.log('AgentApprovalGuard: Checking user:', authUser?.email);
       
-      console.log('AgentApprovalGuard: Checking user:', user?.email);
-      
-      if (!user) {
-        console.log('AgentApprovalGuard: No user found, redirecting to auth');
+      if (!authUser) {
+        console.log('AgentApprovalGuard: No user provided');
         navigate('/auth');
         return;
       }
@@ -32,7 +41,7 @@ export default function AgentApprovalGuard({ children }: AgentApprovalGuardProps
       const { data: adminRole } = await supabase
         .from('user_roles')
         .select('role')
-        .eq('user_id', user.id)
+        .eq('user_id', authUser.id)
         .eq('role', 'admin')
         .single();
 
@@ -41,7 +50,6 @@ export default function AgentApprovalGuard({ children }: AgentApprovalGuardProps
       if (adminRole) {
         console.log('AgentApprovalGuard: User is admin, granting access');
         setIsApproved(true);
-        setIsLoading(false);
         return;
       }
 
@@ -49,7 +57,7 @@ export default function AgentApprovalGuard({ children }: AgentApprovalGuardProps
       const { data: profile, error } = await supabase
         .from('agent_profiles')
         .select('status')
-        .eq('user_id', user.id)
+        .eq('user_id', authUser.id)
         .single();
 
       if (error || !profile) {
@@ -68,11 +76,12 @@ export default function AgentApprovalGuard({ children }: AgentApprovalGuardProps
       console.error('Error checking agent approval:', error);
       setIsApproved(false);
     } finally {
-      setIsLoading(false);
+      setIsCheckingApproval(false);
     }
   };
 
-  if (isLoading) {
+  // Show loading if auth is still initializing or we're checking approval
+  if (authLoading || !initialized || isCheckingApproval) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>

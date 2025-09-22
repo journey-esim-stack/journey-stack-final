@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { Navigate, Link, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { User as SupabaseUser } from "@supabase/supabase-js";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { LogOut, Package, Wallet, ShoppingCart, ShieldCheck, Smartphone, User, BarChart3, Archive, ChevronDown } from "lucide-react";
@@ -11,48 +10,17 @@ import CartSidebar from "@/components/CartSidebar";
 import CartIcon from "@/components/CartIcon";
 import CurrencySelector from "@/components/CurrencySelector";
 import { useCart } from "@/contexts/CartContext";
+import { useAuthState } from "@/hooks/useAuthState";
 
 interface LayoutProps {
   children: React.ReactNode;
 }
 
 export default function Layout({ children }: LayoutProps) {
-  const [user, setUser] = useState<SupabaseUser | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { user, loading } = useAuthState();
   const [isAdmin, setIsAdmin] = useState(false);
   const location = useLocation();
   const { toast } = useToast();
-
-  useEffect(() => {
-    let mounted = true;
-    
-    const getInitialSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (mounted) {
-        setUser(session?.user ?? null);
-        setLoading(false);
-      }
-    };
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        if (mounted) {
-          setUser(session?.user ?? null);
-          // Only show loading on sign out, not on route changes
-          if (event === 'SIGNED_OUT') {
-            setLoading(false);
-          }
-        }
-      }
-    );
-
-    getInitialSession();
-
-    return () => {
-      mounted = false;
-      subscription.unsubscribe();
-    };
-  }, []);
 
   useEffect(() => {
     if (!user) return;

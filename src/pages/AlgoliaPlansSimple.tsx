@@ -745,19 +745,6 @@ filtered.sort((a, b) => {
           {/* Results */}
           <div className="lg:col-span-3 space-y-6">
 
-            {/* Real-time Connection Status */}
-            {!isConnected && (
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="flex items-center gap-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                    <AlertCircle className="h-4 w-4 text-yellow-600" />
-                    <span className="text-yellow-800 text-sm">
-                      Real-time updates temporarily unavailable. Prices may not update automatically.
-                    </span>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
 
             {error && (
               <Card>

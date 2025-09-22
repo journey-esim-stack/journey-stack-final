@@ -614,10 +614,10 @@ export default function AlgoliaPlansSimple() {
                 <div>
                   <label className="text-sm font-medium mb-2 block">Region Type</label>
                   <Select value={selectedRegionType || "all"} onValueChange={(value) => setSelectedRegionType(value === "all" ? "" : value)}>
-                    <SelectTrigger>
+                    <SelectTrigger className="bg-background">
                       <SelectValue placeholder="All regions" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="bg-background border border-border z-50">
                       <SelectItem value="all">All regions</SelectItem>
                       <SelectItem value="multi-country">🌐 Multi-Country & Regional</SelectItem>
                     </SelectContent>

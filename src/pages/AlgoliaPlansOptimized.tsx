@@ -16,7 +16,6 @@ import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { Skeleton } from "@/components/ui/skeleton";
 import { InstantSearch, SearchBox, RefinementList, Stats, Configure, useHits, useStats, useSearchBox, useRefinementList, Pagination, usePagination, useInstantSearch } from 'react-instantsearch';
 import { AlgoliaErrorBoundary } from '@/components/AlgoliaErrorBoundary';
-import CurrencySelector from '@/components/CurrencySelector';
 
 interface EsimPlan {
   objectID: string;
@@ -125,10 +124,13 @@ const EnhancedRefinementList = ({ attribute, title, icon }: { attribute: string;
 const PlanCard = ({ plan }: { plan: EsimPlan }) => {
   const { addToCart } = useCart();
   const { convertPrice, selectedCurrency, getCurrencySymbol } = useCurrency();
+  const { calculatePrice } = useAgentMarkup();
   const [isAdding, setIsAdding] = useState(false);
   const { toast } = useToast();
 
   const handleAddToCart = async () => {
+    const agentPrice = calculatePrice(plan.agent_price || 0);
+    
     setIsAdding(true);
     try {
       await addToCart({
@@ -139,7 +141,7 @@ const PlanCard = ({ plan }: { plan: EsimPlan }) => {
         countryCode: plan.country_code,
         dataAmount: plan.data_amount,
         validityDays: plan.validity_days,
-        agentPrice: plan.agent_price,
+        agentPrice: agentPrice,
         currency: plan.currency,
         
       });
@@ -160,6 +162,7 @@ const PlanCard = ({ plan }: { plan: EsimPlan }) => {
   };
 
   const isDayPass = plan.data_amount?.toLowerCase().includes('day');
+  const agentPrice = calculatePrice(plan.agent_price || 0);
   const countryFlag = getCountryFlag(plan.country_code);
 
   return (
@@ -206,7 +209,7 @@ const PlanCard = ({ plan }: { plan: EsimPlan }) => {
         <div className="mt-4 space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-lg font-bold text-primary">
-              {getCurrencySymbol()}{convertPrice(plan.agent_price).toFixed(2)}
+              {getCurrencySymbol()}{convertPrice(agentPrice).toFixed(2)}
             </span>
             {isDayPass && (
               <Badge variant="outline" className="text-xs">
@@ -415,9 +418,6 @@ export default function AlgoliaPlansOptimized() {
           <div className="text-center space-y-2">
             <h1 className="text-3xl font-bold">Premium eSIM Plans</h1>
             <p className="text-muted-foreground">Advanced search powered by Algolia</p>
-            <div className="flex justify-center mt-4">
-              <CurrencySelector />
-            </div>
           </div>
 
           {/* Search */}

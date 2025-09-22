@@ -21,7 +21,6 @@ import Layout from "@/components/Layout";
 import { getCountryFlag } from "@/utils/countryFlags";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import RegionalPlanDropdown from "@/components/RegionalPlanDropdown";
-import CurrencySelector from "@/components/CurrencySelector";
 
 interface EsimPlan {
   objectID: string;
@@ -45,8 +44,9 @@ function PlanCard({ plan, calculatePrice }: { plan: EsimPlan; calculatePrice?: (
   const { addToCart } = useCart();
   const { convertPrice, getCurrencySymbol } = useCurrency();
 
-  // Use agent price directly from plan data
-  const agentPrice = plan.agent_price || 0;
+  // Calculate agent price using markup
+  const basePrice = plan.agent_price || 0;
+  const agentPrice = calculatePrice ? calculatePrice(basePrice) : basePrice;
 
   // Detect Day Pass plans
   const isDayPass = (plan: EsimPlan) => {
@@ -569,9 +569,6 @@ export default function AlgoliaPlansSimple() {
               <p className="text-muted-foreground mt-2">
                 Search and browse available eSIM plans
               </p>
-              <div className="mt-4">
-                <CurrencySelector />
-              </div>
             </div>
             <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
               <SearchIcon className="h-4 w-4 mr-1" />

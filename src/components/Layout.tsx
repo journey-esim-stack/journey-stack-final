@@ -96,7 +96,8 @@ export default function Layout({ children }: LayoutProps) {
 
   const navigation = [
     { name: "Dashboard", href: "/dashboard", icon: BarChart3 },
-    { name: "eSIM Plans", href: "/esim-plans", icon: Package },
+    { name: "Plans", href: "/plans", icon: Package },
+    { name: "Algolia Plans", href: "/algolia-plans", icon: Package },
     { name: "Wallet", href: "/wallet", icon: Wallet },
     { name: "eSIMs", href: "/esims", icon: Smartphone },
     { name: "Profile", href: "/profile", icon: User },

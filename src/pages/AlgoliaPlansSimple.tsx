@@ -500,7 +500,7 @@ export default function AlgoliaPlansSimple() {
     
     const multiCountryKeywords = [
       'europe', 'asia', 'africa', 'americas', 'global', 'worldwide', 'international',
-      'regional', 'multi', 'multiple', 'roaming', 'travel', 'countries'
+      'regional', 'multi', 'multiple', 'roaming', 'travel', 'countries', 'region'
     ];
     
     return multiCountryKeywords.some(keyword => 

@@ -21,6 +21,7 @@ import Layout from "@/components/Layout";
 import { getCountryFlag } from "@/utils/countryFlags";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import RegionalPlanDropdown from "@/components/RegionalPlanDropdown";
+import CurrencySelector from "@/components/CurrencySelector";
 
 interface EsimPlan {
   objectID: string;
@@ -568,6 +569,9 @@ export default function AlgoliaPlansSimple() {
               <p className="text-muted-foreground mt-2">
                 Search and browse available eSIM plans
               </p>
+              <div className="mt-4">
+                <CurrencySelector />
+              </div>
             </div>
             <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
               <SearchIcon className="h-4 w-4 mr-1" />

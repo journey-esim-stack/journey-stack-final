@@ -62,6 +62,7 @@ export const useAgentMarkup = () => {
           markup_type: profile.markup_type || 'percent',
           markup_value: profile.markup_value ?? 300
         };
+        console.log('Fetched markup from database:', markupData);
         setMarkup(markupData);
       }
     } catch (error) {
@@ -93,12 +94,13 @@ export const useAgentMarkup = () => {
             const { data: { user } } = await supabase.auth.getUser();
             if (user && payload.new.user_id === user.id) {
               const newMarkup = {
-                markup_type: payload.new.markup_type,
-                markup_value: payload.new.markup_value,
+                markup_type: payload.new.markup_type || 'percent',
+                markup_value: payload.new.markup_value ?? 300,
               };
               setMarkup(newMarkup);
               setIsConnected(true);
-              toast.success('Pricing updated automatically');
+              console.log('Markup updated in real-time:', newMarkup);
+              toast.success(`Pricing updated: ${newMarkup.markup_value}${newMarkup.markup_type === 'percent' ? '%' : ' USD'} markup`);
             }
           } catch (error) {
             console.error('Error handling markup update:', error);
@@ -106,6 +108,7 @@ export const useAgentMarkup = () => {
         }
       )
       .subscribe((status) => {
+        console.log('Real-time subscription status:', status);
         if (status === 'SUBSCRIBED') {
           setIsConnected(true);
         } else if (status === 'CHANNEL_ERROR') {

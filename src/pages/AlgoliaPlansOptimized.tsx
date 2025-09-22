@@ -28,7 +28,8 @@ interface EsimPlan {
   validity_days: number;
   currency: string;
   is_active: boolean;
-  agent_price: number;
+  wholesale_price: number;
+  agent_price?: number;
 }
 
 // Enhanced Search Box with analytics tracking
@@ -240,7 +241,7 @@ const SearchResults = () => {
   const enhancedHits = useMemo(() => {
     return hits.map(hit => ({
       ...hit,
-      agent_price: hit.agent_price || 0
+      agent_price: calculatePrice(hit.wholesale_price || 0)
     }));
   }, [hits, calculatePrice]);
 

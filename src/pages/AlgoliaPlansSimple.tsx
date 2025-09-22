@@ -34,6 +34,7 @@ interface EsimPlan {
   currency: string;
   is_active: boolean;
   admin_only: boolean;
+  wholesale_price: number;
   agent_price?: number;
 }
 
@@ -44,9 +45,9 @@ function PlanCard({ plan, calculatePrice }: { plan: EsimPlan; calculatePrice?: (
   const { addToCart } = useCart();
   const { convertPrice, getCurrencySymbol } = useCurrency();
 
-  // Calculate agent price using markup
-  const basePrice = plan.agent_price || 0;
-  const agentPrice = calculatePrice ? calculatePrice(basePrice) : basePrice;
+  // Calculate agent price using markup from wholesale price
+  const basePrice = plan.wholesale_price || 0;
+  const agentPrice = calculatePrice ? calculatePrice(basePrice) : basePrice * 4;
 
   // Detect Day Pass plans
   const isDayPass = (plan: EsimPlan) => {

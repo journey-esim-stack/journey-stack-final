@@ -59,7 +59,11 @@ const App = () => (
           <Route path="/wallet/topup-success" element={<AgentApprovalGuard><TopupSuccess /></AgentApprovalGuard>} />
           <Route path="/wallet/topup-canceled" element={<AgentApprovalGuard><TopupCanceled /></AgentApprovalGuard>} />
           <Route path="/algolia-setup" element={<AgentApprovalGuard><AlgoliaSetup /></AgentApprovalGuard>} />
-          <Route path="/algolia-plans" element={<AgentApprovalGuard><AlgoliaPlansSimple /></AgentApprovalGuard>} />
+          <Route path="/esim-plans" element={<AgentApprovalGuard><AlgoliaPlansEntry /></AgentApprovalGuard>} />
+          <Route path="/esim-plans-simple" element={<AgentApprovalGuard><AlgoliaPlansSimple /></AgentApprovalGuard>} />
+          <Route path="/esim-plans-advanced" element={<AgentApprovalGuard><AlgoliaPlans /></AgentApprovalGuard>} />
+          {/* Legacy redirects */}
+          <Route path="/algolia-plans" element={<AgentApprovalGuard><AlgoliaPlansEntry /></AgentApprovalGuard>} />
           <Route path="/algolia-plans-simple" element={<AgentApprovalGuard><AlgoliaPlansSimple /></AgentApprovalGuard>} />
           <Route path="/algolia-plans-advanced" element={<AgentApprovalGuard><AlgoliaPlans /></AgentApprovalGuard>} />
           <Route path="/algolia-dashboard" element={<AgentApprovalGuard><AlgoliaDashboard /></AgentApprovalGuard>} />

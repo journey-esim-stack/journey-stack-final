@@ -18,7 +18,6 @@ interface TopupPlan {
   title: string;
   data_amount: string;
   validity_days: number;
-  wholesale_price: number;
   retail_price: number;
   currency: string;
   country_name: string;
@@ -111,7 +110,7 @@ const TopupModal = ({ isOpen, onClose, iccid, packageCode, onTopupComplete }: To
       return;
     }
 
-    if (agentProfile.wallet_balance < Number(calculatePrice(plan.wholesale_price).toFixed(2))) {
+    if (agentProfile.wallet_balance < plan.retail_price) {
       toast.error("Insufficient wallet balance");
       return;
     }
@@ -133,13 +132,12 @@ const TopupModal = ({ isOpen, onClose, iccid, packageCode, onTopupComplete }: To
 
       console.log(`Using ${functionName} for topup of ICCID ${iccid}`);
 
-      const currentRetailPrice = Number(calculatePrice(plan.wholesale_price).toFixed(2));
       const { data, error } = await supabase.functions.invoke(functionName, {
         body: {
           iccid,
           package_code: plan.packageCode,
           agent_id: orderData?.agent_id,
-          amount: currentRetailPrice,
+          amount: plan.retail_price,
         },
       });
 
@@ -193,9 +191,7 @@ const TopupModal = ({ isOpen, onClose, iccid, packageCode, onTopupComplete }: To
         ) : (
           <div className="space-y-4">
             {topupPlans.map((plan) => {
-              // Recalculate retail price with current markup in real-time
-               const currentRetailPrice = Number(calculatePrice(plan.wholesale_price).toFixed(2));
-               const canAfford = agentProfile && agentProfile.wallet_balance >= currentRetailPrice;
+               const canAfford = agentProfile && agentProfile.wallet_balance >= plan.retail_price;
                const isProcessingThis = processing === plan.packageCode;
 
               return (
@@ -235,9 +231,9 @@ const TopupModal = ({ isOpen, onClose, iccid, packageCode, onTopupComplete }: To
                         <div className="flex items-center gap-2">
                           <DollarSign className="h-4 w-4 text-primary" />
                           <span className="text-muted-foreground">Price:</span>
-                          <span className="font-medium">
-                            ${currentRetailPrice.toFixed(2)} {plan.currency}
-                          </span>
+                           <span className="font-medium">
+                             ${plan.retail_price.toFixed(2)} {plan.currency}
+                           </span>
                         </div>
                       </div>
 
@@ -260,11 +256,11 @@ const TopupModal = ({ isOpen, onClose, iccid, packageCode, onTopupComplete }: To
                         size="sm"
                         className="min-w-[100px]"
                       >
-                        {isProcessingThis ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          `Purchase $${currentRetailPrice.toFixed(2)}`
-                        )}
+                         {isProcessingThis ? (
+                           <Loader2 className="h-4 w-4 animate-spin" />
+                         ) : (
+                           `Purchase $${plan.retail_price.toFixed(2)}`
+                         )}
                       </Button>
                     </div>
                   </div>

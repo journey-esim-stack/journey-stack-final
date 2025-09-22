@@ -31,10 +31,8 @@ interface EsimPlan {
   country_code: string;
   data_amount: string;
   validity_days: number;
-  wholesale_price: number;
   currency: string;
   is_active: boolean;
-  supplier_name: string;
   admin_only: boolean;
   agent_price?: number;
 }
@@ -46,9 +44,8 @@ function PlanCard({ plan, calculatePrice }: { plan: EsimPlan; calculatePrice?: (
   const { addToCart } = useCart();
   const { convertPrice, getCurrencySymbol } = useCurrency();
 
-  // Calculate agent price using the proper markup hook
-  const basePrice = Number(plan.wholesale_price) || 0;
-  const agentPrice = calculatePrice ? calculatePrice(basePrice) : basePrice * 4;
+  // Use agent price directly from plan data
+  const agentPrice = plan.agent_price || 0;
 
   // Detect Day Pass plans
   const isDayPass = (plan: EsimPlan) => {
@@ -71,7 +68,7 @@ function PlanCard({ plan, calculatePrice }: { plan: EsimPlan; calculatePrice?: (
       validityDays: days,
       agentPrice: price,
       currency: plan.currency,
-      supplier_name: plan.supplier_name,
+      
     };
 
     addToCart(cartItem);
@@ -105,7 +102,6 @@ function PlanCard({ plan, calculatePrice }: { plan: EsimPlan; calculatePrice?: (
                 <RegionalPlanDropdown 
                   planTitle={plan.title} 
                   countryCode={plan.country_code} 
-                  supplierName={plan.supplier_name}
                   description={plan.description}
                 />
               )}
@@ -421,18 +417,14 @@ export default function AlgoliaPlansSimple() {
     
     // Apply price filter (calculate agent price for filtering)
     filtered = filtered.filter(plan => {
-      const basePrice = Number(plan.wholesale_price) || 0;
-      const agentPrice = calculatePrice ? calculatePrice(basePrice) : basePrice * 4;
+      const agentPrice = plan.agent_price || 0;
       return agentPrice >= priceRange[0] && agentPrice <= priceRange[1];
     });
     
     // Apply sorting
     filtered.sort((a, b) => {
-      const aBasePrice = Number(a.wholesale_price) || 0;
-      const bBasePrice = Number(b.wholesale_price) || 0;
-      
-      const aAgentPrice = calculatePrice ? calculatePrice(aBasePrice) : aBasePrice * 4;
-      const bAgentPrice = calculatePrice ? calculatePrice(bBasePrice) : bBasePrice * 4;
+      const aAgentPrice = a.agent_price || 0;
+      const bAgentPrice = b.agent_price || 0;
       
       switch (sortBy) {
         case 'price-asc':

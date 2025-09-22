@@ -27,10 +27,8 @@ interface EsimPlan {
   country_code: string;
   data_amount: string;
   validity_days: number;
-  wholesale_price: number;
   currency: string;
   is_active: boolean;
-  supplier_name: string;
   admin_only: boolean;
   agent_price?: number; // Calculated agent price based on markup
 }
@@ -149,50 +147,9 @@ export default function Plans() {
       }
     }
 
-    // Filter plans based on supplier activation settings
+    // Show all active plans
     let filteredPlans = allPlans.filter(plan => {
-      // Always show eSIM Access plans
-      if (plan.supplier_name === 'esim_access') {
-        return true;
-      }
-      
-      // For Maya plans, check both country and region activation
-      if (plan.supplier_name === 'maya') {
-        // Check country-level activation
-        const countrySuppliers = countryActivation[plan.country_code];
-        if (countrySuppliers && countrySuppliers.includes('maya')) {
-          return true;
-        }
-        
-        // Check region-level activation for regional plans
-        if (plan.country_code === 'RG') {
-          // Map plan regions to our region codes
-          const planTitle = plan.title?.toLowerCase() || '';
-          const planDescription = plan.description?.toLowerCase() || '';
-          
-          const regionMappings = {
-            'europe': ['europe', 'european'],
-            'apac': ['asia', 'pacific', 'apac'],
-            'latam': ['latin', 'america', 'latam'],
-            'caribbean': ['caribbean'],
-            'mena': ['middle east', 'north africa', 'mena'],
-            'balkans': ['balkans'],
-            'caucasus': ['caucasus']
-          };
-          
-          for (const [regionCode, keywords] of Object.entries(regionMappings)) {
-            if (regionActivation[regionCode] && 
-                keywords.some(keyword => planTitle.includes(keyword) || planDescription.includes(keyword))) {
-              return true;
-            }
-          }
-        }
-        
-        return false;
-      }
-      
-      // For other suppliers, show all plans (fallback)
-      return true;
+      return plan.is_active;
     });
     
     // Calculate agent prices for each plan using the fetched markup
@@ -204,14 +161,7 @@ export default function Plans() {
     } : { type: 'percent', value: 300 };
     
     const plansWithAgentPrices = filteredPlans.map(plan => {
-      const basePrice = Number(plan.wholesale_price) || 0;
-      let agentPrice = basePrice;
-      
-      if (currentMarkup.type === 'percent') {
-        agentPrice = basePrice * (1 + currentMarkup.value / 100);
-      } else {
-        agentPrice = basePrice + currentMarkup.value;
-      }
+      const agentPrice = plan.agent_price || 0;
       
       return {
         ...plan,
@@ -437,7 +387,7 @@ export default function Plans() {
       validityDays: days,
       agentPrice: price,
       currency: selectedCurrency,
-      supplier_name: plan.supplier_name
+      
     });
 
     setAddedToCart(prev => new Set(prev).add(plan.id));
@@ -611,11 +561,10 @@ export default function Plans() {
                       <CardDescription className="text-sm font-medium flex flex-col gap-1">
                         <span>{plan.country_name}</span>
                         {plan.country_code === 'RG' && (
-                          <RegionalPlanDropdown 
-                            planTitle={plan.title} 
-                            countryCode={plan.country_code} 
-                            supplierName={plan.supplier_name}
-                          />
+                           <RegionalPlanDropdown 
+                             planTitle={plan.title} 
+                             countryCode={plan.country_code} 
+                           />
                         )}
                       </CardDescription>
                     </div>
@@ -675,7 +624,7 @@ export default function Plans() {
                     {getCurrencySymbol()}{(
                       isDayPass(plan)
                         ? convertPrice(Number(plan.agent_price ?? 0)) * (dayPassDays[plan.id] ?? Math.max(plan.validity_days || 1, 1))
-                        : convertPrice(Number(plan.agent_price ?? plan.wholesale_price ?? 0))
+                        : convertPrice(Number(plan.agent_price ?? 0))
                     ).toFixed(2)} {selectedCurrency}
                   </p>
                   {isDayPass(plan) && (

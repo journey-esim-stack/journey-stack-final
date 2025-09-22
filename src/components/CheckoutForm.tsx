@@ -129,7 +129,6 @@ export const CheckoutForm = ({ onSuccess, onCancel }: CheckoutFormProps) => {
         cart_items: state.items.map(item => ({
           ...item,
           agentPrice: item.agentPrice * usdConversionRate, // Convert back to USD
-          wholesalePrice: (item.agentPrice * usdConversionRate) * 0.8, // Convert back to USD and estimate wholesale
           supplier_name: item.supplier_name // Include supplier info to route to correct create function
         })),
         customer_info: {

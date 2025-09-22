@@ -7,34 +7,27 @@ import { getRegionalPlanCountries, isRegionalPlan, type Country } from '@/utils/
 interface RegionalPlanDropdownProps {
   planTitle: string;
   countryCode: string;
-  supplierName?: string;
   description?: string;
 }
 
 // Get regional coverage using the new mapping system
-const getRegionalCoverage = (planTitle: string, countryCode: string, supplierName: string = 'esim_access', description?: string): Country[] => {
+const getRegionalCoverage = (planTitle: string, countryCode: string, description?: string): Country[] => {
   // Return early if not a regional plan
   if (!isRegionalPlan(countryCode)) {
     return [];
   }
 
   // Use the new standardized regional mapping system
-  return getRegionalPlanCountries(planTitle, supplierName, description);
+  return getRegionalPlanCountries(planTitle, 'esim_access', description);
 };
 
-export default function RegionalPlanDropdown({ planTitle, countryCode, supplierName, description }: RegionalPlanDropdownProps) {
+export default function RegionalPlanDropdown({ planTitle, countryCode, description }: RegionalPlanDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const countries = getRegionalCoverage(planTitle, countryCode, supplierName, description);
+  const countries = getRegionalCoverage(planTitle, countryCode, description);
   
-  // Extract area count - prioritize actual country count for Maya plans
-  let areaCount: string;
-  if (supplierName === 'maya') {
-    areaCount = countries.length.toString();
-  } else {
-    // For eSIM Access, extract from title (e.g., "20 areas")
-    const areaMatch = planTitle.match(/(\d+)\s+areas?/i);
-    areaCount = areaMatch ? areaMatch[1] : countries.length.toString();
-  }
+  // Extract area count from title (e.g., "20 areas")
+  const areaMatch = planTitle.match(/(\d+)\s+areas?/i);
+  const areaCount = areaMatch ? areaMatch[1] : countries.length.toString();
   
   if (countries.length === 0) {
     return null;

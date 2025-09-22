@@ -98,9 +98,7 @@ export const useAgentMarkup = () => {
               };
               setMarkup(newMarkup);
               setIsConnected(true);
-              toast.success('Pricing updated automatically', {
-                description: `New markup: ${newMarkup.markup_value}${newMarkup.markup_type === 'percent' ? '%' : ' USD'}`
-              });
+              toast.success('Pricing updated automatically');
             }
           } catch (error) {
             console.error('Error handling markup update:', error);

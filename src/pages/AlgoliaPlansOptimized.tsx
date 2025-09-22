@@ -26,9 +26,7 @@ interface EsimPlan {
   country_code: string;
   data_amount: string;
   validity_days: number;
-  wholesale_price: number;
   currency: string;
-  supplier_name: string;
   is_active: boolean;
   agent_price: number;
 }
@@ -142,7 +140,7 @@ const PlanCard = ({ plan }: { plan: EsimPlan }) => {
         validityDays: plan.validity_days,
         agentPrice: plan.agent_price,
         currency: plan.currency,
-        supplier_name: plan.supplier_name,
+        
       });
       
       toast({
@@ -174,7 +172,7 @@ const PlanCard = ({ plan }: { plan: EsimPlan }) => {
                 {plan.country_name}
               </CardTitle>
               <CardDescription className="text-xs mt-1">
-                {plan.supplier_name}
+                {plan.data_amount}
               </CardDescription>
             </div>
           </div>
@@ -238,7 +236,7 @@ const SearchResults = () => {
   const enhancedHits = useMemo(() => {
     return hits.map(hit => ({
       ...hit,
-      agent_price: calculatePrice(hit.wholesale_price)
+      agent_price: hit.agent_price || 0
     }));
   }, [hits, calculatePrice]);
 
@@ -430,11 +428,6 @@ export default function AlgoliaPlansOptimized() {
                 attribute="country_name"
                 title="Countries"
                 icon={<MapPin className="h-4 w-4" />}
-              />
-              <EnhancedRefinementList
-                attribute="supplier_name"
-                title="Suppliers"
-                icon={<TrendingUp className="h-4 w-4" />}
               />
               <EnhancedRefinementList
                 attribute="validity_days"

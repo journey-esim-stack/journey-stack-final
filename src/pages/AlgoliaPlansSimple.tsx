@@ -351,9 +351,23 @@ export default function AlgoliaPlansSimple() {
     }
     
     if (selectedRegionType) {
-      if (selectedRegionType === "multi-country") {
-        filtered = filtered.filter(plan => isMultiCountryPlan(plan));
-      }
+      const regionMap = {
+        "europe": ["europe"],
+        "apac": ["apac"],
+        "latam": ["latam"],
+        "mena": ["mena"],
+        "balkans": ["balkans"],
+        "caribbean": ["caribbean"],
+        "caucasus": ["caucasus"],
+        "regional": ["regional"]
+      };
+      
+      const keywords = regionMap[selectedRegionType as keyof typeof regionMap] || [];
+      filtered = filtered.filter(plan => 
+        keywords.some(keyword => 
+          plan.country_name?.toLowerCase().includes(keyword)
+        )
+      );
     }
     
     if (dataFilter) {
@@ -509,6 +523,28 @@ export default function AlgoliaPlansSimple() {
     );
   };
 
+  // Get available regions from the data
+  const getAvailableRegions = () => {
+    const regions = [
+      { value: "europe", label: "🇪🇺 Europe", keywords: ["europe"] },
+      { value: "apac", label: "🌏 Asia Pacific (APAC)", keywords: ["apac"] },
+      { value: "latam", label: "🌎 Latin America", keywords: ["latam"] },
+      { value: "mena", label: "🌍 Middle East & North Africa", keywords: ["mena"] },
+      { value: "balkans", label: "🏔️ Balkans", keywords: ["balkans"] },
+      { value: "caribbean", label: "🏝️ Caribbean", keywords: ["caribbean"] },
+      { value: "caucasus", label: "⛰️ Caucasus", keywords: ["caucasus"] },
+      { value: "regional", label: "🌐 Regional", keywords: ["regional"] }
+    ];
+
+    return regions.filter(region => 
+      allPlans.some(plan => 
+        region.keywords.some(keyword => 
+          plan.country_name?.toLowerCase().includes(keyword)
+        )
+      )
+    );
+  };
+
   const popularCountries = [
     { name: "All Countries", flag: "🌍" },
     { name: "UAE", flag: "🇦🇪", alt: "Dubai" },
@@ -619,7 +655,9 @@ export default function AlgoliaPlansSimple() {
                     </SelectTrigger>
                     <SelectContent className="bg-background border border-border z-50">
                       <SelectItem value="all">All regions</SelectItem>
-                      <SelectItem value="multi-country">🌐 Multi-Country & Regional</SelectItem>
+                      {getAvailableRegions().map(region => (
+                        <SelectItem key={region.value} value={region.value}>{region.label}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>

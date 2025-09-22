@@ -16,6 +16,7 @@ import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { SearchAutocomplete } from "@/components/SearchAutocomplete";
 import { useSearchHistory } from "@/hooks/useSearchHistory";
 import { resolveCountryName, getCountryVariations } from "@/utils/countryMapping";
+import { getRegionFilterOptions, planMatchesRegionalFilter } from "@/utils/regionalMapping";
 import Layout from "@/components/Layout";
 import { getCountryFlag } from "@/utils/countryFlags";
 import { useCurrency } from "@/contexts/CurrencyContext";
@@ -183,7 +184,7 @@ export default function AlgoliaPlansSimple() {
   
   // Filter states
   const [selectedCountry, setSelectedCountry] = useState<string>("");
-  const [selectedRegionType, setSelectedRegionType] = useState<string>(""); // New filter for multi-country
+  const [selectedRegionType, setSelectedRegionType] = useState<string>(""); // Standardized regional filter
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 1000]);
   const [validityFilter, setValidityFilter] = useState<string>("");
   const [dataFilter, setDataFilter] = useState<string>("");
@@ -384,22 +385,8 @@ export default function AlgoliaPlansSimple() {
     }
     
     if (selectedRegionType) {
-      const regionMap = {
-        "europe": ["europe"],
-        "apac": ["apac"],
-        "latam": ["latam"],
-        "mena": ["mena"],
-        "balkans": ["balkans"],
-        "caribbean": ["caribbean"],
-        "caucasus": ["caucasus"],
-        "regional": ["regional"]
-      };
-      
-      const keywords = regionMap[selectedRegionType as keyof typeof regionMap] || [];
       filtered = filtered.filter(plan => 
-        keywords.some(keyword => 
-          plan.country_name?.toLowerCase().includes(keyword)
-        )
+        planMatchesRegionalFilter(plan, selectedRegionType)
       );
     }
     
@@ -573,24 +560,7 @@ export default function AlgoliaPlansSimple() {
 
   // Get available regions from the data
   const getAvailableRegions = () => {
-    const regions = [
-      { value: "europe", label: "🇪🇺 Europe", keywords: ["europe"] },
-      { value: "apac", label: "🌏 Asia Pacific (APAC)", keywords: ["apac"] },
-      { value: "latam", label: "🌎 Latin America", keywords: ["latam"] },
-      { value: "mena", label: "🌍 Middle East & North Africa", keywords: ["mena"] },
-      { value: "balkans", label: "🏔️ Balkans", keywords: ["balkans"] },
-      { value: "caribbean", label: "🏝️ Caribbean", keywords: ["caribbean"] },
-      { value: "caucasus", label: "⛰️ Caucasus", keywords: ["caucasus"] },
-      { value: "regional", label: "🌐 Regional", keywords: ["regional"] }
-    ];
-
-    return regions.filter(region => 
-      allPlans.some(plan => 
-        region.keywords.some(keyword => 
-          plan.country_name?.toLowerCase().includes(keyword)
-        )
-      )
-    );
+    return getRegionFilterOptions();
   };
 
   const popularCountries = [

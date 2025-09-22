@@ -177,6 +177,7 @@ export default function AlgoliaPlansSimple() {
   
   // Filter states
   const [selectedCountry, setSelectedCountry] = useState<string>("");
+  const [selectedRegionType, setSelectedRegionType] = useState<string>(""); // New filter for multi-country
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 1000]);
   const [validityFilter, setValidityFilter] = useState<string>("");
   const [dataFilter, setDataFilter] = useState<string>("");
@@ -346,10 +347,12 @@ export default function AlgoliaPlansSimple() {
     
     // Apply filters
     if (selectedCountry) {
-      if (selectedCountry === "Multi-Country & Regional") {
+      filtered = filtered.filter(plan => plan.country_name === selectedCountry);
+    }
+    
+    if (selectedRegionType) {
+      if (selectedRegionType === "multi-country") {
         filtered = filtered.filter(plan => isMultiCountryPlan(plan));
-      } else {
-        filtered = filtered.filter(plan => plan.country_name === selectedCountry);
       }
     }
     
@@ -472,9 +475,6 @@ export default function AlgoliaPlansSimple() {
     if (country === "All Countries") {
       setSelectedCountry("");
       setSearchQuery("");
-    } else if (country === "Multi-Country & Regional") {
-      setSelectedCountry("Multi-Country & Regional");
-      setSearchQuery("");
     } else {
       setSelectedCountry(country);
       setSearchQuery(country);
@@ -486,6 +486,7 @@ export default function AlgoliaPlansSimple() {
   
   const clearFilters = () => {
     setSelectedCountry("");
+    setSelectedRegionType("");
     setPriceRange([0, 1000]);
     setValidityFilter("");
     setDataFilter("");
@@ -510,7 +511,6 @@ export default function AlgoliaPlansSimple() {
 
   const popularCountries = [
     { name: "All Countries", flag: "🌍" },
-    { name: "Multi-Country & Regional", flag: "🌐", isMultiCountry: true },
     { name: "UAE", flag: "🇦🇪", alt: "Dubai" },
     { name: "Singapore", flag: "🇸🇬" },
     { name: "United Kingdom", flag: "🇬🇧", display: "UK" },
@@ -603,11 +603,23 @@ export default function AlgoliaPlansSimple() {
                       <SelectValue placeholder="All countries" />
                     </SelectTrigger>
                     <SelectContent>
-                     <SelectItem value="all">All countries</SelectItem>
-                      <SelectItem value="Multi-Country & Regional">🌐 Multi-Country & Regional</SelectItem>
-                      {uniqueCountries.map(country => (
+                      <SelectItem value="all">All countries</SelectItem>
+                      {uniqueCountries.filter(country => !isMultiCountryPlan({country_name: country} as EsimPlan)).map(country => (
                         <SelectItem key={country} value={country}>{country}</SelectItem>
                       ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Region Type</label>
+                  <Select value={selectedRegionType || "all"} onValueChange={(value) => setSelectedRegionType(value === "all" ? "" : value)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All regions" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All regions</SelectItem>
+                      <SelectItem value="multi-country">🌐 Multi-Country & Regional</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

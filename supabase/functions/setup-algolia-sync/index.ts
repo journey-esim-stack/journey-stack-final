@@ -141,7 +141,7 @@ serve(async (req) => {
       );
     }
 
-    // Get current eSIM plans data - include ALL active plans (single country, multi-country, regional)
+    // Get current eSIM plans data
     const { data: plans, error: plansError } = await supabaseClient
       .from('esim_plans')
       .select('*')

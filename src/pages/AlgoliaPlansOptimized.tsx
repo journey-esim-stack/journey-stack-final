@@ -16,7 +16,6 @@ import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { Skeleton } from "@/components/ui/skeleton";
 import { InstantSearch, SearchBox, RefinementList, Stats, Configure, useHits, useStats, useSearchBox, useRefinementList, Pagination, usePagination, useInstantSearch } from 'react-instantsearch';
 import { AlgoliaErrorBoundary } from '@/components/AlgoliaErrorBoundary';
-import { useAlgoliaFallback } from '@/hooks/useAlgoliaFallback';
 
 interface EsimPlan {
   objectID: string;
@@ -324,59 +323,6 @@ const LoadingSkeleton = () => (
   </div>
 );
 
-// Fallback renderer when Algolia returns no hits
-const FallbackWhenEmpty = () => {
-  const { nbHits } = useStats();
-  const { fallbackPlans, searchFallback, isLoading, error } = useAlgoliaFallback();
-
-  useEffect(() => {
-    if (nbHits === 0) {
-      // Basic fallback without filters; ensures page isn't empty while index syncs
-      searchFallback('', {});
-    }
-  }, [nbHits, searchFallback]);
-
-  if (nbHits !== 0) return null;
-  if (isLoading) return <LoadingSkeleton />;
-  if (error) {
-    return (
-      <Card className="p-6">
-        <CardTitle className="text-red-600">Fallback Error</CardTitle>
-        <CardDescription>We couldn't load plans from the database.</CardDescription>
-      </Card>
-    );
-  }
-  if (!fallbackPlans?.length) return null;
-
-  return (
-    <div className="space-y-4">
-      <div className="text-sm text-muted-foreground">Showing database results while search re-syncs</div>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-        {fallbackPlans.slice(0, 24).map((p) => (
-          <PlanCard
-            key={p.id}
-            plan={{
-              objectID: p.id,
-              id: p.id,
-              title: p.title,
-              description: p.description || '',
-              country_name: p.country_name,
-              country_code: p.country_code,
-              data_amount: p.data_amount,
-              validity_days: p.validity_days,
-              wholesale_price: p.wholesale_price as any,
-              currency: p.currency,
-              supplier_name: p.supplier_name,
-              is_active: p.is_active,
-              agent_price: p.agent_price,
-            }}
-          />
-        ))}
-      </div>
-    </div>
-  );
-};
-
 export default function AlgoliaPlansOptimized() {
   const [searchClient, setSearchClient] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -506,7 +452,6 @@ export default function AlgoliaPlansOptimized() {
 
               {/* Results */}
               <SearchResults />
-              <FallbackWhenEmpty />
 
               {/* Pagination */}
               <EnhancedPagination />

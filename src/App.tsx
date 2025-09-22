@@ -27,6 +27,8 @@ import QrView from "./pages/QrView";
 import AlgoliaSetup from "./pages/AlgoliaSetup";
 import AlgoliaPlans from "./pages/AlgoliaPlans";
 import AlgoliaPlansSimple from "./pages/AlgoliaPlansSimple";
+import AlgoliaPlansOptimized from "./pages/AlgoliaPlansOptimized";
+import AlgoliaDashboard from "./pages/AlgoliaDashboard";
 
 const App = () => (
   <TooltipProvider>
@@ -56,8 +58,10 @@ const App = () => (
           <Route path="/wallet/topup-success" element={<AgentApprovalGuard><TopupSuccess /></AgentApprovalGuard>} />
           <Route path="/wallet/topup-canceled" element={<AgentApprovalGuard><TopupCanceled /></AgentApprovalGuard>} />
           <Route path="/algolia-setup" element={<AgentApprovalGuard><AlgoliaSetup /></AgentApprovalGuard>} />
-          <Route path="/algolia-plans" element={<AgentApprovalGuard><AlgoliaPlansSimple /></AgentApprovalGuard>} />
+          <Route path="/algolia-plans" element={<AgentApprovalGuard><AlgoliaPlansOptimized /></AgentApprovalGuard>} />
+          <Route path="/algolia-plans-simple" element={<AgentApprovalGuard><AlgoliaPlansSimple /></AgentApprovalGuard>} />
           <Route path="/algolia-plans-advanced" element={<AgentApprovalGuard><AlgoliaPlans /></AgentApprovalGuard>} />
+          <Route path="/algolia-dashboard" element={<AgentApprovalGuard><AlgoliaDashboard /></AgentApprovalGuard>} />
           
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />

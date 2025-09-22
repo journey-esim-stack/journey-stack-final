@@ -65,13 +65,13 @@ const Auth = () => {
     // Simple auth state handling
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (session?.user) {
-        navigate("/dashboard");
+        navigate("/plans");
       }
     });
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
-        navigate("/dashboard");
+        navigate("/plans");
       }
     });
 

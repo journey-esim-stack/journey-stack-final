@@ -20,6 +20,7 @@ import { getRegionFilterOptions, planMatchesRegionalFilter } from "@/utils/regio
 import Layout from "@/components/Layout";
 import { getCountryFlag } from "@/utils/countryFlags";
 import { useCurrency } from "@/contexts/CurrencyContext";
+import RegionalPlanDropdown from "@/components/RegionalPlanDropdown";
 
 interface EsimPlan {
   objectID: string;
@@ -38,21 +39,16 @@ interface EsimPlan {
   agent_price?: number;
 }
 
-function PlanCard({ plan, agentMarkup }: { plan: EsimPlan; agentMarkup: { type: string; value: number } }) {
+function PlanCard({ plan, calculatePrice }: { plan: EsimPlan; calculatePrice?: (price: number) => number }) {
   const [addedToCart, setAddedToCart] = useState(false);
   const [dayPassDays, setDayPassDays] = useState(Math.max(plan.validity_days || 1, 1));
   const { toast } = useToast();
   const { addToCart } = useCart();
   const { convertPrice, getCurrencySymbol } = useCurrency();
 
-  // Calculate agent price
+  // Calculate agent price using the proper markup hook
   const basePrice = Number(plan.wholesale_price) || 0;
-  let agentPrice = basePrice;
-  if (agentMarkup.type === 'percent') {
-    agentPrice = basePrice * (1 + agentMarkup.value / 100);
-  } else {
-    agentPrice = basePrice + agentMarkup.value;
-  }
+  const agentPrice = calculatePrice ? calculatePrice(basePrice) : basePrice * 4;
 
   // Detect Day Pass plans
   const isDayPass = (plan: EsimPlan) => {
@@ -105,6 +101,13 @@ function PlanCard({ plan, agentMarkup }: { plan: EsimPlan; agentMarkup: { type: 
             <CardDescription className="flex items-center gap-2 mt-2 text-muted-foreground">
               <span className="text-lg">{flag}</span>
               <span className="font-medium">{plan.country_name}</span>
+              {plan.country_code === 'RG' && (
+                <RegionalPlanDropdown 
+                  planTitle={plan.title} 
+                  countryCode={plan.country_code} 
+                  supplierName={plan.supplier_name} 
+                />
+              )}
             </CardDescription>
           </div>
           <div className="text-right flex-shrink-0">
@@ -181,6 +184,7 @@ export default function AlgoliaPlansSimple() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [agentMarkup, setAgentMarkup] = useState({ type: 'percent', value: 300 });
+  const { markup: realAgentMarkup, calculatePrice } = useAgentMarkup();
   
   // Filter states
   const [selectedCountry, setSelectedCountry] = useState<string>("");
@@ -418,12 +422,7 @@ export default function AlgoliaPlansSimple() {
     // Apply price filter (calculate agent price for filtering)
     filtered = filtered.filter(plan => {
       const basePrice = Number(plan.wholesale_price) || 0;
-      let agentPrice = basePrice;
-      if (agentMarkup.type === 'percent') {
-        agentPrice = basePrice * (1 + agentMarkup.value / 100);
-      } else {
-        agentPrice = basePrice + agentMarkup.value;
-      }
+      const agentPrice = calculatePrice ? calculatePrice(basePrice) : basePrice * 4;
       return agentPrice >= priceRange[0] && agentPrice <= priceRange[1];
     });
     
@@ -432,16 +431,8 @@ export default function AlgoliaPlansSimple() {
       const aBasePrice = Number(a.wholesale_price) || 0;
       const bBasePrice = Number(b.wholesale_price) || 0;
       
-      let aAgentPrice = aBasePrice;
-      let bAgentPrice = bBasePrice;
-      
-      if (agentMarkup.type === 'percent') {
-        aAgentPrice = aBasePrice * (1 + agentMarkup.value / 100);
-        bAgentPrice = bBasePrice * (1 + agentMarkup.value / 100);
-      } else {
-        aAgentPrice = aBasePrice + agentMarkup.value;
-        bAgentPrice = bBasePrice + agentMarkup.value;
-      }
+      const aAgentPrice = calculatePrice ? calculatePrice(aBasePrice) : aBasePrice * 4;
+      const bAgentPrice = calculatePrice ? calculatePrice(bBasePrice) : bBasePrice * 4;
       
       switch (sortBy) {
         case 'price-asc':
@@ -464,7 +455,7 @@ export default function AlgoliaPlansSimple() {
     });
     
     setPlans(filtered);
-  }, [allPlans, selectedCountry, selectedRegionType, validityFilter, dataFilter, priceRange, sortBy, agentMarkup, searchQuery]);
+  }, [allPlans, selectedCountry, selectedRegionType, validityFilter, dataFilter, priceRange, sortBy, calculatePrice, searchQuery]);
   
   const extractDataValue = (dataStr: string): number => {
     const match = dataStr.match(/(\d+(?:\.\d+)?)\s*(GB|MB|TB)/i);
@@ -805,7 +796,7 @@ export default function AlgoliaPlansSimple() {
                 ))
               ) : plans.length > 0 ? (
                 plans.map((plan) => (
-                  <PlanCard key={plan.objectID} plan={plan} agentMarkup={agentMarkup} />
+                  <PlanCard key={plan.objectID} plan={plan} calculatePrice={calculatePrice} />
                 ))
               ) : (
                 <div className="col-span-full flex flex-col items-center justify-center py-12 text-center">

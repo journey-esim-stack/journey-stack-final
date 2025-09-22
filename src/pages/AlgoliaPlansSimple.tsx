@@ -17,8 +17,10 @@ import { SearchAutocomplete } from "@/components/SearchAutocomplete";
 import { useSearchHistory } from "@/hooks/useSearchHistory";
 import { resolveCountryName, getCountryVariations } from "@/utils/countryMapping";
 import Layout from "@/components/Layout";
+import RegionalPlanDropdown from "@/components/RegionalPlanDropdown";
 import { getCountryFlag } from "@/utils/countryFlags";
 import { useCurrency } from "@/contexts/CurrencyContext";
+import { detectRegionalPlan, getAllRegionTypes, planMatchesRegion, getRegionDisplayName, type RegionType } from "@/utils/regionalMapping";
 
 interface EsimPlan {
   objectID: string;
@@ -104,6 +106,14 @@ function PlanCard({ plan, agentMarkup }: { plan: EsimPlan; agentMarkup: { type: 
             <CardDescription className="flex items-center gap-2 mt-2 text-muted-foreground">
               <span className="text-lg">{flag}</span>
               <span className="font-medium">{plan.country_name}</span>
+              {plan.country_code === 'RG' && (
+                <RegionalPlanDropdown 
+                  planTitle={plan.title} 
+                  countryCode={plan.country_code}
+                  supplierName={plan.supplier_name}
+                  countryName={plan.country_name}
+                />
+              )}
             </CardDescription>
           </div>
           <div className="text-right flex-shrink-0">
@@ -184,6 +194,7 @@ export default function AlgoliaPlansSimple() {
   // Filter states
   const [selectedCountry, setSelectedCountry] = useState<string>("");
   const [selectedRegionType, setSelectedRegionType] = useState<string>(""); // New filter for multi-country
+  const [regionTypeFilter, setRegionTypeFilter] = useState<RegionType | "">("");
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 1000]);
   const [validityFilter, setValidityFilter] = useState<string>("");
   const [dataFilter, setDataFilter] = useState<string>("");
@@ -383,6 +394,12 @@ export default function AlgoliaPlansSimple() {
       filtered = filtered.filter(plan => plan.country_name === selectedCountry);
     }
     
+    // Apply regional type filter (new system)
+    if (regionTypeFilter) {
+      filtered = filtered.filter(plan => planMatchesRegion(plan, regionTypeFilter));
+    }
+    
+    // Apply legacy region filter (keep for compatibility)
     if (selectedRegionType) {
       const regionMap = {
         "europe": ["europe"],
@@ -509,7 +526,7 @@ export default function AlgoliaPlansSimple() {
     if (searchQuery.trim() && allPlans.length === 0) {
       const timeoutId = setTimeout(() => {
         searchPlans(searchQuery);
-      }, 300); // Debounce search
+      }, 150); // Faster debounce for better performance
       
       return () => clearTimeout(timeoutId);
     }
@@ -549,6 +566,7 @@ export default function AlgoliaPlansSimple() {
   const clearFilters = () => {
     setSelectedCountry("");
     setSelectedRegionType("");
+    setRegionTypeFilter("");
     setPriceRange([0, 1000]);
     setValidityFilter("");
     setDataFilter("");
@@ -628,19 +646,12 @@ export default function AlgoliaPlansSimple() {
           <Card>
             <CardContent className="pt-6">
               <div className="space-y-4">
-                <div className="relative">
-                  <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    type="text"
-                    placeholder="Search plans, countries... (e.g., UAE, Dubai, Singapore, UK)"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10 h-12 text-base"
-                  />
-                  {isLoading && (
-                    <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
-                  )}
-                </div>
+                 <SearchAutocomplete 
+                   value={searchQuery}
+                   onChange={setSearchQuery}
+                   onSearch={handleSearchSubmit}
+                   placeholder="Search plans, countries... (e.g., UAE, Dubai, Singapore, UK)"
+                 />
                 
                 {/* Popular Countries Pills */}
                 <div className="space-y-3">
@@ -702,9 +713,9 @@ export default function AlgoliaPlansSimple() {
 
                 <div>
                   <label className="text-sm font-medium mb-2 block">Region Type</label>
-                  <Select value={selectedRegionType || "all"} onValueChange={(value) => {
+                  <Select value={regionTypeFilter || "all"} onValueChange={(value) => {
                     const newRegion = value === "all" ? "" : value;
-                    setSelectedRegionType(newRegion);
+                    setRegionTypeFilter(newRegion as RegionType | "");
                     // Clear country filter when selecting a region
                     if (newRegion) setSelectedCountry("");
                   }}>
@@ -713,8 +724,8 @@ export default function AlgoliaPlansSimple() {
                     </SelectTrigger>
                     <SelectContent className="bg-background border border-border z-50">
                       <SelectItem value="all">All regions</SelectItem>
-                      {getAvailableRegions().map(region => (
-                        <SelectItem key={region.value} value={region.value}>{region.label}</SelectItem>
+                      {getAllRegionTypes().map(region => (
+                        <SelectItem key={region} value={region}>{getRegionDisplayName(region)}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>

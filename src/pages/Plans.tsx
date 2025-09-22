@@ -611,11 +611,12 @@ export default function Plans() {
                       <CardDescription className="text-sm font-medium flex flex-col gap-1">
                         <span>{plan.country_name}</span>
                         {plan.country_code === 'RG' && (
-                          <RegionalPlanDropdown 
-                            planTitle={plan.title} 
-                            countryCode={plan.country_code} 
-                            supplierName={plan.supplier_name}
-                          />
+                    <RegionalPlanDropdown 
+                      planTitle={plan.title} 
+                      countryCode={plan.country_code}
+                      supplierName={plan.supplier_name}
+                      countryName={plan.country_name}
+                    />
                         )}
                       </CardDescription>
                     </div>

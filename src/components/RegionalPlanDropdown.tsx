@@ -2,12 +2,14 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ChevronDown, Globe } from 'lucide-react';
+import { detectRegionalPlan, getRegionDisplayName } from '@/utils/regionalMapping';
 import { getCountryFlag } from '@/utils/countryFlags';
 
 interface RegionalPlanDropdownProps {
   planTitle: string;
   countryCode: string;
   supplierName?: string;
+  countryName: string;
 }
 
 // Define regional coverage based on plan patterns and supplier
@@ -294,15 +296,29 @@ const getRegionalCoverage = (planTitle: string, countryCode: string, supplierNam
   return [];
 };
 
-export default function RegionalPlanDropdown({ planTitle, countryCode, supplierName }: RegionalPlanDropdownProps) {
+export default function RegionalPlanDropdown({ planTitle, countryCode, supplierName, countryName }: RegionalPlanDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const countries = getRegionalCoverage(planTitle, countryCode, supplierName);
   
-  // Extract area count from title (e.g., "20 areas")
-  const areaMatch = planTitle.match(/(\d+)\s+areas?/i);
-  const areaCount = areaMatch ? areaMatch[1] : countries.length.toString();
+  // Use new regional mapping system
+  const regionalPlan = detectRegionalPlan({ 
+    title: planTitle, 
+    country_code: countryCode, 
+    supplier_name: supplierName || 'esim_access',
+    country_name: countryName 
+  });
   
-  if (countries.length === 0) {
+  // Fallback to old system for compatibility
+  const legacyCountries = getRegionalCoverage(planTitle, countryCode, supplierName);
+  
+  const countries = regionalPlan?.countries.map(name => ({
+    name,
+    code: '', // We'll need to enhance this with country codes if needed
+    flag: getCountryFlag(name) || '🌍'
+  })) || legacyCountries;
+  
+  const countryCount = regionalPlan?.countryCount || countries.length;
+  
+  if (countries.length === 0 && !regionalPlan) {
     return null;
   }
 
@@ -314,7 +330,7 @@ export default function RegionalPlanDropdown({ planTitle, countryCode, supplierN
           size="sm"
           className="h-auto p-1 px-2 text-muted-foreground hover:text-primary font-normal text-xs border border-border/50 rounded-md transition-colors"
         >
-          <span>{areaCount} countries</span>
+          <span>{countryCount} countries</span>
           <ChevronDown className="h-3 w-3 ml-1" />
         </Button>
       </PopoverTrigger>

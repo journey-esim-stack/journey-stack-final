@@ -76,7 +76,17 @@ export const useAgentMarkup = () => {
   };
 
   useEffect(() => {
+    // Initial fetch (may run before auth is ready)
     fetchMarkup();
+
+    // Refetch whenever auth state changes (fixes default 300% sticking)
+    const { data: authSub } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        fetchMarkup();
+      } else {
+        setMarkup(null);
+      }
+    });
 
     // Subscribe to real-time updates for agent markup changes
     const channel = supabase
@@ -129,6 +139,7 @@ export const useAgentMarkup = () => {
     return () => {
       clearInterval(heartbeat);
       supabase.removeChannel(channel);
+      authSub?.subscription?.unsubscribe?.();
     };
   }, []);
 

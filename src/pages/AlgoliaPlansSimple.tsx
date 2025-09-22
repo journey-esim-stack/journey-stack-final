@@ -448,7 +448,7 @@ filtered.sort((a, b) => {
 });
     
     setPlans(filtered);
-  }, [allPlans, selectedCountry, selectedRegionType, validityFilter, dataFilter, priceRange, sortBy, calculatePrice, searchQuery]);
+  }, [allPlans, selectedCountry, selectedRegionType, validityFilter, dataFilter, priceRange, sortBy, calculatePrice, searchQuery, realAgentMarkup]);
   
   const extractDataValue = (dataStr: string): number => {
     const match = dataStr.match(/(\d+(?:\.\d+)?)\s*(GB|MB|TB)/i);
@@ -783,15 +783,6 @@ filtered.sort((a, b) => {
                   </span>
                 )}
               </h2>
-              <Button
-                onClick={() => searchPlans(searchQuery)}
-                variant="outline"
-                size="sm"
-                disabled={isLoading}
-              >
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Refresh
-              </Button>
             </div>
             
             <p className="text-muted-foreground">

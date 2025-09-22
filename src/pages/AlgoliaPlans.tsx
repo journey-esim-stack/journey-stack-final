@@ -629,15 +629,6 @@ export default function AlgoliaPlans() {
               <div className="lg:col-span-3 space-y-6">
                 <div className="flex items-center justify-between">
                   <CustomStats />
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => window.location.reload()}
-                    className="flex items-center gap-2"
-                  >
-                    <RefreshCw className="h-4 w-4" />
-                    Refresh
-                  </Button>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">

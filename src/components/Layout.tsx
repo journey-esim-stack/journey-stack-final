@@ -19,8 +19,17 @@ interface LayoutProps {
 export default function Layout({ children }: LayoutProps) {
   const { user, loading } = useAuthState();
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isEmbedded, setIsEmbedded] = useState(false);
   const location = useLocation();
   const { toast } = useToast();
+
+  useEffect(() => {
+    try {
+      setIsEmbedded(window.self !== window.top);
+    } catch {
+      setIsEmbedded(false);
+    }
+  }, []);
 
   useEffect(() => {
     if (!user) return;
@@ -163,7 +172,13 @@ export default function Layout({ children }: LayoutProps) {
               
               {/* Enhanced Cart Icon */}
               <CartIcon />
-              
+              {isEmbedded && (
+                <Button asChild variant="outline" size="sm" className="hidden md:inline-flex">
+                  <a href={window.location.href} target="_blank" rel="noopener noreferrer">
+                    Open in new tab
+                  </a>
+                </Button>
+              )}
               <Button variant="ghost" size="sm" onClick={handleSignOut} className="hover:glass-subtle transition-all duration-200 rounded-xl">
                 <LogOut className="h-4 w-4 mr-2" />
                 <span className="hidden md:inline">Sign Out</span>

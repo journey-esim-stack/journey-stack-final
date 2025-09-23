@@ -182,6 +182,13 @@ export default function Dashboard() {
           const { data, error } = await supabase.functions.invoke('get-esim-details', {
             body: { iccid: o.esim_iccid }
           });
+          
+          // Handle provider API busy error gracefully
+          if (error && data?.retryable) {
+            console.log(`Provider API temporarily busy for ${o.esim_iccid}, using fallback`);
+            return { iccid: o.esim_iccid, status: 'checking', connected: false };
+          }
+          
           if (!error && (data?.success === true || String(data?.success).toLowerCase() === 'true')) {
             const status = data?.obj?.status || data?.obj?.esimStatus || 'unknown';
             // For eSIM Access: Check obj.network.connected

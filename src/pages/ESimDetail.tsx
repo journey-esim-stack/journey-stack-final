@@ -367,7 +367,12 @@ const ESimDetail = () => {
       console.log('ESimDetail - API Response:', apiData);
 
       if (apiError || !apiData?.success) {
-        console.error("Error fetching eSIM details:", apiError);
+        // Handle provider API temporarily busy error
+        if (apiData?.retryable) {
+          console.log("Provider API temporarily busy, using stored data");
+        } else {
+          console.error("Error fetching eSIM details:", apiError);
+        }
         
         // Robust fallback: use stored real_status with centralized Maya parser
         const mayaStatus = MayaStatusParser.getProcessedStatus(orderData.real_status, orderData.esim_plans?.supplier_name);

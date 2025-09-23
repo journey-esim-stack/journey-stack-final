@@ -55,6 +55,7 @@ export const useAgentMarkup = () => {
           event: 'UPDATE',
           schema: 'public',
           table: 'agent_profiles',
+          filter: `user_id=eq.${user.id}`,
         },
         async (payload) => {
           try {
@@ -68,7 +69,6 @@ export const useAgentMarkup = () => {
               setIsConnected(true);
               setConnectionAttempts(0);
               console.log('Markup updated in real-time:', newMarkup);
-              toast.success(`Pricing updated: ${newMarkup.markup_value}${newMarkup.markup_type === 'percent' ? '%' : ' USD'} markup`);
             }
           } catch (error) {
             console.error('Error handling markup update:', error);

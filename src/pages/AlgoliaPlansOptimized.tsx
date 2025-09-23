@@ -206,10 +206,13 @@ const handleAddToCart = async () => {
         </div>
 
         <div className="mt-4 space-y-3">
-<div className="flex items-center justify-between">
-  <span className="text-lg font-bold text-primary">
-    {getCurrencySymbol()}{convertPrice((useAgentMarkup().calculatePrice?.(plan.wholesale_price || 0) ?? 0)).toFixed(2)}
-  </span>
+          <div className="flex items-center justify-between">
+            <span className="text-lg font-bold text-primary">
+              {(() => {
+                const priceUSD = calculatePrice?.(plan.wholesale_price || 0) ?? 0;
+                return getCurrencySymbol() + convertPrice(priceUSD).toFixed(2);
+              })()}
+            </span>
             {isDayPass && (
               <Badge variant="outline" className="text-xs">
                 Day Pass

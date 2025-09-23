@@ -137,12 +137,24 @@ export default function Wallet() {
       });
       if (error) throw error;
       if (data?.url) {
-        window.open(data.url, '_blank');
-        
-        // Add a slight delay before refreshing to allow the window to open
-        setTimeout(() => {
-          fetchWalletData();
-        }, 1000);
+        const popup = window.open(data.url, '_blank');
+        if (!popup) {
+          // Fallback if popup blocked
+          toast({
+            title: "Payment Window Blocked",
+            description: "Please allow popups and try again, or click the link below:",
+            action: (
+              <a href={data.url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                Open Payment
+              </a>
+            ),
+          });
+        } else {
+          // Add a slight delay before refreshing to allow the window to open
+          setTimeout(() => {
+            fetchWalletData();
+          }, 1000);
+        }
       }
     } catch (e) {
       console.error("Top-up error:", e);

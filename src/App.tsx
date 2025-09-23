@@ -5,6 +5,7 @@ import { Routes, Route } from "react-router-dom";
 import { CartProvider } from "@/contexts/CartContext";
 import { CurrencyProvider } from "@/contexts/CurrencyContext";
 import AgentApprovalGuard from "@/components/AgentApprovalGuard";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Auth from "./pages/Auth";
@@ -32,12 +33,13 @@ import AlgoliaDashboard from "./pages/AlgoliaDashboard";
 import AlgoliaPlansEntry from "./pages/AlgoliaPlansEntry";
 
 const App = () => (
-  <TooltipProvider>
-    <CurrencyProvider>
-      <CartProvider>
-      <Toaster />
-      <Sonner />
-        <Routes>
+  <ErrorBoundary>
+    <TooltipProvider>
+      <CurrencyProvider>
+        <CartProvider>
+          <Toaster />
+          <Sonner />
+          <Routes>
           {/* Public routes */}
           <Route path="/auth" element={<Auth />} />
           <Route path="/auth/confirmed" element={<AuthConfirmed />} />
@@ -66,10 +68,11 @@ const App = () => (
           
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
-        </Routes>
-      </CartProvider>
-    </CurrencyProvider>
-  </TooltipProvider>
+          </Routes>
+        </CartProvider>
+      </CurrencyProvider>
+    </TooltipProvider>
+  </ErrorBoundary>
 );
 
 export default App;

@@ -45,7 +45,7 @@ export const useAgentMarkup = () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    console.log('Setting up real-time channel, attempt:', connectionAttempts + 1);
+    console.log('Setting up real-time channel');
     
     const channel = supabase
       .channel(`agent_markup_changes_${user.id}`)
@@ -83,29 +83,33 @@ export const useAgentMarkup = () => {
           console.log('✅ Real-time connection established');
         } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
           setIsConnected(false);
-          console.warn('❌ Real-time connection failed:', status);
+          console.log('⚠️ Real-time connection failed:', status);
           
-          // Implement exponential backoff for reconnection
-          if (connectionAttempts < 5) {
-            const delay = Math.min(1000 * Math.pow(2, connectionAttempts), 30000);
-            console.log(`🔄 Reconnecting in ${delay}ms...`);
-            
-            if (reconnectTimeoutRef.current) {
-              clearTimeout(reconnectTimeoutRef.current);
+          // Only attempt reconnection if we haven't exceeded max attempts
+          setConnectionAttempts(prev => {
+            if (prev < 3) { // Reduced from 5 to 3 attempts
+              const delay = Math.min(5000 * Math.pow(2, prev), 60000); // Increased base delay to 5s
+              console.log(`🔄 Will retry connection in ${delay}ms (attempt ${prev + 1}/3)`);
+              
+              if (reconnectTimeoutRef.current) {
+                clearTimeout(reconnectTimeoutRef.current);
+              }
+              
+              reconnectTimeoutRef.current = setTimeout(() => {
+                setupRealtimeChannel();
+              }, delay);
+              
+              return prev + 1;
+            } else {
+              console.log('⚠️ Max reconnection attempts reached. Real-time updates disabled until page refresh.');
+              return prev;
             }
-            
-            reconnectTimeoutRef.current = setTimeout(() => {
-              setConnectionAttempts(prev => prev + 1);
-              setupRealtimeChannel();
-            }, delay);
-          } else {
-            console.log('⚠️ Max reconnection attempts reached. Real-time updates disabled.');
-          }
+          });
         }
       });
 
     channelRef.current = channel;
-  }, [connectionAttempts]);
+  }, []); // Removed connectionAttempts from dependencies to prevent infinite loop
 
   const fetchMarkup = async () => {
     try {

@@ -12,9 +12,11 @@ export const useAgentMarkup = () => {
   const [loading, setLoading] = useState(true);
   const [isConnected, setIsConnected] = useState(true);
   const [connectionAttempts, setConnectionAttempts] = useState(0);
+  const [hasInitialized, setHasInitialized] = useState(false);
   
   const channelRef = useRef<any>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastFetchUserIdRef = useRef<string | null>(null);
 
   const calculatePrice = (wholesalePrice: number, markupData?: AgentMarkup) => {
     const currentMarkup = markupData || markup;
@@ -111,14 +113,22 @@ export const useAgentMarkup = () => {
     channelRef.current = channel;
   }, []); // Removed connectionAttempts from dependencies to prevent infinite loop
 
-  const fetchMarkup = async () => {
+  const fetchMarkup = useCallback(async () => {
     try {
-      setLoading(true);
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         setLoading(false);
         return;
       }
+
+      // Prevent duplicate fetches for same user
+      if (lastFetchUserIdRef.current === user.id && markup !== null) {
+        setLoading(false);
+        return;
+      }
+
+      setLoading(true);
+      lastFetchUserIdRef.current = user.id;
 
       const { data: profile, error } = await supabase
         .from('agent_profiles')
@@ -141,25 +151,49 @@ export const useAgentMarkup = () => {
         console.log('Fetched markup from database:', markupData);
         setMarkup(markupData);
       }
+      setHasInitialized(true);
     } catch (error) {
       console.error('Error fetching markup:', error);
-      toast.error('Failed to fetch pricing information');
+      // Only show toast on first error, not on retries
+      if (!hasInitialized) {
+        toast.error('Failed to fetch pricing information');
+      }
       setMarkup({ markup_type: 'percent', markup_value: 300 });
+      setHasInitialized(true);
     } finally {
       setLoading(false);
     }
-  };
+  }, [markup, hasInitialized]);
 
   useEffect(() => {
-    fetchMarkup();
+    let mounted = true;
 
-    const { data: authSub } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.user) {
-        fetchMarkup();
+    const initializeMarkup = async () => {
+      if (!mounted) return;
+      await fetchMarkup();
+      
+      // Only setup realtime after initial fetch
+      if (mounted && hasInitialized) {
         setupRealtimeChannel();
-      } else {
+      }
+    };
+
+    initializeMarkup();
+
+    const { data: authSub } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (!mounted) return;
+      
+      if (session?.user && event !== 'INITIAL_SESSION') {
+        // Reset state for new user
+        lastFetchUserIdRef.current = null;
+        setHasInitialized(false);
+        await fetchMarkup();
+        setupRealtimeChannel();
+      } else if (!session?.user) {
         setMarkup(null);
+        setHasInitialized(false);
         setIsConnected(true);
+        lastFetchUserIdRef.current = null;
         if (channelRef.current) {
           supabase.removeChannel(channelRef.current);
           channelRef.current = null;
@@ -168,6 +202,7 @@ export const useAgentMarkup = () => {
     });
 
     return () => {
+      mounted = false;
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
       }
@@ -176,7 +211,7 @@ export const useAgentMarkup = () => {
       }
       authSub?.subscription?.unsubscribe?.();
     };
-  }, [setupRealtimeChannel]);
+  }, []); // Remove all dependencies to prevent loops
 
   return { 
     markup, 

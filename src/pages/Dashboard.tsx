@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -58,16 +58,27 @@ export default function Dashboard() {
   const [chartData, setChartData] = useState<any[]>([]);
   const [highUsageESims, setHighUsageESims] = useState<HighDataUsageESim[]>([]);
   const [statusMap, setStatusMap] = useState<Record<string, string>>({});
+  const [statusCache, setStatusCache] = useState<Record<string, any>>({});
   const { toast } = useToast();
+  
+  const mountedRef = useRef(true);
+  const inFlightRef = useRef(false);
 
   useEffect(() => {
     // Set page title
     document.title = "Journey Stack | Unrivaled eSIM Platform - Dashboard";
     
     fetchDashboardData();
+    
+    return () => {
+      mountedRef.current = false;
+    };
   }, []);
 
   const fetchDashboardData = async () => {
+    if (inFlightRef.current || !mountedRef.current) return;
+    
+    inFlightRef.current = true;
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("No user found");
@@ -77,9 +88,20 @@ export default function Dashboard() {
         .from("agent_profiles")
         .select("id, company_name, contact_person, wallet_balance")
         .eq("user_id", user.id)
-        .single();
+        .maybeSingle();
 
       if (profileError) throw profileError;
+      
+      if (!profile) {
+        console.warn("No agent profile found for user");
+        setAgentProfile(null);
+        setOrders([]);
+        setChartData([]);
+        setActiveESims(0);
+        setHighUsageESims([]);
+        return;
+      }
+      
       setAgentProfile(profile);
 
       // Fetch orders
@@ -111,23 +133,29 @@ export default function Dashboard() {
 
       if (ordersError) throw ordersError;
       setOrders(ordersData || []);
-      // Fetch live statuses and compute active eSIMs from providers
-      await fetchApiStatuses(ordersData || []);
-
+      
       // Generate chart data for last 30 days
       generateChartData(ordersData || []);
+      
+      // Fetch live statuses and compute active eSIMs from providers (with concurrency limit)
+      await fetchApiStatuses(ordersData || []);
 
-      // Fetch real eSIM usage data
-      fetchHighUsageESims(ordersData || []);
+      // Fetch real eSIM usage data (using cached results when possible)
+      await fetchHighUsageESims(ordersData || []);
 
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to fetch dashboard data",
-        variant: "destructive",
-      });
+      if (mountedRef.current) {
+        toast({
+          title: "Error",
+          description: "Failed to fetch dashboard data",
+          variant: "destructive",
+        });
+      }
     } finally {
-      setLoading(false);
+      if (mountedRef.current) {
+        setLoading(false);
+      }
+      inFlightRef.current = false;
     }
   };
 
@@ -160,56 +188,96 @@ export default function Dashboard() {
       return;
     }
     
+    // Deduplicate ICCIDs to avoid duplicate API calls
+    const uniqueItems = items.reduce((acc, order) => {
+      if (!acc.find(item => item.esim_iccid === order.esim_iccid)) {
+        acc.push(order);
+      }
+      return acc;
+    }, [] as Order[]);
+    
     try {
-      const results = await Promise.allSettled(items.slice(0, 25).map(async (o) => {
-        const supplierName = o.esim_plans?.supplier_name?.toLowerCase();
-        const isMaya = supplierName === 'maya' || (o.real_status && o.real_status.includes('state'));
+      // Process in batches of 5 to avoid overwhelming edge functions
+      const batchSize = 5;
+      const batches = [];
+      for (let i = 0; i < uniqueItems.length; i += batchSize) {
+        batches.push(uniqueItems.slice(i, i + batchSize));
+      }
+      
+      const allResults = [];
+      for (const batch of batches.slice(0, 5)) { // Max 25 ICCIDs total
+        const batchResults = await Promise.allSettled(batch.map(async (o) => {
+          // Check cache first
+          if (statusCache[o.esim_iccid]) {
+            return statusCache[o.esim_iccid];
+          }
+          const supplierName = o.esim_plans?.supplier_name?.toLowerCase();
+          const isMaya = supplierName === 'maya' || (o.real_status && o.real_status.includes('state'));
 
-        if (isMaya) {
-          // For Maya eSIMs, use the Maya status API
-          const { data, error } = await supabase.functions.invoke('get-maya-esim-status', {
-            body: { iccid: o.esim_iccid }
-          });
-          if (!error && data?.success) {
-            const networkStatus = data.status?.network_status || data.status?.esim?.network_status;
-            const state = data.status?.state || data.status?.esim?.state;
-            // For Maya: Connected requires network_status === 'ENABLED' and state !== 'RELEASED'
-            const connected = (networkStatus === 'ENABLED' && state !== 'RELEASED');
-            return { iccid: o.esim_iccid, status: data.status?.network_status || 'unknown', connected };
+          try {
+            if (isMaya) {
+              // For Maya eSIMs, use the Maya status API
+              const { data, error } = await supabase.functions.invoke('get-maya-esim-status', {
+                body: { iccid: o.esim_iccid }
+              });
+              if (!error && data?.success) {
+                const networkStatus = data.status?.network_status || data.status?.esim?.network_status;
+                const state = data.status?.state || data.status?.esim?.state;
+                // For Maya: Connected requires network_status === 'ENABLED' and state !== 'RELEASED'
+                const connected = (networkStatus === 'ENABLED' && state !== 'RELEASED');
+                const result = { iccid: o.esim_iccid, status: data.status?.network_status || 'unknown', connected, details: data };
+                setStatusCache(prev => ({ ...prev, [o.esim_iccid]: result }));
+                return result;
+              }
+            } else {
+              // For eSIM Access eSIMs, use the general status API
+              const { data, error } = await supabase.functions.invoke('get-esim-details', {
+                body: { iccid: o.esim_iccid }
+              });
+              
+              // Handle provider API busy error gracefully
+              if (error && data?.retryable) {
+                console.log(`Provider API temporarily busy for ${o.esim_iccid}, using fallback`);
+                return { iccid: o.esim_iccid, status: 'checking', connected: false };
+              }
+              
+              if (!error && (data?.success === true || String(data?.success).toLowerCase() === 'true')) {
+                const status = data?.obj?.status || data?.obj?.esimStatus || 'unknown';
+                // For eSIM Access: Check obj.network.connected
+                const connected = Boolean(data?.obj?.network?.connected);
+                const result = { iccid: o.esim_iccid, status, connected, details: data };
+                setStatusCache(prev => ({ ...prev, [o.esim_iccid]: result }));
+                return result;
+              }
+            }
+          } catch (apiError) {
+            console.warn(`API call failed for ${o.esim_iccid}:`, apiError);
           }
-        } else {
-          // For eSIM Access eSIMs, use the general status API
-          const { data, error } = await supabase.functions.invoke('get-esim-details', {
-            body: { iccid: o.esim_iccid }
-          });
-          
-          // Handle provider API busy error gracefully
-          if (error && data?.retryable) {
-            console.log(`Provider API temporarily busy for ${o.esim_iccid}, using fallback`);
-            return { iccid: o.esim_iccid, status: 'checking', connected: false };
-          }
-          
-          if (!error && (data?.success === true || String(data?.success).toLowerCase() === 'true')) {
-            const status = data?.obj?.status || data?.obj?.esimStatus || 'unknown';
-            // For eSIM Access: Check obj.network.connected
-            const connected = Boolean(data?.obj?.network?.connected);
-            return { iccid: o.esim_iccid, status, connected };
-          }
+
+          return { iccid: o.esim_iccid, status: 'unknown', connected: false };
+        }));
+        
+        allResults.push(...batchResults);
+        
+        // Small delay between batches to avoid overwhelming the API
+        if (batches.indexOf(batch) < batches.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 200));
         }
-
-        return { iccid: o.esim_iccid, status: 'unknown', connected: false };
-      }));
+      }
 
       const map: Record<string, string> = {};
       let connectedCount = 0;
-      results.forEach((r) => {
+      allResults.forEach((r) => {
         if (r.status === 'fulfilled' && r.value) {
           map[r.value.iccid] = r.value.status;
           if (r.value.connected) connectedCount += 1;
         }
       });
-      setStatusMap(prev => ({ ...prev, ...map }));
-      setActiveESims(connectedCount);
+      
+      if (mountedRef.current) {
+        setStatusMap(prev => ({ ...prev, ...map }));
+        setActiveESims(connectedCount);
+      }
     } catch (e) {
       console.error('Failed to fetch eSIM statuses', e);
     }
@@ -220,16 +288,32 @@ export default function Dashboard() {
       o.status === "completed" && o.esim_iccid
     );
 
+    // Limit initial load to first 10 orders to speed up page load
+    const ordersToCheck = completedOrdersWithESims.slice(0, 10);
     const highUsageESims: HighDataUsageESim[] = [];
 
-    // Check each eSIM for high data usage
-    for (const order of completedOrdersWithESims) {
+    // Check each eSIM for high data usage, using cached results when available
+    for (const order of ordersToCheck) {
       try {
-        const { data: eSimDetails, error } = await supabase.functions.invoke('get-esim-details', {
-          body: { iccid: order.esim_iccid }
-        });
+        let eSimDetails;
+        
+        // Check if we already have this data in cache from status fetch
+        if (statusCache[order.esim_iccid]?.details) {
+          eSimDetails = statusCache[order.esim_iccid].details;
+        } else {
+          // Only make API call if not in cache
+          const { data, error } = await supabase.functions.invoke('get-esim-details', {
+            body: { iccid: order.esim_iccid }
+          });
+          
+          if (error || !data?.success) {
+            console.warn(`Failed to fetch usage for eSIM ${order.esim_iccid}`);
+            continue;
+          }
+          eSimDetails = data;
+        }
 
-        if (!error && eSimDetails?.success && eSimDetails.obj) {
+        if (eSimDetails?.success && eSimDetails.obj) {
           const usage = eSimDetails.obj;
           // Calculate data usage percentage
           const totalData = usage.dataAmount || usage.dataUsage?.total || 1;
@@ -253,7 +337,9 @@ export default function Dashboard() {
       }
     }
 
-    setHighUsageESims(highUsageESims);
+    if (mountedRef.current) {
+      setHighUsageESims(highUsageESims);
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -294,17 +380,31 @@ export default function Dashboard() {
     <Layout>
       <div className="space-y-8 animate-fade-in">
         {/* Welcome Section */}
-        <div className="glass-intense p-8 text-left">
-          <h1 className="text-4xl font-bold font-heading mb-2">
-            Welcome back, {agentProfile?.contact_person}! 👋
-          </h1>
-          <p className="text-xl text-muted-foreground">
-            {agentProfile?.company_name}
-          </p>
-          <div className="mt-4 text-sm text-muted-foreground">
-            Dashboard overview • Real-time data
+        {agentProfile ? (
+          <div className="glass-intense p-8 text-left">
+            <h1 className="text-4xl font-bold font-heading mb-2">
+              Welcome back, {agentProfile.contact_person}! 👋
+            </h1>
+            <p className="text-xl text-muted-foreground">
+              {agentProfile.company_name}
+            </p>
+            <div className="mt-4 text-sm text-muted-foreground">
+              Dashboard overview • Real-time data
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="glass-intense p-8 text-left">
+            <h1 className="text-4xl font-bold font-heading mb-2">
+              Complete Your Profile 📋
+            </h1>
+            <p className="text-xl text-muted-foreground">
+              Please complete your agent profile to access the dashboard
+            </p>
+            <div className="mt-4 text-sm text-muted-foreground">
+              Contact support if you need assistance
+            </div>
+          </div>
+        )}
 
         {/* Dashboard Metrics */}
         <div className="grid gap-6 md:grid-cols-3">

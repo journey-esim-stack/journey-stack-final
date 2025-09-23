@@ -163,7 +163,7 @@ export const useAgentMarkup = () => {
     } finally {
       setLoading(false);
     }
-  }, [markup, hasInitialized]);
+  }, []); // Remove dependencies to prevent infinite loop
 
   useEffect(() => {
     let mounted = true;

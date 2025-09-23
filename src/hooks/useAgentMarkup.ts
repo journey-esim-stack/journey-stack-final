@@ -215,7 +215,7 @@ export const useAgentMarkup = () => {
         }
       }, 500); // 500ms debounce
     });
-  }, [markup, hasInitialized, resetCircuitBreaker]);
+  }, [resetCircuitBreaker]);
 
   const fetchMarkup = useCallback(() => debouncedFetchMarkup(), [debouncedFetchMarkup]);
 

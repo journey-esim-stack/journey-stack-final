@@ -33,13 +33,27 @@ export default function Layout({ children }: LayoutProps) {
 
   useEffect(() => {
     if (!user) return;
-    supabase
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', user.id)
-      .then(({ data }) => {
-        setIsAdmin(!!data?.some((r: any) => r.role === 'admin'));
-      });
+    
+    const checkAdminRole = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', user.id);
+          
+        if (error) {
+          console.warn('Failed to fetch user roles:', error);
+          setIsAdmin(false);
+        } else {
+          setIsAdmin(!!data?.some((r: any) => r.role === 'admin'));
+        }
+      } catch (error) {
+        console.warn('Error checking admin status:', error);
+        setIsAdmin(false);
+      }
+    };
+    
+    checkAdminRole();
   }, [user]);
 
   const handleSignOut = async () => {

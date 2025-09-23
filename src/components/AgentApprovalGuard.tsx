@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -15,7 +15,18 @@ export default function AgentApprovalGuard({ children }: AgentApprovalGuardProps
   const navigate = useNavigate();
   const [lastCheckedUserId, setLastCheckedUserId] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
+  const checkedUserIdRef = useRef<string | null>(null);
+  const lastToastRef = useRef<number>(0);
+  const lastToastKeyRef = useRef<string | null>(null);
 
+  const safeToast = (type: 'error' | 'warning', message: string) => {
+    const now = Date.now();
+    const key = type + ':' + message;
+    if (lastToastKeyRef.current === key && now - lastToastRef.current < 5000) return;
+    lastToastKeyRef.current = key;
+    lastToastRef.current = now;
+    if (type === 'error') toast.error(message); else toast.warning(message);
+  };
   useEffect(() => {
     if (!initialized) return;
 
@@ -25,11 +36,11 @@ export default function AgentApprovalGuard({ children }: AgentApprovalGuardProps
       return;
     }
 
-    // Avoid re-checking repeatedly for same user once approved/admin is known
-    if (lastCheckedUserId === user.id && (isApproved === true || isAdmin === true)) return;
+    // Avoid re-checking repeatedly for the same user
+    if (checkedUserIdRef.current === user.id) return;
 
     checkAgentApproval(user);
-  }, [user, initialized, navigate, lastCheckedUserId, isApproved, isAdmin]);
+  }, [user, initialized, navigate]);
 
   const checkAgentApproval = async (authUser: any) => {
     setIsCheckingApproval(true);
@@ -48,7 +59,7 @@ export default function AgentApprovalGuard({ children }: AgentApprovalGuardProps
         .select('role')
         .eq('user_id', authUser.id)
         .eq('role', 'admin')
-        .single();
+        .maybeSingle();
 
       console.log('AgentApprovalGuard: Admin role check:', adminRole);
 
@@ -56,7 +67,7 @@ export default function AgentApprovalGuard({ children }: AgentApprovalGuardProps
         console.log('AgentApprovalGuard: User is admin, granting access');
         setIsAdmin(true);
         setIsApproved(true);
-        setLastCheckedUserId(authUser.id);
+        checkedUserIdRef.current = authUser.id;
         return;
       }
 
@@ -65,21 +76,21 @@ export default function AgentApprovalGuard({ children }: AgentApprovalGuardProps
         .from('agent_profiles')
         .select('status')
         .eq('user_id', authUser.id)
-        .single();
+        .maybeSingle();
 
       if (error || !profile) {
-        toast.error('Unable to verify account status');
+        safeToast('error', 'Unable to verify account status');
         setIsApproved(false);
       } else if (profile.status === 'approved') {
         setIsApproved(true);
       } else if (profile.status === 'pending') {
         setIsApproved(false);
-        toast.warning('Your account is pending approval. Please wait for admin approval.');
+        safeToast('warning', 'Your account is pending approval. Please wait for admin approval.');
       } else {
         setIsApproved(false);
-        toast.error('Your account has been suspended. Please contact support.');
+        safeToast('error', 'Your account has been suspended. Please contact support.');
       }
-      setLastCheckedUserId(authUser.id);
+      checkedUserIdRef.current = authUser.id;
     } catch (error) {
       console.error('Error checking agent approval:', error);
       setIsApproved(false);

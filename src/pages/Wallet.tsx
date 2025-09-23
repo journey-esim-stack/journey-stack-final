@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -39,6 +39,9 @@ export default function Wallet() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const itemsPerPage = 20;
+  const inFlightRef = useRef(false);
+  const mountedRef = useRef(true);
+
 
   useEffect(() => {
     // Set page title
@@ -56,7 +59,7 @@ export default function Wallet() {
   // Listen for URL changes and visibility changes to refresh data
   useEffect(() => {
     const handleVisibilityChange = () => {
-      if (!document.hidden) {
+      if (!document.hidden && !inFlightRef.current) {
         console.log("Page became visible, refreshing wallet data");
         fetchWalletData();
       }
@@ -64,6 +67,13 @@ export default function Wallet() {
     
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, []);
+
+  // Cleanup mounted ref on unmount
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false;
+    };
   }, []);
 
   const fetchWalletData = async () => {

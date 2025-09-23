@@ -17,6 +17,9 @@ export const useAgentMarkup = () => {
   const channelRef = useRef<any>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastFetchUserIdRef = useRef<string | null>(null);
+  const requestCountRef = useRef(0);
+  const circuitBreakerRef = useRef(false);
+  const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const calculatePrice = (wholesalePrice: number, markupData?: AgentMarkup) => {
     const currentMarkup = markupData || markup;
@@ -113,67 +116,120 @@ export const useAgentMarkup = () => {
     channelRef.current = channel;
   }, []); // Removed connectionAttempts from dependencies to prevent infinite loop
 
-  const fetchMarkup = useCallback(async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        setLoading(false);
-        return;
-      }
+  // Circuit breaker to prevent infinite loops
+  const resetCircuitBreaker = useCallback(() => {
+    requestCountRef.current = 0;
+    circuitBreakerRef.current = false;
+    console.log('🔧 Circuit breaker reset');
+  }, []);
 
-      // Prevent duplicate fetches for same user
-      if (lastFetchUserIdRef.current === user.id && markup !== null) {
-        setLoading(false);
-        return;
-      }
-
-      setLoading(true);
-      lastFetchUserIdRef.current = user.id;
-
-      const { data: profile, error } = await supabase
-        .from('agent_profiles')
-        .select('markup_type, markup_value')
-        .eq('user_id', user.id)
-        .single();
-
-      if (error) {
-        if (error.code === 'PGRST116') {
-          console.log('No agent profile found - using default markup');
-          setMarkup({ markup_type: 'percent', markup_value: 300 });
-        } else {
-          throw error;
-        }
-      } else {
-        const markupData = {
-          markup_type: profile.markup_type || 'percent',
-          markup_value: profile.markup_value ?? 300
-        };
-        console.log('Fetched markup from database:', markupData);
-        setMarkup(markupData);
-      }
-      setHasInitialized(true);
-    } catch (error) {
-      console.error('Error fetching markup:', error);
-      // Only show toast on first error, not on retries
-      if (!hasInitialized) {
-        toast.error('Failed to fetch pricing information');
-      }
-      setMarkup({ markup_type: 'percent', markup_value: 300 });
-      setHasInitialized(true);
-    } finally {
-      setLoading(false);
+  const debouncedFetchMarkup = useCallback(async (force = false) => {
+    // Circuit breaker check
+    if (circuitBreakerRef.current && !force) {
+      console.log('🚫 Circuit breaker active - skipping fetch');
+      return;
     }
-  }, []); // Remove dependencies to prevent infinite loop
+
+    // Rate limiting
+    requestCountRef.current++;
+    if (requestCountRef.current > 10) {
+      circuitBreakerRef.current = true;
+      console.error('🚨 Too many requests - activating circuit breaker');
+      setTimeout(resetCircuitBreaker, 10000); // Reset after 10 seconds
+      return;
+    }
+
+    // Clear existing debounce
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+    }
+
+    // Debounce the actual fetch
+    return new Promise((resolve) => {
+      debounceTimeoutRef.current = setTimeout(async () => {
+        try {
+          console.log('🔍 fetchMarkup called - request count:', requestCountRef.current);
+          
+          const { data: { user } } = await supabase.auth.getUser();
+          if (!user) {
+            setLoading(false);
+            resolve(undefined);
+            return;
+          }
+
+          // Prevent duplicate fetches for same user
+          if (lastFetchUserIdRef.current === user.id && markup !== null && !force) {
+            setLoading(false);
+            resolve(undefined);
+            return;
+          }
+
+          setLoading(true);
+          lastFetchUserIdRef.current = user.id;
+
+          const { data: profile, error } = await supabase
+            .from('agent_profiles')
+            .select('markup_type, markup_value')
+            .eq('user_id', user.id)
+            .single();
+
+          if (error) {
+            if (error.code === 'PGRST116') {
+              console.log('No agent profile found - using default markup');
+              setMarkup({ markup_type: 'percent', markup_value: 300 });
+            } else {
+              throw error;
+            }
+          } else {
+            const markupData = {
+              markup_type: profile.markup_type || 'percent',
+              markup_value: profile.markup_value ?? 300
+            };
+            console.log('Fetched markup from database:', markupData);
+            setMarkup(markupData);
+          }
+          setHasInitialized(true);
+          
+          // Reset request count on successful fetch
+          requestCountRef.current = Math.max(0, requestCountRef.current - 1);
+          
+        } catch (error) {
+          console.error('Error fetching markup:', error);
+          
+          // Handle resource exhaustion specifically
+          if (error?.message?.includes('ERR_INSUFFICIENT_RESOURCES')) {
+            circuitBreakerRef.current = true;
+            console.error('🚨 Resource exhaustion detected - activating circuit breaker');
+            setTimeout(resetCircuitBreaker, 30000); // Longer reset for resource issues
+          }
+          
+          // Only show toast on first error, not on retries
+          if (!hasInitialized) {
+            toast.error('Failed to fetch pricing information');
+          }
+          setMarkup({ markup_type: 'percent', markup_value: 300 });
+          setHasInitialized(true);
+        } finally {
+          setLoading(false);
+          resolve(undefined);
+        }
+      }, 500); // 500ms debounce
+    });
+  }, [markup, hasInitialized, resetCircuitBreaker]);
+
+  const fetchMarkup = useCallback(() => debouncedFetchMarkup(), [debouncedFetchMarkup]);
 
   useEffect(() => {
     let mounted = true;
 
     const initializeMarkup = async () => {
-      if (!mounted) return;
-      await fetchMarkup();
+      if (!mounted || circuitBreakerRef.current) return;
       
-      // Only setup realtime after initial fetch
-      if (mounted && hasInitialized) {
+      console.log('🚀 Initializing markup hook');
+      await debouncedFetchMarkup(true); // Force initial fetch
+      
+      // Setup realtime immediately after fetch, don't wait for hasInitialized
+      if (mounted) {
         setupRealtimeChannel();
       }
     };
@@ -181,19 +237,23 @@ export const useAgentMarkup = () => {
     initializeMarkup();
 
     const { data: authSub } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (!mounted) return;
+      if (!mounted || circuitBreakerRef.current) return;
+      
+      console.log('🔄 Auth state change:', event);
       
       if (session?.user && event !== 'INITIAL_SESSION') {
         // Reset state for new user
         lastFetchUserIdRef.current = null;
         setHasInitialized(false);
-        await fetchMarkup();
+        resetCircuitBreaker(); // Reset circuit breaker for new user
+        await debouncedFetchMarkup(true);
         setupRealtimeChannel();
       } else if (!session?.user) {
         setMarkup(null);
         setHasInitialized(false);
         setIsConnected(true);
         lastFetchUserIdRef.current = null;
+        resetCircuitBreaker();
         if (channelRef.current) {
           supabase.removeChannel(channelRef.current);
           channelRef.current = null;
@@ -203,15 +263,19 @@ export const useAgentMarkup = () => {
 
     return () => {
       mounted = false;
+      console.log('🧹 Cleaning up markup hook');
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
+      }
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
       }
       if (channelRef.current) {
         supabase.removeChannel(channelRef.current);
       }
       authSub?.subscription?.unsubscribe?.();
     };
-  }, []); // Remove all dependencies to prevent loops
+  }, []); // No dependencies to prevent loops
 
   return { 
     markup, 

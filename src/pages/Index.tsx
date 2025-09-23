@@ -1,4 +1,5 @@
 // Update this page (the content is just a fallback if you fail to update the page)
+import { Link } from "react-router-dom";
 
 const Index = () => {
   // Basic SEO
@@ -16,9 +17,9 @@ const Index = () => {
           Onboard as a travel agent, set your retail prices, manage wallet balance, and create eSIMs for travelers.
         </p>
         <div className="flex items-center justify-center gap-4">
-          <a href="/auth" className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90">
+          <Link to="/auth" className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90">
             Sign In / Sign Up
-          </a>
+          </Link>
         </div>
       </section>
     </main>

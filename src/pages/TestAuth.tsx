@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 
 export default function TestAuth() {
@@ -25,12 +26,12 @@ export default function TestAuth() {
         <div>
           <p>✅ Authenticated as: {user.email}</p>
           <p>User ID: {user.id}</p>
-          <a href="/plans" className="text-blue-500 underline">Go to Plans</a>
+          <Link to="/plans" className="text-blue-500 underline">Go to Plans</Link>
         </div>
       ) : (
         <div>
           <p>❌ Not authenticated</p>
-          <a href="/auth" className="text-blue-500 underline">Go to Auth</a>
+          <Link to="/auth" className="text-blue-500 underline">Go to Auth</Link>
         </div>
       )}
     </div>

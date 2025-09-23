@@ -121,30 +121,28 @@ const EnhancedRefinementList = ({ attribute, title, icon }: { attribute: string;
 };
 
 // Enhanced Plan Card with better UX
-const PlanCard = ({ plan }: { plan: EsimPlan }) => {
+const PlanCard = ({ plan, calculatePrice }: { plan: EsimPlan, calculatePrice: (price: number) => number }) => {
   const { addToCart } = useCart();
   const { convertPrice, selectedCurrency, getCurrencySymbol } = useCurrency();
   const [isAdding, setIsAdding] = useState(false);
   const { toast } = useToast();
 
-const { calculatePrice } = useAgentMarkup();
-
-const handleAddToCart = async () => {
-  setIsAdding(true);
-  try {
-    const priceUSD = calculatePrice?.(plan.wholesale_price || 0) ?? 0;
-    await addToCart({
-      id: `${plan.id}-${Date.now()}`,
-      planId: plan.id,
-      title: plan.title,
-      countryName: plan.country_name,
-      countryCode: plan.country_code,
-      dataAmount: plan.data_amount,
-      validityDays: plan.validity_days,
-      agentPrice: priceUSD,
-      currency: plan.currency,
-      
-    });
+  const handleAddToCart = async () => {
+    setIsAdding(true);
+    try {
+      const priceUSD = calculatePrice?.(plan.wholesale_price || 0) ?? 0;
+      await addToCart({
+        id: `${plan.id}-${Date.now()}`,
+        planId: plan.id,
+        title: plan.title,
+        countryName: plan.country_name,
+        countryCode: plan.country_code,
+        dataAmount: plan.data_amount,
+        validityDays: plan.validity_days,
+        agentPrice: priceUSD,
+        currency: plan.currency,
+        
+      });
       
       toast({
         title: "Added to cart",
@@ -235,34 +233,33 @@ const handleAddToCart = async () => {
 };
 
 // Enhanced Search Results with performance optimizations
-const SearchResults = () => {
+const SearchResults = ({ calculatePrice }: { calculatePrice: (price: number) => number }) => {
   const { hits } = useHits<EsimPlan>();
-  const { markup, calculatePrice } = useAgentMarkup();
 
-const enhancedHits = useMemo(() => {
-  return hits.map(hit => ({
-    ...hit,
-    wholesale_price: (hit as any).wholesale_price ?? 0
-  }));
-}, [hits]);
+  const enhancedHits = useMemo(() => {
+    return hits.map(hit => ({
+      ...hit,
+      wholesale_price: (hit as any).wholesale_price ?? 0
+    }));
+  }, [hits]);
 
-if (!enhancedHits.length) {
+  if (!enhancedHits.length) {
+    return (
+      <div className="text-center py-12">
+        <Database className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+        <h3 className="text-lg font-semibold mb-2">No plans found</h3>
+        <p className="text-muted-foreground">Try adjusting your search or filters</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="text-center py-12">
-      <Database className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-      <h3 className="text-lg font-semibold mb-2">No plans found</h3>
-      <p className="text-muted-foreground">Try adjusting your search or filters</p>
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+      {enhancedHits.map((plan) => (
+        <PlanCard key={plan.objectID} plan={plan as any} calculatePrice={calculatePrice} />
+      ))}
     </div>
   );
-}
-
-return (
-  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-    {enhancedHits.map((plan) => (
-      <PlanCard key={plan.objectID} plan={plan as any} />
-    ))}
-  </div>
-);
 };
 
 // Enhanced Pagination
@@ -332,6 +329,7 @@ export default function AlgoliaPlansOptimized() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
+  const { calculatePrice } = useAgentMarkup();
 
   // Initialize Algolia client
   useEffect(() => {
@@ -449,8 +447,8 @@ export default function AlgoliaPlansOptimized() {
                 <EnhancedStats />
               </div>
 
-              {/* Results */}
-              <SearchResults />
+{/* Results */}
+              <SearchResults calculatePrice={calculatePrice} />
 
               {/* Pagination */}
               <EnhancedPagination />

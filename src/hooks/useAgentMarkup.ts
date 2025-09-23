@@ -171,15 +171,15 @@ export const useAgentMarkup = () => {
             .from('agent_profiles')
             .select('markup_type, markup_value')
             .eq('user_id', user.id)
-            .single();
+            .maybeSingle();
 
           if (error) {
-            if (error.code === 'PGRST116') {
-              console.log('No agent profile found - using default markup');
-              setMarkup({ markup_type: 'percent', markup_value: 300 });
-            } else {
-              throw error;
-            }
+            throw error;
+          }
+
+          if (!profile) {
+            console.log('No agent profile found - using default markup');
+            setMarkup({ markup_type: 'percent', markup_value: 300 });
           } else {
             const markupData = {
               markup_type: profile.markup_type || 'percent',

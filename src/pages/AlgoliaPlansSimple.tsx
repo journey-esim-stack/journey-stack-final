@@ -43,10 +43,9 @@ function PlanCard({ plan, calculatePrice }: { plan: EsimPlan; calculatePrice?: (
   const { toast } = useToast();
   const { addToCart } = useCart();
   const { convertPrice, getCurrencySymbol } = useCurrency();
-  const { calculatePrice: calc } = useAgentMarkup();
 
   // Compute agent price from wholesale using markup (USD base)
-  const agentPrice = calc?.(plan.wholesale_price || 0) ?? 0;
+  const agentPrice = calculatePrice?.(plan.wholesale_price || 0) ?? 0;
 
   // Detect Day Pass plans
   const isDayPass = (plan: EsimPlan) => {

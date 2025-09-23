@@ -77,6 +77,9 @@ export default function Wallet() {
   }, []);
 
   const fetchWalletData = async () => {
+    if (inFlightRef.current || !mountedRef.current) return;
+    
+    inFlightRef.current = true;
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("No user found");
@@ -86,9 +89,16 @@ export default function Wallet() {
         .from("agent_profiles")
         .select("id, wallet_balance")
         .eq("user_id", user.id)
-        .single();
+        .maybeSingle();
 
       if (profileError) throw profileError;
+      if (!profileData) {
+        console.warn("No agent profile found for user");
+        setProfile(null);
+        setTransactions([]);
+        setAllTransactions([]);
+        return;
+      }
       setProfile(profileData);
 
       // Fetch all transactions for export functionality
@@ -129,6 +139,7 @@ export default function Wallet() {
       });
     } finally {
       setLoading(false);
+      inFlightRef.current = false;
     }
   };
 

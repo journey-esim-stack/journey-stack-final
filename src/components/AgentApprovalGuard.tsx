@@ -13,18 +13,23 @@ export default function AgentApprovalGuard({ children }: AgentApprovalGuardProps
   const [isCheckingApproval, setIsCheckingApproval] = useState(false);
   const { user, loading: authLoading, initialized } = useAuthState();
   const navigate = useNavigate();
+  const [lastCheckedUserId, setLastCheckedUserId] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
 
   useEffect(() => {
     if (!initialized) return;
-    
+
     if (!user) {
       console.log('AgentApprovalGuard: No user found, redirecting to auth');
       navigate('/auth');
       return;
     }
 
+    // Avoid re-checking repeatedly for same user once approved/admin is known
+    if (lastCheckedUserId === user.id && (isApproved === true || isAdmin === true)) return;
+
     checkAgentApproval(user);
-  }, [user, initialized, navigate]);
+  }, [user, initialized, navigate, lastCheckedUserId, isApproved, isAdmin]);
 
   const checkAgentApproval = async (authUser: any) => {
     setIsCheckingApproval(true);
@@ -49,7 +54,9 @@ export default function AgentApprovalGuard({ children }: AgentApprovalGuardProps
 
       if (adminRole) {
         console.log('AgentApprovalGuard: User is admin, granting access');
+        setIsAdmin(true);
         setIsApproved(true);
+        setLastCheckedUserId(authUser.id);
         return;
       }
 
@@ -72,6 +79,7 @@ export default function AgentApprovalGuard({ children }: AgentApprovalGuardProps
         setIsApproved(false);
         toast.error('Your account has been suspended. Please contact support.');
       }
+      setLastCheckedUserId(authUser.id);
     } catch (error) {
       console.error('Error checking agent approval:', error);
       setIsApproved(false);
@@ -81,7 +89,7 @@ export default function AgentApprovalGuard({ children }: AgentApprovalGuardProps
   };
 
   // Show loading if auth is still initializing or we're checking approval
-  if (authLoading || !initialized || isCheckingApproval) {
+  if (authLoading || !initialized || isCheckingApproval || (isApproved === null && isAdmin === null)) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>

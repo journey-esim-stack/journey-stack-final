@@ -21,7 +21,6 @@ import Layout from "@/components/Layout";
 import { getCountryFlag } from "@/utils/countryFlags";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import RegionalPlanDropdown from "@/components/RegionalPlanDropdown";
-
 interface EsimPlan {
   objectID: string;
   id: string;
@@ -36,13 +35,25 @@ interface EsimPlan {
   admin_only: boolean;
   wholesale_price: number;
 }
-
-function PlanCard({ plan, calculatePrice }: { plan: EsimPlan; calculatePrice?: (price: number) => number }) {
+function PlanCard({
+  plan,
+  calculatePrice
+}: {
+  plan: EsimPlan;
+  calculatePrice?: (price: number) => number;
+}) {
   const [addedToCart, setAddedToCart] = useState(false);
   const [dayPassDays, setDayPassDays] = useState(Math.max(plan.validity_days || 1, 1));
-  const { toast } = useToast();
-  const { addToCart } = useCart();
-  const { convertPrice, getCurrencySymbol } = useCurrency();
+  const {
+    toast
+  } = useToast();
+  const {
+    addToCart
+  } = useCart();
+  const {
+    convertPrice,
+    getCurrencySymbol
+  } = useCurrency();
 
   // Compute agent price from wholesale using markup (USD base)
   const agentPrice = calculatePrice?.(plan.wholesale_price || 0) ?? 0;
@@ -53,42 +64,33 @@ function PlanCard({ plan, calculatePrice }: { plan: EsimPlan; calculatePrice?: (
     const d = (plan.description || '').toLowerCase();
     return /\/\s*day\b/.test(t) || t.includes('daily') || /\/\s*day\b/.test(d) || d.includes('daily');
   };
-
-const handleAddToCart = () => {
-  const days = isDayPass(plan) ? dayPassDays : plan.validity_days;
-  const priceUSD = isDayPass(plan) ? agentPrice * dayPassDays : agentPrice;
-
-  const cartItem = {
-    id: plan.id,
-    planId: plan.id,
-    title: plan.title,
-    countryName: plan.country_name,
-    countryCode: plan.country_code,
-    dataAmount: plan.data_amount,
-    validityDays: days,
-    agentPrice: priceUSD,
-    currency: plan.currency,
-    
-  };
-
-  addToCart(cartItem);
+  const handleAddToCart = () => {
+    const days = isDayPass(plan) ? dayPassDays : plan.validity_days;
+    const priceUSD = isDayPass(plan) ? agentPrice * dayPassDays : agentPrice;
+    const cartItem = {
+      id: plan.id,
+      planId: plan.id,
+      title: plan.title,
+      countryName: plan.country_name,
+      countryCode: plan.country_code,
+      dataAmount: plan.data_amount,
+      validityDays: days,
+      agentPrice: priceUSD,
+      currency: plan.currency
+    };
+    addToCart(cartItem);
     setAddedToCart(true);
-    
     toast({
       title: "Added to cart",
-      description: `${plan.title} has been added to your cart.`,
+      description: `${plan.title} has been added to your cart.`
     });
-
     setTimeout(() => setAddedToCart(false), 2000);
   };
-
-const flag = getCountryFlag(plan.country_code);
-const isDayPassPlan = isDayPass(plan);
-const displayPriceUSD = (isDayPassPlan ? agentPrice * dayPassDays : agentPrice) || 0;
-const convertedPrice = convertPrice(displayPriceUSD);
-
-  return (
-    <Card className="h-full hover:shadow-lg transition-all duration-200 border border-border/50 hover:border-border group">
+  const flag = getCountryFlag(plan.country_code);
+  const isDayPassPlan = isDayPass(plan);
+  const displayPriceUSD = (isDayPassPlan ? agentPrice * dayPassDays : agentPrice) || 0;
+  const convertedPrice = convertPrice(displayPriceUSD);
+  return <Card className="h-full hover:shadow-lg transition-all duration-200 border border-border/50 hover:border-border group">
       <CardHeader className="pb-4">
         <div className="flex justify-between items-start gap-3">
           <div className="flex-1 min-w-0">
@@ -98,13 +100,7 @@ const convertedPrice = convertPrice(displayPriceUSD);
             <CardDescription className="flex items-center gap-2 mt-2 text-muted-foreground">
               <span className="text-lg">{flag}</span>
               <span className="font-medium">{plan.country_name}</span>
-              {plan.country_code === 'RG' && (
-                <RegionalPlanDropdown 
-                  planTitle={plan.title} 
-                  countryCode={plan.country_code} 
-                  description={plan.description}
-                />
-              )}
+              {plan.country_code === 'RG' && <RegionalPlanDropdown planTitle={plan.title} countryCode={plan.country_code} description={plan.description} />}
             </CardDescription>
           </div>
           <div className="text-right flex-shrink-0">
@@ -128,20 +124,10 @@ const convertedPrice = convertPrice(displayPriceUSD);
           <div className="space-y-1">
             <Clock className="h-5 w-5 mx-auto text-primary" />
             <div className="text-sm font-medium text-foreground">
-              {isDayPassPlan ? (
-                <div className="flex flex-col items-center gap-1">
-                  <input
-                    type="number"
-                    min="1"
-                    value={dayPassDays}
-                    onChange={(e) => setDayPassDays(Math.max(1, parseInt(e.target.value) || 1))}
-                    className="w-12 h-6 text-xs text-center border rounded"
-                  />
+              {isDayPassPlan ? <div className="flex flex-col items-center gap-1">
+                  <input type="number" min="1" value={dayPassDays} onChange={e => setDayPassDays(Math.max(1, parseInt(e.target.value) || 1))} className="w-12 h-6 text-xs text-center border rounded" />
                   <span className="text-xs">days</span>
-                </div>
-              ) : (
-                `${plan.validity_days} days`
-              )}
+                </div> : `${plan.validity_days} days`}
             </div>
             <div className="text-xs text-muted-foreground">Duration</div>
           </div>
@@ -152,36 +138,31 @@ const convertedPrice = convertPrice(displayPriceUSD);
           </div>
         </div>
 
-        <Button 
-          onClick={handleAddToCart}
-          disabled={addedToCart}
-          className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-medium py-2 rounded-lg transition-all duration-200"
-        >
-          {addedToCart ? (
-            <>
+        <Button onClick={handleAddToCart} disabled={addedToCart} className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-medium py-2 rounded-lg transition-all duration-200">
+          {addedToCart ? <>
               <Check className="h-4 w-4 mr-2" />
               Added!
-            </>
-          ) : (
-            <>
+            </> : <>
               <ShoppingCart className="h-4 w-4 mr-2" />
               Add to Cart
-            </>
-          )}
+            </>}
         </Button>
       </CardContent>
-    </Card>
-  );
+    </Card>;
 }
-
 export default function AlgoliaPlansSimple() {
   const [searchQuery, setSearchQuery] = useState("");
   const [plans, setPlans] = useState<EsimPlan[]>([]);
   const [allPlans, setAllPlans] = useState<EsimPlan[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { markup: realAgentMarkup, calculatePrice, loading: markupLoading, isConnected } = useAgentMarkup();
-  
+  const {
+    markup: realAgentMarkup,
+    calculatePrice,
+    loading: markupLoading,
+    isConnected
+  } = useAgentMarkup();
+
   // Filter states
   const [selectedCountry, setSelectedCountry] = useState<string>("");
   const [selectedRegionType, setSelectedRegionType] = useState<string>(""); // Standardized regional filter
@@ -189,11 +170,20 @@ export default function AlgoliaPlansSimple() {
   const [validityFilter, setValidityFilter] = useState<string>("");
   const [dataFilter, setDataFilter] = useState<string>("");
   const [sortBy, setSortBy] = useState<string>("price-asc");
-  
-  const { toast } = useToast();
-  const { addToCart } = useCart();
-  const { selectedCurrency, convertPrice } = useCurrency();
-  const { searchHistory, addToHistory } = useSearchHistory();
+  const {
+    toast
+  } = useToast();
+  const {
+    addToCart
+  } = useCart();
+  const {
+    selectedCurrency,
+    convertPrice
+  } = useCurrency();
+  const {
+    searchHistory,
+    addToHistory
+  } = useSearchHistory();
 
   // In preview environments, Algolia adds a query param that causes 400s.
   // Force direct Supabase search to guarantee a working page.
@@ -207,44 +197,40 @@ export default function AlgoliaPlansSimple() {
     usa: ["united states", "america", "us"],
     america: ["united states", "usa", "us"],
     singapore: ["singpore"],
-    singpore: ["singapore"],
+    singpore: ["singapore"]
   };
-
   const buildOptionalWords = (q: string) => {
     const tokens = q.toLowerCase().split(/[^a-z]+/).filter(Boolean);
     const set = new Set<string>();
-    tokens.forEach((t) => synonymsMap[t]?.forEach((s) => set.add(s)));
+    tokens.forEach(t => synonymsMap[t]?.forEach(s => set.add(s)));
     return Array.from(set);
   };
-
   const searchPlans = useCallback(async (query: string = "") => {
     setIsLoading(true);
     setError(null);
-    
     try {
       if (FORCE_FALLBACK) {
         const pageSize = 1000;
-        let from = 0; let to = pageSize - 1; let supaHits: any[] = [];
+        let from = 0;
+        let to = pageSize - 1;
+        let supaHits: any[] = [];
         while (true) {
-          const { data, error } = await supabase
-            .from('esim_plans')
-            .select('*')
-            .eq('is_active', true)
-            .eq('admin_only', false)
-            .range(from, to);
+          const {
+            data,
+            error
+          } = await supabase.from('esim_plans').select('*').eq('is_active', true).eq('admin_only', false).range(from, to);
           if (error) throw error;
           if (!data || data.length === 0) break;
           supaHits.push(...data);
           if (data.length < pageSize) break;
-          from += pageSize; to += pageSize;
+          from += pageSize;
+          to += pageSize;
         }
         setAllPlans(supaHits as unknown as EsimPlan[]);
         setPlans(supaHits as unknown as EsimPlan[]);
         return;
       }
-
       const client = await getSearchClient();
-
       const optionalWords = buildOptionalWords(query);
 
       // Build URLSearchParams string because Algolia /queries expects params as a URL-encoded string
@@ -258,16 +244,12 @@ export default function AlgoliaPlansSimple() {
       baseParams.set('removeStopWords', 'true');
       baseParams.set('queryLanguages', 'en');
       if (optionalWords.length) baseParams.set('optionalWords', optionalWords.join(','));
-
       const initial = await (client as any).search({
-        requests: [
-          {
-            indexName: 'esim_plans',
-            params: baseParams.toString(),
-          },
-        ],
+        requests: [{
+          indexName: 'esim_plans',
+          params: baseParams.toString()
+        }]
       });
-      
       const first = (initial as any)?.results?.[0] || {};
       const allHits: any[] = Array.isArray(first.hits) ? [...first.hits] : [];
       const nbPages = first.nbPages ?? 1;
@@ -276,12 +258,10 @@ export default function AlgoliaPlansSimple() {
         const pageParams = new URLSearchParams(baseParams);
         pageParams.set('page', String(page));
         const nextResp = await (client as any).search({
-          requests: [
-            {
-              indexName: 'esim_plans',
-              params: pageParams.toString(),
-            },
-          ],
+          requests: [{
+            indexName: 'esim_plans',
+            params: pageParams.toString()
+          }]
         });
         const next = (nextResp as any)?.results?.[0] || {};
         if (Array.isArray(next.hits)) allHits.push(...next.hits);
@@ -292,26 +272,26 @@ export default function AlgoliaPlansSimple() {
       if (nbHits > allHits.length) {
         try {
           const pageSize = 1000;
-          let from = 0; let to = pageSize - 1; let supaHits: any[] = [];
+          let from = 0;
+          let to = pageSize - 1;
+          let supaHits: any[] = [];
           while (true) {
-            const { data, error } = await supabase
-              .from('esim_plans')
-              .select('*')
-              .eq('is_active', true)
-              .eq('admin_only', false)
-              .range(from, to);
+            const {
+              data,
+              error
+            } = await supabase.from('esim_plans').select('*').eq('is_active', true).eq('admin_only', false).range(from, to);
             if (error) throw error;
             if (!data || data.length === 0) break;
             supaHits.push(...data);
             if (data.length < pageSize) break;
-            from += pageSize; to += pageSize;
+            from += pageSize;
+            to += pageSize;
           }
           setAllPlans(supaHits as unknown as EsimPlan[]);
           setPlans(supaHits as unknown as EsimPlan[]);
           return;
         } catch {}
       }
-
       setAllPlans(allHits as EsimPlan[]);
       setPlans(allHits as EsimPlan[]);
     } catch (err: any) {
@@ -320,30 +300,33 @@ export default function AlgoliaPlansSimple() {
       // Fallback to Supabase query if Algolia fails
       try {
         const pageSize = 1000;
-        let from = 0; let to = pageSize - 1; let supaHits: any[] = [];
+        let from = 0;
+        let to = pageSize - 1;
+        let supaHits: any[] = [];
         while (true) {
-          const { data, error } = await supabase
-            .from('esim_plans')
-            .select('*')
-            .eq('is_active', true)
-            .eq('admin_only', false)
-            .range(from, to);
+          const {
+            data,
+            error
+          } = await supabase.from('esim_plans').select('*').eq('is_active', true).eq('admin_only', false).range(from, to);
           if (error) throw error;
           if (!data || data.length === 0) break;
           supaHits.push(...data);
           if (data.length < pageSize) break;
-          from += pageSize; to += pageSize;
+          from += pageSize;
+          to += pageSize;
         }
-
         setAllPlans(supaHits as unknown as EsimPlan[]);
         setPlans(supaHits as unknown as EsimPlan[]);
-        toast({ title: 'Algolia unavailable, using fallback', description: `Loaded ${supaHits.length} plans from Supabase.` });
+        toast({
+          title: 'Algolia unavailable, using fallback',
+          description: `Loaded ${supaHits.length} plans from Supabase.`
+        });
       } catch (fallbackErr: any) {
         setError(err.message || 'Search failed');
         toast({
           title: 'Search Error',
           description: 'Failed to load plans from Algolia and fallback. Please try again.',
-          variant: 'destructive',
+          variant: 'destructive'
         });
       }
     } finally {
@@ -354,42 +337,31 @@ export default function AlgoliaPlansSimple() {
   // Apply filters and sorting
   const applyFiltersAndSorting = useCallback(() => {
     let filtered = [...allPlans];
-    
+
     // Apply text search first with enhanced country matching
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(plan => {
         // Basic text matching
-        const basicMatch = plan.title?.toLowerCase().includes(query) ||
-          plan.country_name?.toLowerCase().includes(query) ||
-          plan.description?.toLowerCase().includes(query);
-        
+        const basicMatch = plan.title?.toLowerCase().includes(query) || plan.country_name?.toLowerCase().includes(query) || plan.description?.toLowerCase().includes(query);
         if (basicMatch) return true;
-        
+
         // Enhanced country matching using variations
         if (plan.country_name) {
           const countryVariations = getCountryVariations(plan.country_name);
-          return countryVariations.some(variation => 
-            variation.toLowerCase().includes(query) ||
-            query.includes(variation.toLowerCase())
-          );
+          return countryVariations.some(variation => variation.toLowerCase().includes(query) || query.includes(variation.toLowerCase()));
         }
-        
         return false;
       });
     }
-    
+
     // Apply filters
     if (selectedCountry) {
       filtered = filtered.filter(plan => plan.country_name === selectedCountry);
     }
-    
     if (selectedRegionType) {
-      filtered = filtered.filter(plan => 
-        planMatchesRegionalFilter(plan, selectedRegionType)
-      );
+      filtered = filtered.filter(plan => planMatchesRegionalFilter(plan, selectedRegionType));
     }
-    
     if (dataFilter) {
       const dataValue = parseFloat(dataFilter);
       filtered = filtered.filter(plan => {
@@ -401,7 +373,6 @@ export default function AlgoliaPlansSimple() {
         return planDataValue > 10000; // >10GB
       });
     }
-    
     if (validityFilter) {
       const days = parseInt(validityFilter);
       if (days === 1) {
@@ -414,61 +385,58 @@ export default function AlgoliaPlansSimple() {
         filtered = filtered.filter(plan => plan.validity_days > 30);
       }
     }
-    
-// Apply price filter (calculate agent price for filtering)
-filtered = filtered.filter(plan => {
-  const priceUSD = (calculatePrice?.(plan.wholesale_price || 0) ?? 0);
-  return priceUSD >= priceRange[0] && priceUSD <= priceRange[1];
-});
-    
-// Apply sorting
-filtered.sort((a, b) => {
-  const aPrice = (calculatePrice?.(a.wholesale_price || 0) ?? 0);
-  const bPrice = (calculatePrice?.(b.wholesale_price || 0) ?? 0);
-  
-  switch (sortBy) {
-    case 'price-asc':
-      return aPrice - bPrice;
-    case 'price-desc':
-      return bPrice - aPrice;
-    case 'data-desc':
-      return extractDataValue(b.data_amount) - extractDataValue(a.data_amount);
-    case 'data-asc':
-      return extractDataValue(a.data_amount) - extractDataValue(b.data_amount);
-    case 'validity-asc':
-      return a.validity_days - b.validity_days;
-    case 'validity-desc':
-      return b.validity_days - a.validity_days;
-    case 'country':
-      return a.country_name.localeCompare(b.country_name);
-    default:
-      return 0;
-  }
-});
-    
+
+    // Apply price filter (calculate agent price for filtering)
+    filtered = filtered.filter(plan => {
+      const priceUSD = calculatePrice?.(plan.wholesale_price || 0) ?? 0;
+      return priceUSD >= priceRange[0] && priceUSD <= priceRange[1];
+    });
+
+    // Apply sorting
+    filtered.sort((a, b) => {
+      const aPrice = calculatePrice?.(a.wholesale_price || 0) ?? 0;
+      const bPrice = calculatePrice?.(b.wholesale_price || 0) ?? 0;
+      switch (sortBy) {
+        case 'price-asc':
+          return aPrice - bPrice;
+        case 'price-desc':
+          return bPrice - aPrice;
+        case 'data-desc':
+          return extractDataValue(b.data_amount) - extractDataValue(a.data_amount);
+        case 'data-asc':
+          return extractDataValue(a.data_amount) - extractDataValue(b.data_amount);
+        case 'validity-asc':
+          return a.validity_days - b.validity_days;
+        case 'validity-desc':
+          return b.validity_days - a.validity_days;
+        case 'country':
+          return a.country_name.localeCompare(b.country_name);
+        default:
+          return 0;
+      }
+    });
     setPlans(filtered);
   }, [allPlans, selectedCountry, selectedRegionType, validityFilter, dataFilter, priceRange, sortBy, calculatePrice, searchQuery, realAgentMarkup]);
-  
   const extractDataValue = (dataStr: string): number => {
     const match = dataStr.match(/(\d+(?:\.\d+)?)\s*(GB|MB|TB)/i);
     if (!match) return 0;
-    
     const [, value, unit] = match;
     const numValue = parseFloat(value);
-    
     switch (unit.toUpperCase()) {
-      case 'TB': return numValue * 1000000;
-      case 'GB': return numValue * 1000;
-      case 'MB': return numValue;
-      default: return numValue;
+      case 'TB':
+        return numValue * 1000000;
+      case 'GB':
+        return numValue * 1000;
+      case 'MB':
+        return numValue;
+      default:
+        return numValue;
     }
   };
-
   useEffect(() => {
     // Load initial plans
     searchPlans();
   }, [searchPlans]);
-  
   useEffect(() => {
     // Apply filters when they change
     applyFiltersAndSorting();
@@ -480,16 +448,14 @@ filtered.sort((a, b) => {
       const timeoutId = setTimeout(() => {
         searchPlans(searchQuery);
       }, 300); // Debounce search
-      
+
       return () => clearTimeout(timeoutId);
     }
   }, [searchQuery, searchPlans, allPlans.length]);
-
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     searchPlans(searchQuery);
   };
-
   const handleCountryPillClick = (country: string) => {
     if (country === "All Countries") {
       setSelectedCountry("");
@@ -504,7 +470,6 @@ filtered.sort((a, b) => {
       addToHistory(country); // Add to search history
     }
   };
-
   const handleSearchSubmit = (query: string) => {
     if (query.trim()) {
       addToHistory(query);
@@ -512,10 +477,9 @@ filtered.sort((a, b) => {
       searchPlans(query);
     }
   };
-  
+
   // Get unique values for filters
   const uniqueCountries = [...new Set(allPlans.map(plan => plan.country_name))].sort();
-  
   const clearFilters = () => {
     setSelectedCountry("");
     setSelectedRegionType("");
@@ -530,44 +494,52 @@ filtered.sort((a, b) => {
     const title = plan.title?.toLowerCase() || '';
     const description = plan.description?.toLowerCase() || '';
     const countryName = plan.country_name?.toLowerCase() || '';
-    
-    const multiCountryKeywords = [
-      'europe', 'asia', 'africa', 'americas', 'global', 'worldwide', 'international',
-      'regional', 'multi', 'multiple', 'roaming', 'travel', 'countries', 'region'
-    ];
-    
-    return multiCountryKeywords.some(keyword => 
-      title.includes(keyword) || description.includes(keyword) || countryName.includes(keyword)
-    );
+    const multiCountryKeywords = ['europe', 'asia', 'africa', 'americas', 'global', 'worldwide', 'international', 'regional', 'multi', 'multiple', 'roaming', 'travel', 'countries', 'region'];
+    return multiCountryKeywords.some(keyword => title.includes(keyword) || description.includes(keyword) || countryName.includes(keyword));
   };
 
   // Get available regions from the data
   const getAvailableRegions = () => {
     return getRegionFilterOptions();
   };
-
-  const popularCountries = [
-    { name: "All Countries", flag: "🌍" },
-    { name: "UAE", flag: "🇦🇪", alt: "Dubai" },
-    { name: "Singapore", flag: "🇸🇬" },
-    { name: "United Kingdom", flag: "🇬🇧", display: "UK" },
-    { name: "United States", flag: "🇺🇸", display: "USA" },
-    { name: "Italy", flag: "🇮🇹" },
-    { name: "Thailand", flag: "🇹🇭" },
-    { name: "Indonesia", flag: "🇮🇩" },
-    { name: "Spain", flag: "🇪🇸" },
-  ];
-
-  return (
-    <Layout>
+  const popularCountries = [{
+    name: "All Countries",
+    flag: "🌍"
+  }, {
+    name: "UAE",
+    flag: "🇦🇪",
+    alt: "Dubai"
+  }, {
+    name: "Singapore",
+    flag: "🇸🇬"
+  }, {
+    name: "United Kingdom",
+    flag: "🇬🇧",
+    display: "UK"
+  }, {
+    name: "United States",
+    flag: "🇺🇸",
+    display: "USA"
+  }, {
+    name: "Italy",
+    flag: "🇮🇹"
+  }, {
+    name: "Thailand",
+    flag: "🇹🇭"
+  }, {
+    name: "Indonesia",
+    flag: "🇮🇩"
+  }, {
+    name: "Spain",
+    flag: "🇪🇸"
+  }];
+  return <Layout>
       <div className="space-y-8">
         <div className="flex flex-col gap-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-foreground">eSIM Plans Search</h1>
-              <p className="text-muted-foreground mt-2">
-                Search and browse available eSIM plans
-              </p>
+              <h1 className="text-3xl font-bold text-foreground">One Platform. Every eSIM Plan You Need.</h1>
+              <p className="text-muted-foreground mt-2">Search and browse available eSIM plans. Instant, affordable, and hassle-free eSIM plans</p>
             </div>
             <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
               <SearchIcon className="h-4 w-4 mr-1" />
@@ -583,35 +555,19 @@ filtered.sort((a, b) => {
               <div className="space-y-4">
                 <div className="relative">
                   <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    type="text"
-                    placeholder="Search plans, countries... (e.g., UAE, Dubai, Singapore, UK)"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10 h-12 text-base"
-                  />
-                  {isLoading && (
-                    <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
-                  )}
+                  <Input type="text" placeholder="Search plans, countries... (e.g., UAE, Dubai, Singapore, UK)" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="pl-10 h-12 text-base" />
+                  {isLoading && <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />}
                 </div>
                 
                 {/* Popular Countries Pills */}
                 <div className="space-y-3">
                   <h3 className="text-sm font-medium text-muted-foreground">Popular Countries</h3>
                   <div className="flex flex-wrap gap-2">
-                    {popularCountries.map((country) => (
-                      <Button
-                        key={country.name}
-                        variant={selectedCountry === country.name || (country.name === "All Countries" && !selectedCountry && !selectedRegionType && !searchQuery.trim()) ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => handleCountryPillClick(country.name)}
-                        className="h-8 px-3 rounded-full"
-                      >
+                    {popularCountries.map(country => <Button key={country.name} variant={selectedCountry === country.name || country.name === "All Countries" && !selectedCountry && !selectedRegionType && !searchQuery.trim() ? "default" : "outline"} size="sm" onClick={() => handleCountryPillClick(country.name)} className="h-8 px-3 rounded-full">
                         <span className="mr-1.5">{country.flag}</span>
                         {country.display || country.name}
                         {country.alt && ` (${country.alt})`}
-                      </Button>
-                    ))}
+                      </Button>)}
                   </div>
                 </div>
               </div>
@@ -635,47 +591,45 @@ filtered.sort((a, b) => {
               <CardContent className="space-y-4">
                 <div>
                   <label className="text-sm font-medium mb-2 block">Country</label>
-                  <Select value={selectedCountry || "all"} onValueChange={(value) => {
-                    const newCountry = value === "all" ? "" : value;
-                    setSelectedCountry(newCountry);
-                    // Clear region filter when selecting a country
-                    if (newCountry) setSelectedRegionType("");
-                  }}>
+                  <Select value={selectedCountry || "all"} onValueChange={value => {
+                  const newCountry = value === "all" ? "" : value;
+                  setSelectedCountry(newCountry);
+                  // Clear region filter when selecting a country
+                  if (newCountry) setSelectedRegionType("");
+                }}>
                     <SelectTrigger>
                       <SelectValue placeholder="All countries" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All countries</SelectItem>
-                      {uniqueCountries.filter(country => !isMultiCountryPlan({country_name: country} as EsimPlan)).map(country => (
-                        <SelectItem key={country} value={country}>{country}</SelectItem>
-                      ))}
+                      {uniqueCountries.filter(country => !isMultiCountryPlan({
+                      country_name: country
+                    } as EsimPlan)).map(country => <SelectItem key={country} value={country}>{country}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
 
                 <div>
                   <label className="text-sm font-medium mb-2 block">Region Type</label>
-                  <Select value={selectedRegionType || "all"} onValueChange={(value) => {
-                    const newRegion = value === "all" ? "" : value;
-                    setSelectedRegionType(newRegion);
-                    // Clear country filter when selecting a region
-                    if (newRegion) setSelectedCountry("");
-                  }}>
+                  <Select value={selectedRegionType || "all"} onValueChange={value => {
+                  const newRegion = value === "all" ? "" : value;
+                  setSelectedRegionType(newRegion);
+                  // Clear country filter when selecting a region
+                  if (newRegion) setSelectedCountry("");
+                }}>
                     <SelectTrigger className="bg-background">
                       <SelectValue placeholder="All regions" />
                     </SelectTrigger>
                     <SelectContent className="bg-background border border-border z-50">
                       <SelectItem value="all">All regions</SelectItem>
-                      {getAvailableRegions().map(region => (
-                        <SelectItem key={region.value} value={region.value}>{region.label}</SelectItem>
-                      ))}
+                      {getAvailableRegions().map(region => <SelectItem key={region.value} value={region.value}>{region.label}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
 
                 <div>
                   <label className="text-sm font-medium mb-2 block">Data Amount</label>
-                  <Select value={dataFilter || "all"} onValueChange={(value) => setDataFilter(value === "all" ? "" : value)}>
+                  <Select value={dataFilter || "all"} onValueChange={value => setDataFilter(value === "all" ? "" : value)}>
                     <SelectTrigger>
                       <SelectValue placeholder="Any data amount" />
                     </SelectTrigger>
@@ -692,7 +646,7 @@ filtered.sort((a, b) => {
 
                 <div>
                   <label className="text-sm font-medium mb-2 block">Duration</label>
-                  <Select value={validityFilter || "all"} onValueChange={(value) => setValidityFilter(value === "all" ? "" : value)}>
+                  <Select value={validityFilter || "all"} onValueChange={value => setValidityFilter(value === "all" ? "" : value)}>
                     <SelectTrigger>
                       <SelectValue placeholder="Any duration" />
                     </SelectTrigger>
@@ -710,14 +664,7 @@ filtered.sort((a, b) => {
                   <label className="text-sm font-medium mb-2 block">
                     Price Range: ${priceRange[0]} - ${priceRange[1]}
                   </label>
-                  <Slider
-                    value={priceRange}
-                    onValueChange={(value) => setPriceRange(value as [number, number])}
-                    max={1000}
-                    min={0}
-                    step={10}
-                    className="mt-2"
-                  />
+                  <Slider value={priceRange} onValueChange={value => setPriceRange(value as [number, number])} max={1000} min={0} step={10} className="mt-2" />
                 </div>
 
                 <div>
@@ -745,8 +692,7 @@ filtered.sort((a, b) => {
           <div className="lg:col-span-3 space-y-6">
 
 
-            {error && (
-              <Card>
+            {error && <Card>
                 <CardContent className="pt-6">
                   <div className="flex items-center gap-2 text-red-600">
                     <AlertCircle className="h-5 w-5" />
@@ -757,17 +703,14 @@ filtered.sort((a, b) => {
                     </Button>
                   </div>
                 </CardContent>
-              </Card>
-            )}
+              </Card>}
 
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-semibold">
                 Available Plans ({plans.length})
-                {markupLoading && (
-                  <span className="text-sm text-muted-foreground ml-2">
+                {markupLoading && <span className="text-sm text-muted-foreground ml-2">
                     (Loading pricing...)
-                  </span>
-                )}
+                  </span>}
               </h2>
             </div>
             
@@ -776,9 +719,9 @@ filtered.sort((a, b) => {
             </p>
 
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 gap-6">
-              {isLoading ? (
-                Array.from({ length: 6 }).map((_, i) => (
-                  <Card key={i} className="h-80 animate-pulse">
+              {isLoading ? Array.from({
+              length: 6
+            }).map((_, i) => <Card key={i} className="h-80 animate-pulse">
                     <CardHeader>
                       <div className="h-4 bg-muted rounded w-3/4"></div>
                       <div className="h-3 bg-muted rounded w-1/2"></div>
@@ -790,14 +733,7 @@ filtered.sort((a, b) => {
                         <div className="h-8 bg-muted rounded"></div>
                       </div>
                     </CardContent>
-                  </Card>
-                ))
-              ) : plans.length > 0 ? (
-                plans.map((plan) => (
-                  <PlanCard key={plan.objectID} plan={plan} calculatePrice={calculatePrice} />
-                ))
-              ) : (
-                <div className="col-span-full flex flex-col items-center justify-center py-12 text-center">
+                  </Card>) : plans.length > 0 ? plans.map(plan => <PlanCard key={plan.objectID} plan={plan} calculatePrice={calculatePrice} />) : <div className="col-span-full flex flex-col items-center justify-center py-12 text-center">
                   <AlertCircle className="h-12 w-12 text-muted-foreground mb-4" />
                   <h3 className="text-lg font-semibold text-foreground mb-2">No Plans Found</h3>
                   <p className="text-muted-foreground max-w-md">
@@ -806,12 +742,10 @@ filtered.sort((a, b) => {
                   <Button variant="outline" className="mt-4" onClick={clearFilters}>
                     Clear Filters
                   </Button>
-                </div>
-              )}
+                </div>}
             </div>
           </div>
         </div>
       </div>
-    </Layout>
-  );
+    </Layout>;
 }

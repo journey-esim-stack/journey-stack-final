@@ -11,18 +11,22 @@ import CartIcon from "@/components/CartIcon";
 import CurrencySelector from "@/components/CurrencySelector";
 import { useCart } from "@/contexts/CartContext";
 import { useAuthState } from "@/hooks/useAuthState";
-
 interface LayoutProps {
   children: React.ReactNode;
 }
-
-export default function Layout({ children }: LayoutProps) {
-  const { user, loading } = useAuthState();
+export default function Layout({
+  children
+}: LayoutProps) {
+  const {
+    user,
+    loading
+  } = useAuthState();
   const [isAdmin, setIsAdmin] = useState(false);
   const [isEmbedded, setIsEmbedded] = useState(false);
   const location = useLocation();
-  const { toast } = useToast();
-
+  const {
+    toast
+  } = useToast();
   useEffect(() => {
     try {
       setIsEmbedded(window.self !== window.top);
@@ -30,17 +34,14 @@ export default function Layout({ children }: LayoutProps) {
       setIsEmbedded(false);
     }
   }, []);
-
   useEffect(() => {
     if (!user) return;
-    
     const checkAdminRole = async () => {
       try {
-        const { data, error } = await supabase
-          .from('user_roles')
-          .select('role')
-          .eq('user_id', user.id);
-          
+        const {
+          data,
+          error
+        } = await supabase.from('user_roles').select('role').eq('user_id', user.id);
         if (error) {
           console.warn('Failed to fetch user roles:', error);
           setIsAdmin(false);
@@ -52,131 +53,113 @@ export default function Layout({ children }: LayoutProps) {
         setIsAdmin(false);
       }
     };
-    
     checkAdminRole();
   }, [user]);
-
   const handleSignOut = async () => {
-    const { error } = await supabase.auth.signOut();
+    const {
+      error
+    } = await supabase.auth.signOut();
     if (error) {
       toast({
         title: "Error",
         description: "Failed to sign out",
-        variant: "destructive",
+        variant: "destructive"
       });
     } else {
       toast({
         title: "Success",
-        description: "Signed out successfully",
+        description: "Signed out successfully"
       });
     }
   };
 
   // Only show loading spinner on initial load, not during navigation
   if (loading && !user) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
+    return <div className="flex items-center justify-center min-h-screen">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
-    );
+      </div>;
   }
-
   if (!user && !loading) {
     return <Navigate to="/auth" replace />;
   }
-
-  const navigation = [
-    { name: "Dashboard", href: "/dashboard", icon: BarChart3 },
-    { name: "eSIM Plans", href: "/algolia-plans", icon: Package },
-    { name: "Wallet", href: "/wallet", icon: Wallet },
-    { name: "eSIMs", href: "/esims", icon: Smartphone },
-    { name: "Profile", href: "/profile", icon: User },
-  ];
-
-  const adminNavigation = isAdmin ? [
-    { name: "Agents", href: "/admin/agents", icon: ShieldCheck },
-    { name: "Inventory", href: "/admin/inventory", icon: Archive },
-    { name: "Suppliers", href: "/admin/suppliers", icon: Package },
-  ] : [];
-
-  return (
-    <div className="min-h-screen bg-background">
+  const navigation = [{
+    name: "Dashboard",
+    href: "/dashboard",
+    icon: BarChart3
+  }, {
+    name: "eSIM Plans",
+    href: "/algolia-plans",
+    icon: Package
+  }, {
+    name: "Wallet",
+    href: "/wallet",
+    icon: Wallet
+  }, {
+    name: "eSIMs",
+    href: "/esims",
+    icon: Smartphone
+  }, {
+    name: "Profile",
+    href: "/profile",
+    icon: User
+  }];
+  const adminNavigation = isAdmin ? [{
+    name: "Agents",
+    href: "/admin/agents",
+    icon: ShieldCheck
+  }, {
+    name: "Inventory",
+    href: "/admin/inventory",
+    icon: Archive
+  }, {
+    name: "Suppliers",
+    href: "/admin/suppliers",
+    icon: Package
+  }] : [];
+  return <div className="min-h-screen bg-background">
       <nav className="border-b bg-card">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16 md:h-20">
             <div className="flex items-center space-x-3">
               <Link to="/dashboard" className="flex items-center">
-                <img 
-                  src="/lovable-uploads/1e1f433f-d326-4551-ba07-4e6b9e5c259f.png" 
-                  alt="Journey Stack" 
-                  className="h-12 md:h-16 w-auto object-contain shrink-0"
-                  loading="eager"
-                  decoding="sync"
-                  style={{ 
-                    imageRendering: 'crisp-edges',
-                    minHeight: '3rem',
-                    minWidth: '3rem'
-                  }}
-                  onError={(e) => {
-                    e.currentTarget.style.visibility = 'hidden';
-                  }}
-                />
+                <img src="/lovable-uploads/1e1f433f-d326-4551-ba07-4e6b9e5c259f.png" alt="Journey Stack" className="h-12 md:h-16 w-auto object-contain shrink-0" loading="eager" decoding="sync" style={{
+                imageRendering: 'crisp-edges',
+                minHeight: '3rem',
+                minWidth: '3rem'
+              }} onError={e => {
+                e.currentTarget.style.visibility = 'hidden';
+              }} />
               </Link>
               <div className="hidden md:flex items-center space-x-1">
-                {navigation.map((item) => {
-                  const Icon = item.icon;
-                  return (
-                    <Link
-                      key={item.name}
-                      to={item.href}
-                      className={`flex items-center space-x-2 px-2 md:px-3 py-2 rounded-md text-xs md:text-sm font-medium transition-colors ${
-                        location.pathname === item.href
-                          ? "bg-primary text-primary-foreground"
-                          : "text-foreground/80 hover:text-foreground hover:bg-accent"
-                      }`}
-                    >
+                {navigation.map(item => {
+                const Icon = item.icon;
+                return <Link key={item.name} to={item.href} className={`flex items-center space-x-2 px-2 md:px-3 py-2 rounded-md text-xs md:text-sm font-medium transition-colors ${location.pathname === item.href ? "bg-primary text-primary-foreground" : "text-foreground/80 hover:text-foreground hover:bg-accent"}`}>
                       <Icon className="h-4 w-4" />
                       <span>{item.name}</span>
-                    </Link>
-                  );
-                })}
-                {isAdmin && (
-                  <div className="ml-3">
+                    </Link>;
+              })}
+                {isAdmin && <div className="ml-3">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button 
-                          variant="outline"
-                          size="sm"
-                          className="flex items-center space-x-2 bg-orange-500 text-white border-orange-500 hover:bg-orange-600 hover:border-orange-600"
-                        >
+                        <Button variant="outline" size="sm" className="flex items-center space-x-2 bg-orange-500 text-white border-orange-500 hover:bg-orange-600 hover:border-orange-600">
                           <ShieldCheck className="h-4 w-4" />
                           <span className="whitespace-nowrap">Admin</span>
                           <ChevronDown className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="bg-background border border-border">
-                        {adminNavigation.map((item) => {
-                          const Icon = item.icon;
-                          return (
-                            <DropdownMenuItem key={item.name} asChild>
-                              <Link
-                                to={item.href}
-                                className={`flex items-center space-x-2 px-2 py-2 text-sm font-medium transition-colors ${
-                                  location.pathname === item.href
-                                    ? "bg-accent text-accent-foreground"
-                                    : "text-foreground hover:bg-accent hover:text-accent-foreground"
-                                }`}
-                              >
+                        {adminNavigation.map(item => {
+                      const Icon = item.icon;
+                      return <DropdownMenuItem key={item.name} asChild>
+                              <Link to={item.href} className={`flex items-center space-x-2 px-2 py-2 text-sm font-medium transition-colors ${location.pathname === item.href ? "bg-accent text-accent-foreground" : "text-foreground hover:bg-accent hover:text-accent-foreground"}`}>
                                 <Icon className="h-4 w-4" />
                                 <span>{item.name}</span>
                               </Link>
-                            </DropdownMenuItem>
-                          );
-                        })}
+                            </DropdownMenuItem>;
+                    })}
                       </DropdownMenuContent>
                     </DropdownMenu>
-                  </div>
-                )}
+                  </div>}
               </div>
             </div>
             <div className="flex items-center space-x-2 md:space-x-3">
@@ -186,13 +169,11 @@ export default function Layout({ children }: LayoutProps) {
               
               {/* Enhanced Cart Icon */}
               <CartIcon />
-              {isEmbedded && (
-                <Button asChild variant="outline" size="sm" className="hidden md:inline-flex">
+              {isEmbedded && <Button asChild variant="outline" size="sm" className="hidden md:inline-flex">
                   <a href={window.location.href} target="_blank" rel="noopener noreferrer">
                     Open in new tab
                   </a>
-                </Button>
-              )}
+                </Button>}
               <Button variant="ghost" size="sm" onClick={handleSignOut} className="hover:glass-subtle transition-all duration-200 rounded-xl">
                 <LogOut className="h-4 w-4 mr-2" />
                 <span className="hidden md:inline">Sign Out</span>
@@ -212,9 +193,7 @@ export default function Layout({ children }: LayoutProps) {
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div className="flex items-center space-x-4">
               <img src="/lovable-uploads/1e1f433f-d326-4551-ba07-4e6b9e5c259f.png" alt="Journey Stack" className="h-10" />
-              <p className="text-foreground/80 text-sm max-w-xs">
-                Journey Stack is designed to revolutionize how eSim operate.
-              </p>
+              <p className="text-foreground/80 text-sm max-w-xs">The #1 eSIM platform built for travel businesses</p>
             </div>
             <div className="text-sm text-foreground/60">
               © 2025 Journey Stack, Inc. All rights reserved
@@ -225,6 +204,5 @@ export default function Layout({ children }: LayoutProps) {
       
       {/* Global Cart Sidebar */}
       <CartSidebar />
-    </div>
-  );
+    </div>;
 }

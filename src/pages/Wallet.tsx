@@ -278,7 +278,7 @@ export default function Wallet() {
   return <Layout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold">Safe &amp; Simple Wallet Top-Ups</h1>
+          <h1 className="text-3xl font-bold">Simple &amp; Secure Wallet Top-Ups</h1>
           <p className="text-muted-foreground">Manage your wallet balance and view transaction history</p>
         </div>
 

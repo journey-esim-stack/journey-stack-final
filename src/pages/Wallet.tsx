@@ -13,7 +13,6 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
-
 interface WalletTransaction {
   id: string;
   amount: number;
@@ -23,30 +22,27 @@ interface WalletTransaction {
   balance_after: number;
   created_at: string;
 }
-
 interface AgentProfile {
   id: string;
   wallet_balance: number;
 }
-
 export default function Wallet() {
   const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
   const [allTransactions, setAllTransactions] = useState<WalletTransaction[]>([]);
   const [profile, setProfile] = useState<AgentProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const { toast } = useToast();
+  const {
+    toast
+  } = useToast();
   const [topUpAmount, setTopUpAmount] = useState<number>(10);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const itemsPerPage = 20;
   const inFlightRef = useRef(false);
   const mountedRef = useRef(true);
-
-
   useEffect(() => {
     // Set page title
     document.title = "Journey Stack | Unrivaled eSIM Platform - Wallet";
-    
     const run = async () => {
       try {
         await supabase.functions.invoke('sync-topups');
@@ -64,7 +60,6 @@ export default function Wallet() {
         fetchWalletData();
       }
     };
-    
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, []);
@@ -75,22 +70,22 @@ export default function Wallet() {
       mountedRef.current = false;
     };
   }, []);
-
   const fetchWalletData = async () => {
     if (inFlightRef.current || !mountedRef.current) return;
-    
     inFlightRef.current = true;
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: {
+          user
+        }
+      } = await supabase.auth.getUser();
       if (!user) throw new Error("No user found");
 
       // Get agent profile
-      const { data: profileData, error: profileError } = await supabase
-        .from("agent_profiles")
-        .select("id, wallet_balance")
-        .eq("user_id", user.id)
-        .maybeSingle();
-
+      const {
+        data: profileData,
+        error: profileError
+      } = await supabase.from("agent_profiles").select("id, wallet_balance").eq("user_id", user.id).maybeSingle();
       if (profileError) throw profileError;
       if (!profileData) {
         console.warn("No agent profile found for user");
@@ -102,15 +97,17 @@ export default function Wallet() {
       setProfile(profileData);
 
       // Fetch all transactions for export functionality
-      const { data: allTransactionsData, error: allTransactionsError } = await supabase
-        .from("wallet_transactions")
-        .select("*")
-        .eq("agent_id", profileData.id)
-        .order("created_at", { ascending: false });
-
+      const {
+        data: allTransactionsData,
+        error: allTransactionsError
+      } = await supabase.from("wallet_transactions").select("*").eq("agent_id", profileData.id).order("created_at", {
+        ascending: false
+      });
       console.log("Agent ID:", profileData.id);
-      console.log("All transactions query result:", { allTransactionsData, allTransactionsError });
-
+      console.log("All transactions query result:", {
+        allTransactionsData,
+        allTransactionsError
+      });
       if (allTransactionsError) {
         console.error("Transaction fetch error:", allTransactionsError);
         setTransactions([]);
@@ -119,12 +116,12 @@ export default function Wallet() {
         console.log("Setting all transactions:", allTransactionsData);
         const allData = allTransactionsData || [];
         setAllTransactions(allData);
-        
+
         // Calculate pagination
         const totalItems = allData.length;
         const pages = Math.ceil(totalItems / itemsPerPage);
         setTotalPages(pages);
-        
+
         // Get current page transactions
         const startIndex = (currentPage - 1) * itemsPerPage;
         const endIndex = startIndex + itemsPerPage;
@@ -135,26 +132,30 @@ export default function Wallet() {
       toast({
         title: "Error",
         description: "Failed to fetch wallet data",
-        variant: "destructive",
+        variant: "destructive"
       });
     } finally {
       setLoading(false);
       inFlightRef.current = false;
     }
   };
-
   const handleTopUp = async () => {
     if (topUpAmount < 10) {
       toast({
         title: "Minimum top-up is $10",
         description: "Please enter $10 or more.",
-        variant: "destructive",
+        variant: "destructive"
       });
       return;
     }
     try {
-      const { data, error } = await supabase.functions.invoke('create-topup', {
-        body: { amount_dollars: topUpAmount }
+      const {
+        data,
+        error
+      } = await supabase.functions.invoke('create-topup', {
+        body: {
+          amount_dollars: topUpAmount
+        }
       });
       if (error) throw error;
       if (data?.url) {
@@ -164,11 +165,9 @@ export default function Wallet() {
           toast({
             title: "Payment Window Blocked",
             description: "Please allow popups and try again, or click the link below:",
-            action: (
-              <a href={data.url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+            action: <a href={data.url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
                 Open Payment
               </a>
-            ),
           });
         } else {
           // Add a slight delay before refreshing to allow the window to open
@@ -195,7 +194,6 @@ export default function Wallet() {
       setTransactions(allTransactions.slice(startIndex, endIndex));
     }
   }, [currentPage, allTransactions]);
-
   const getTransactionTypeColor = (type: string) => {
     switch (type) {
       case "deposit":
@@ -208,99 +206,79 @@ export default function Wallet() {
         return "bg-gray-100 text-gray-800 border-gray-200";
     }
   };
-
   const downloadPDF = () => {
     const doc = new jsPDF();
-    
+
     // Add title
     doc.setFontSize(20);
     doc.text('Transaction History', 20, 20);
-    
+
     // Add current balance
     doc.setFontSize(12);
     doc.text(`Current Balance: USD ${profile?.wallet_balance?.toFixed(2) || "0.00"}`, 20, 35);
     doc.text(`Generated on: ${format(new Date(), "MMM dd, yyyy HH:mm")}`, 20, 45);
-    
+
     // Prepare table data
-    const tableData = allTransactions.map(transaction => [
-      format(new Date(transaction.created_at), "MMM dd, yyyy HH:mm"),
-      transaction.transaction_type === "deposit" ? "Top-up" : transaction.transaction_type === "purchase" ? "Purchase" : "Refund",
-      transaction.description || "-",
-      `${transaction.transaction_type === "deposit" || transaction.transaction_type === "refund" ? "+" : "-"}USD ${Math.abs(transaction.amount).toFixed(2)}`,
-      `USD ${transaction.balance_after.toFixed(2)}`,
-      transaction.reference_id || "-"
-    ]);
-    
+    const tableData = allTransactions.map(transaction => [format(new Date(transaction.created_at), "MMM dd, yyyy HH:mm"), transaction.transaction_type === "deposit" ? "Top-up" : transaction.transaction_type === "purchase" ? "Purchase" : "Refund", transaction.description || "-", `${transaction.transaction_type === "deposit" || transaction.transaction_type === "refund" ? "+" : "-"}USD ${Math.abs(transaction.amount).toFixed(2)}`, `USD ${transaction.balance_after.toFixed(2)}`, transaction.reference_id || "-"]);
+
     // Add table
     autoTable(doc, {
       head: [['Date', 'Type', 'Description', 'Amount', 'Balance After', 'Reference']],
       body: tableData,
       startY: 55,
-      styles: { fontSize: 8 },
-      headStyles: { fillColor: [59, 130, 246] }
+      styles: {
+        fontSize: 8
+      },
+      headStyles: {
+        fillColor: [59, 130, 246]
+      }
     });
-    
     doc.save('transaction-history.pdf');
-    
     toast({
       title: "PDF Downloaded",
-      description: "Transaction history has been downloaded as PDF",
+      description: "Transaction history has been downloaded as PDF"
     });
   };
-
   const downloadExcel = () => {
-    const ws = XLSX.utils.json_to_sheet(
-      allTransactions.map(transaction => ({
-        Date: format(new Date(transaction.created_at), "MMM dd, yyyy HH:mm"),
-        Type: transaction.transaction_type === "deposit" ? "Top-up" : transaction.transaction_type === "purchase" ? "Purchase" : "Refund",
-        Description: transaction.description || "-",
-        Amount: transaction.amount,
-        'Balance After': transaction.balance_after,
-        Reference: transaction.reference_id || "-"
-      }))
-    );
-    
+    const ws = XLSX.utils.json_to_sheet(allTransactions.map(transaction => ({
+      Date: format(new Date(transaction.created_at), "MMM dd, yyyy HH:mm"),
+      Type: transaction.transaction_type === "deposit" ? "Top-up" : transaction.transaction_type === "purchase" ? "Purchase" : "Refund",
+      Description: transaction.description || "-",
+      Amount: transaction.amount,
+      'Balance After': transaction.balance_after,
+      Reference: transaction.reference_id || "-"
+    })));
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Transactions");
-    
+
     // Add current balance as a separate sheet
-    const balanceSheet = XLSX.utils.json_to_sheet([
-      { 
-        'Current Balance': profile?.wallet_balance?.toFixed(2) || "0.00",
-        'Generated On': format(new Date(), "MMM dd, yyyy HH:mm")
-      }
-    ]);
+    const balanceSheet = XLSX.utils.json_to_sheet([{
+      'Current Balance': profile?.wallet_balance?.toFixed(2) || "0.00",
+      'Generated On': format(new Date(), "MMM dd, yyyy HH:mm")
+    }]);
     XLSX.utils.book_append_sheet(wb, balanceSheet, "Summary");
-    
     XLSX.writeFile(wb, 'transaction-history.xlsx');
-    
     toast({
       title: "Excel Downloaded",
-      description: "Transaction history has been downloaded as Excel file",
+      description: "Transaction history has been downloaded as Excel file"
     });
   };
-
   const goToPage = (page: number) => {
     if (page >= 1 && page <= totalPages) {
       setCurrentPage(page);
     }
   };
-
   if (loading) {
-    return (
-      <Layout>
+    return <Layout>
         <div className="flex items-center justify-center h-64">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
         </div>
-      </Layout>
-    );
+      </Layout>;
   }
-
-  return (
-    <Layout>
+  return <Layout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold">Wallet</h1>
+          <h1 className="text-3xl font-bold">Safe &amp; Simple Wallet Top-Ups</h1>
           <p className="text-muted-foreground">Manage your wallet balance and view transaction history</p>
         </div>
 
@@ -332,13 +310,7 @@ export default function Wallet() {
             <div className="flex flex-col sm:flex-row gap-3">
               <div className="flex-1 space-y-1">
                 <label className="text-sm text-muted-foreground">Amount (USD)</label>
-                <Input
-                  type="number"
-                  min={10}
-                  step="10"
-                  value={topUpAmount}
-                  onChange={(e) => setTopUpAmount(Number(e.target.value))}
-                />
+                <Input type="number" min={10} step="10" value={topUpAmount} onChange={e => setTopUpAmount(Number(e.target.value))} />
               </div>
               <Button onClick={handleTopUp} className="sm:self-end">
                 Top Up
@@ -348,11 +320,7 @@ export default function Wallet() {
             {/* Payment Methods Image */}
               <div className="mt-6 text-right">
               <div className="flex justify-end">
-                <img 
-                  src="/payment-methods.png" 
-                  alt="Payment methods" 
-                  className="h-8 opacity-80 max-w-full"
-                />
+                <img src="/payment-methods.png" alt="Payment methods" className="h-8 opacity-80 max-w-full" />
               </div>
             </div>
           </CardContent>
@@ -377,8 +345,7 @@ export default function Wallet() {
                 <CardTitle>Transaction History</CardTitle>
                 <CardDescription>Recent wallet transactions - Credits (top-ups) and debits (purchases)</CardDescription>
               </div>
-              {allTransactions.length > 0 && (
-                <DropdownMenu>
+              {allTransactions.length > 0 && <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="outline" size="sm">
                       <Download className="h-4 w-4 mr-2" />
@@ -395,13 +362,11 @@ export default function Wallet() {
                       Download Excel
                     </DropdownMenuItem>
                   </DropdownMenuContent>
-                </DropdownMenu>
-              )}
+                </DropdownMenu>}
             </div>
           </CardHeader>
           <CardContent>
-            {transactions.length > 0 ? (
-              <Table>
+            {transactions.length > 0 ? <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Date</TableHead>
@@ -413,25 +378,18 @@ export default function Wallet() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {transactions.map((transaction) => (
-                    <TableRow key={transaction.id}>
+                  {transactions.map(transaction => <TableRow key={transaction.id}>
                       <TableCell>
                         {format(new Date(transaction.created_at), "MMM dd, yyyy HH:mm")}
                       </TableCell>
                       <TableCell>
-                        <Badge 
-                          className={`${getTransactionTypeColor(transaction.transaction_type)} inline-flex items-center justify-center px-2.5 py-1 text-xs font-medium rounded-full whitespace-nowrap border`}
-                        >
+                        <Badge className={`${getTransactionTypeColor(transaction.transaction_type)} inline-flex items-center justify-center px-2.5 py-1 text-xs font-medium rounded-full whitespace-nowrap border`}>
                           {transaction.transaction_type === "deposit" ? "Top-up" : transaction.transaction_type === "purchase" ? "Purchase" : "Refund"}
                         </Badge>
                       </TableCell>
                       <TableCell>{transaction.description || "-"}</TableCell>
                       <TableCell>
-                        <span className={
-                          transaction.transaction_type === "deposit" || transaction.transaction_type === "refund" 
-                            ? "text-green-600" 
-                            : "text-red-600"
-                        }>
+                        <span className={transaction.transaction_type === "deposit" || transaction.transaction_type === "refund" ? "text-green-600" : "text-red-600"}>
                           {transaction.transaction_type === "deposit" || transaction.transaction_type === "refund" ? "+" : "-"}
                           USD {Math.abs(transaction.amount).toFixed(2)}
                         </span>
@@ -440,75 +398,51 @@ export default function Wallet() {
                       <TableCell className="text-sm text-muted-foreground">
                         {transaction.reference_id || "-"}
                       </TableCell>
-                    </TableRow>
-                  ))}
+                    </TableRow>)}
                 </TableBody>
-              </Table>
-            ) : (
-              <div className="text-center py-8">
+              </Table> : <div className="text-center py-8">
                 <p className="text-muted-foreground">No transactions found</p>
-              </div>
-            )}
+              </div>}
             
             {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="flex items-center justify-between mt-6 pt-4 border-t">
+            {totalPages > 1 && <div className="flex items-center justify-between mt-6 pt-4 border-t">
                 <div className="text-sm text-muted-foreground">
-                  Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, allTransactions.length)} of {allTransactions.length} transactions
+                  Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, allTransactions.length)} of {allTransactions.length} transactions
                 </div>
                 <div className="flex items-center space-x-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => goToPage(currentPage - 1)}
-                    disabled={currentPage === 1}
-                  >
+                  <Button variant="outline" size="sm" onClick={() => goToPage(currentPage - 1)} disabled={currentPage === 1}>
                     <ChevronLeft className="h-4 w-4" />
                     Previous
                   </Button>
                   
                   <div className="flex items-center space-x-1">
-                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                      let pageNum;
-                      if (totalPages <= 5) {
-                        pageNum = i + 1;
-                      } else if (currentPage <= 3) {
-                        pageNum = i + 1;
-                      } else if (currentPage >= totalPages - 2) {
-                        pageNum = totalPages - 4 + i;
-                      } else {
-                        pageNum = currentPage - 2 + i;
-                      }
-                      
-                      return (
-                        <Button
-                          key={pageNum}
-                          variant={currentPage === pageNum ? "default" : "outline"}
-                          size="sm"
-                          onClick={() => goToPage(pageNum)}
-                          className="w-8 h-8 p-0"
-                        >
+                    {Array.from({
+                  length: Math.min(5, totalPages)
+                }, (_, i) => {
+                  let pageNum;
+                  if (totalPages <= 5) {
+                    pageNum = i + 1;
+                  } else if (currentPage <= 3) {
+                    pageNum = i + 1;
+                  } else if (currentPage >= totalPages - 2) {
+                    pageNum = totalPages - 4 + i;
+                  } else {
+                    pageNum = currentPage - 2 + i;
+                  }
+                  return <Button key={pageNum} variant={currentPage === pageNum ? "default" : "outline"} size="sm" onClick={() => goToPage(pageNum)} className="w-8 h-8 p-0">
                           {pageNum}
-                        </Button>
-                      );
-                    })}
+                        </Button>;
+                })}
                   </div>
                   
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => goToPage(currentPage + 1)}
-                    disabled={currentPage === totalPages}
-                  >
+                  <Button variant="outline" size="sm" onClick={() => goToPage(currentPage + 1)} disabled={currentPage === totalPages}>
                     Next
                     <ChevronRight className="h-4 w-4" />
                   </Button>
                 </div>
-              </div>
-            )}
+              </div>}
           </CardContent>
         </Card>
       </div>
-    </Layout>
-  );
+    </Layout>;
 }

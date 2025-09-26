@@ -5,7 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, Wifi, MapPin, Globe, Database, RefreshCw, Eye, Activity } from "lucide-react";
+import { Search, Wifi, MapPin, Globe, Database, RefreshCw, Eye, Activity, Smartphone } from "lucide-react";
 import { format } from "date-fns";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -572,7 +572,8 @@ const ESims = () => {
             alt="Connection illustration" 
             className="absolute top-3 right-3 w-24 h-24 hidden md:block"
           />
-          <h1 className="text-4xl font-bold mb-4 text-black">
+          <h1 className="text-4xl font-bold mb-4 text-black flex items-center gap-3">
+            <Smartphone className="h-10 w-10 text-primary" />
             My eSIMs
           </h1>
           <p className="text-muted-foreground text-lg mb-6">

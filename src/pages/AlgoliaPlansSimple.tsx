@@ -538,7 +538,10 @@ export default function AlgoliaPlansSimple() {
         <div className="flex flex-col gap-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-foreground">One Platform. Every eSIM Plan You Need.</h1>
+              <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
+                <Globe className="h-8 w-8 text-primary" />
+                One Platform. Every eSIM Plan You Need.
+              </h1>
               <p className="text-muted-foreground mt-2">Search and browse available eSIM plans. Instant, affordable, and hassle-free eSIM plans</p>
             </div>
             <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">

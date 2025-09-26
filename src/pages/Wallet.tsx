@@ -8,7 +8,7 @@ import Layout from "@/components/Layout";
 import { format } from "date-fns";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Download, FileText, FileSpreadsheet, ChevronLeft, ChevronRight, Shield, Lock, CheckCircle } from "lucide-react";
+import { Download, FileText, FileSpreadsheet, ChevronLeft, ChevronRight, Shield, Lock, CheckCircle, Wallet as WalletIcon } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -278,7 +278,10 @@ export default function Wallet() {
   return <Layout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold">Simple &amp; Secure Wallet Top-Ups</h1>
+          <h1 className="text-3xl font-bold flex items-center gap-3">
+            <WalletIcon className="h-8 w-8 text-primary" />
+            Simple &amp; Secure Wallet Top-Ups
+          </h1>
           <p className="text-muted-foreground">Manage your wallet balance and view transaction history</p>
         </div>
 

@@ -1,5 +1,8 @@
 project_id = "cccktfactlzxuprpyhgh"
 
+[functions.airtable-pricing-webhook]
+verify_jwt = false
+
 [functions.create-esim]
 verify_jwt = true
 

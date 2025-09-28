@@ -438,6 +438,51 @@ export type Database = {
           },
         ]
       }
+      pricing_rules: {
+        Row: {
+          airtable_record_id: string
+          created_at: string
+          id: string
+          is_active: boolean
+          markup_type: string
+          markup_value: number
+          max_order_amount: number | null
+          min_order_amount: number | null
+          priority: number
+          rule_type: string
+          target_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          airtable_record_id: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          markup_type?: string
+          markup_value?: number
+          max_order_amount?: number | null
+          min_order_amount?: number | null
+          priority?: number
+          rule_type: string
+          target_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          airtable_record_id?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          markup_type?: string
+          markup_value?: number
+          max_order_amount?: number | null
+          min_order_amount?: number | null
+          priority?: number
+          rule_type?: string
+          target_id?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       system_settings: {
         Row: {
           created_at: string

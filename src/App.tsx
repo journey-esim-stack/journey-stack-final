@@ -31,6 +31,7 @@ import AlgoliaPlansSimple from "./pages/AlgoliaPlansSimple";
 import AlgoliaPlansOptimized from "./pages/AlgoliaPlansOptimized";
 import AlgoliaDashboard from "./pages/AlgoliaDashboard";
 import AlgoliaPlansEntry from "./pages/AlgoliaPlansEntry";
+import AdminPricingRules from "./pages/AdminPricingRules";
 
 const App = () => (
   <ErrorBoundary>
@@ -57,6 +58,7 @@ const App = () => (
           <Route path="/admin/agents" element={<AgentApprovalGuard><AdminAgents /></AgentApprovalGuard>} />
           <Route path="/admin/inventory" element={<AgentApprovalGuard><AdminInventory /></AgentApprovalGuard>} />
           <Route path="/admin/suppliers" element={<AgentApprovalGuard><AdminSuppliers /></AgentApprovalGuard>} />
+          <Route path="/admin/pricing-rules" element={<AgentApprovalGuard><AdminPricingRules /></AgentApprovalGuard>} />
           <Route path="/profile" element={<AgentApprovalGuard><Profile /></AgentApprovalGuard>} />
           <Route path="/wallet/topup-success" element={<AgentApprovalGuard><TopupSuccess /></AgentApprovalGuard>} />
           <Route path="/wallet/topup-canceled" element={<AgentApprovalGuard><TopupCanceled /></AgentApprovalGuard>} />

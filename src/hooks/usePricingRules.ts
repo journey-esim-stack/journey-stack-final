@@ -56,7 +56,17 @@ export const usePricingRules = () => {
   // Calculate price based on rules hierarchy
   const calculatePrice = useCallback((params: CalculatePriceParams): number => {
     const { wholesalePrice, agentId, countryCode, planId, supplierPlanId } = params;
-    console.log('PricingRules.calculatePrice called', { wholesalePrice, agentId, countryCode, planId, supplierPlanId, rulesCount: rules.length });
+    console.log('🔍 PricingRules.calculatePrice', { wholesalePrice, agentId, countryCode, planId, supplierPlanId, rulesCount: rules.length });
+
+    // Sample first 3 rules for debugging
+    if (rules.length > 0) {
+      console.log('📋 Sample rules:', rules.slice(0, 3).map(r => ({ 
+        type: r.rule_type, 
+        target: r.target_id, 
+        agent_filter: r.agent_filter,
+        priority: r.priority 
+      })));
+    }
 
     // Find best matching rule using priority + specificity (plan+agent > plan > agent > country > default)
     const matches = rules.filter(rule => {
@@ -79,6 +89,12 @@ export const usePricingRules = () => {
           return false;
       }
     });
+
+    console.log('✅ Matched rules:', matches.length, matches.map(r => ({ 
+      type: r.rule_type, 
+      target: r.target_id, 
+      agent_filter: r.agent_filter 
+    })));
 
     const specificity = (rule: PricingRule) => {
       if (

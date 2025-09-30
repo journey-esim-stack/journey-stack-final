@@ -258,6 +258,19 @@ export default function AdminAgents() {
                       <p className="text-sm text-muted-foreground">{agent.contact_person}</p>
                       <p className="text-xs text-muted-foreground">{agent.email}</p>
                       <p className="text-xs text-muted-foreground">{agent.phone} • {agent.country}</p>
+                      <p className="text-xs text-muted-foreground font-mono">
+                        ID: 
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(agent.id);
+                            toast({ title: "Copied!", description: "Agent ID copied to clipboard" });
+                          }}
+                          className="ml-1 hover:text-primary transition-colors"
+                          title="Click to copy"
+                        >
+                          {agent.id}
+                        </button>
+                      </p>
                     </div>
                     <Badge variant={getStatusBadgeVariant(agent.status)}>
                       {agent.status}

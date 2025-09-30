@@ -57,14 +57,9 @@ export const usePricingRules = () => {
   const calculatePrice = useCallback((params: CalculatePriceParams): number => {
     const { wholesalePrice, agentId, countryCode, planId, supplierPlanId } = params;
 
-    // Find the best matching rule in priority order
-    const applicableRules = rules.filter(rule => {
-      // Agent-specific plan pricing (highest priority)
-      if (rule.rule_type === 'plan' && rule.agent_filter && rule.target_id === supplierPlanId) {
-        return rule.agent_filter === agentId;
-      }
-      
-      // Check if rule applies to this context
+    // Find best matching rule using priority + specificity (plan+agent > plan > agent > country > default)
+    const matches = rules.filter(rule => {
+      // First, check if the rule could apply in this context
       switch (rule.rule_type) {
         case 'plan':
           return rule.target_id === supplierPlanId || rule.target_id === planId;
@@ -73,14 +68,27 @@ export const usePricingRules = () => {
         case 'country':
           return rule.target_id === countryCode;
         case 'default':
-          return true; // Default rule applies to everything
+          return true;
         default:
           return false;
       }
     });
 
-    // Get the highest priority rule (lowest priority number)
-    const selectedRule = applicableRules[0];
+    const specificity = (rule: PricingRule) => {
+      if (rule.rule_type === 'plan' && rule.agent_filter && agentId && (rule.target_id === supplierPlanId || rule.target_id === planId)) return 5;
+      if (rule.rule_type === 'plan' && (rule.target_id === supplierPlanId || rule.target_id === planId)) return 4;
+      if (rule.rule_type === 'agent' && rule.target_id === agentId) return 3;
+      if (rule.rule_type === 'country' && rule.target_id === countryCode) return 2;
+      return 1; // default
+    };
+
+    // Choose rule: lowest priority number wins; if tie, higher specificity wins
+    const selectedRule = matches.reduce<PricingRule | undefined>((best, rule) => {
+      if (!best) return rule;
+      if (rule.priority < best.priority) return rule;
+      if (rule.priority === best.priority && specificity(rule) > specificity(best)) return rule;
+      return best;
+    }, undefined);
 
     if (!selectedRule) {
       // Fallback to 300% markup if no rules found

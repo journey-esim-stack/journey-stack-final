@@ -11,6 +11,7 @@ import { getCountryFlag } from "@/utils/countryFlags";
 import { useCart } from "@/contexts/CartContext";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import { supabase } from "@/integrations/supabase/client";
+import { AgentPreviewSelector } from "@/components/AgentPreviewSelector";
 import { AlgoliaErrorBoundary } from "@/components/AlgoliaErrorBoundary";
 
 interface EsimPlan {
@@ -583,6 +584,11 @@ export default function AlgoliaPlans() {
                   Legacy Plans
                 </Button>
               </div>
+            </div>
+
+            {/* Admin Preview Selector */}
+            <div className="max-w-4xl mx-auto">
+              <AgentPreviewSelector />
             </div>
           </div>
 

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { usePricingRules } from './usePricingRules';
+import { useAgentPreview } from '@/contexts/AgentPreviewContext';
 
 interface AgentMarkup {
   markup_type: string;
@@ -24,6 +25,7 @@ export const useAgentMarkup = () => {
   const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const { calculatePrice: calculatePriceWithRules } = usePricingRules();
+  const { previewAgentId } = useAgentPreview();
 
   const calculatePrice = useCallback((
     wholesalePrice: number, 
@@ -32,11 +34,14 @@ export const useAgentMarkup = () => {
       countryCode?: string;
     }
   ) => {
+    // Use preview agent ID if available (for admin testing), otherwise use actual agent ID
+    const effectiveAgentId = previewAgentId || agentId;
+
     // If supplier_plan_id is provided, use the pricing rules system
-    if (options?.supplierPlanId && agentId) {
+    if (options?.supplierPlanId && effectiveAgentId) {
       return calculatePriceWithRules({
         wholesalePrice,
-        agentId,
+        agentId: effectiveAgentId,
         supplierPlanId: options.supplierPlanId,
         countryCode: options.countryCode
       });
@@ -61,7 +66,7 @@ export const useAgentMarkup = () => {
     
     // Fallback to default 300% markup
     return wholesalePrice * 4;
-  }, [markup, agentId, calculatePriceWithRules]);
+  }, [markup, agentId, previewAgentId, calculatePriceWithRules]);
 
   const setupRealtimeChannel = useCallback(async () => {
     if (channelRef.current) {

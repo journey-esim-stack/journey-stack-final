@@ -17,6 +17,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { InstantSearch, SearchBox, RefinementList, Stats, Configure, useHits, useStats, useSearchBox, useRefinementList, Pagination, usePagination, useInstantSearch } from 'react-instantsearch';
 import { AlgoliaErrorBoundary } from '@/components/AlgoliaErrorBoundary';
 import { AgentPreviewSelector } from '@/components/AgentPreviewSelector';
+import { usePlanIdMapping } from '@/hooks/usePlanIdMapping';
 
 interface EsimPlan {
   objectID: string;
@@ -123,7 +124,7 @@ const EnhancedRefinementList = ({ attribute, title, icon }: { attribute: string;
 };
 
 // Enhanced Plan Card with better UX
-const PlanCard = ({ plan, calculatePrice, debugGetPriceMeta, isAdmin }: { plan: EsimPlan, calculatePrice: (price: number, options?: { supplierPlanId?: string; countryCode?: string; planId?: string; }) => number, debugGetPriceMeta?: (price: number, options?: { supplierPlanId?: string; countryCode?: string; planId?: string; }) => any, isAdmin?: boolean }) => {
+const PlanCard = ({ plan, calculatePrice, debugGetPriceMeta, isAdmin }: { plan: EsimPlan & { _canonical_supplier_id?: string }, calculatePrice: (price: number, options?: { supplierPlanId?: string; countryCode?: string; planId?: string; }) => number, debugGetPriceMeta?: (price: number, options?: { supplierPlanId?: string; countryCode?: string; planId?: string; }) => any, isAdmin?: boolean }) => {
   const { addToCart } = useCart();
   const { convertPrice, selectedCurrency, getCurrencySymbol } = useCurrency();
   const [isAdding, setIsAdding] = useState(false);
@@ -132,11 +133,26 @@ const PlanCard = ({ plan, calculatePrice, debugGetPriceMeta, isAdmin }: { plan: 
   const handleAddToCart = async () => {
     setIsAdding(true);
     try {
-      const priceUSD = calculatePrice?.(plan.wholesale_price || 0, { supplierPlanId: plan.supplier_plan_id, countryCode: plan.country_code, planId: plan.id }) ?? 0;
+      const supplierPlanId = plan._canonical_supplier_id || plan.supplier_plan_id;
+      const priceUSD = calculatePrice?.(plan.wholesale_price || 0, { 
+        supplierPlanId, 
+        countryCode: plan.country_code, 
+        planId: plan.id 
+      }) ?? 0;
       
       // Get debug meta for console
-      const priceMeta = debugGetPriceMeta?.(plan.wholesale_price || 0, { supplierPlanId: plan.supplier_plan_id, countryCode: plan.country_code, planId: plan.id });
-      console.log('PricingDebug (Optimized)', { plan: plan.title, supplier_plan_id: plan.supplier_plan_id, priceUSD, priceMeta });
+      const priceMeta = debugGetPriceMeta?.(plan.wholesale_price || 0, { 
+        supplierPlanId, 
+        countryCode: plan.country_code, 
+        planId: plan.id 
+      });
+      console.log('PricingDebug (Optimized)', { 
+        plan: plan.title, 
+        algolia_id: plan.supplier_plan_id,
+        canonical_id: supplierPlanId,
+        priceUSD, 
+        priceMeta 
+      });
       await addToCart({
         id: `${plan.id}-${Date.now()}`,
         planId: plan.id,
@@ -214,9 +230,18 @@ const PlanCard = ({ plan, calculatePrice, debugGetPriceMeta, isAdmin }: { plan: 
             <div className="flex flex-col">
               <span className="text-lg font-bold text-primary">
                 {(() => {
-                  const priceUSD = calculatePrice?.(plan.wholesale_price || 0, { supplierPlanId: plan.supplier_plan_id, countryCode: plan.country_code, planId: plan.id }) ?? 0;
+                  const supplierPlanId = plan._canonical_supplier_id || plan.supplier_plan_id;
+                  const priceUSD = calculatePrice?.(plan.wholesale_price || 0, { 
+                    supplierPlanId, 
+                    countryCode: plan.country_code, 
+                    planId: plan.id 
+                  }) ?? 0;
                   const priceMeta = isAdmin && debugGetPriceMeta 
-                    ? debugGetPriceMeta(plan.wholesale_price || 0, { supplierPlanId: plan.supplier_plan_id, countryCode: plan.country_code, planId: plan.id })
+                    ? debugGetPriceMeta(plan.wholesale_price || 0, { 
+                        supplierPlanId, 
+                        countryCode: plan.country_code, 
+                        planId: plan.id 
+                      })
                     : null;
                   return (
                     <>
@@ -259,12 +284,20 @@ const PlanCard = ({ plan, calculatePrice, debugGetPriceMeta, isAdmin }: { plan: 
 const SearchResults = ({ calculatePrice, debugGetPriceMeta, isAdmin }: { calculatePrice: (price: number, options?: { supplierPlanId?: string; countryCode?: string; planId?: string; }) => number, debugGetPriceMeta?: (price: number, options?: { supplierPlanId?: string; countryCode?: string; planId?: string; }) => any, isAdmin?: boolean }) => {
   const { hits } = useHits<EsimPlan>();
 
+  const planIds = useMemo(() => hits.map(hit => hit.id), [hits]);
+  const { getCanonicalId } = usePlanIdMapping(planIds);
+
   const enhancedHits = useMemo(() => {
-    return hits.map(hit => ({
-      ...hit,
-      wholesale_price: (hit as any).wholesale_price ?? 0
-    }));
-  }, [hits]);
+    return hits.map(hit => {
+      const canonicalId = getCanonicalId(hit.id);
+      const supplierPlanId = canonicalId || hit.supplier_plan_id;
+      return {
+        ...hit,
+        wholesale_price: (hit as any).wholesale_price ?? 0,
+        _canonical_supplier_id: supplierPlanId
+      };
+    });
+  }, [hits, getCanonicalId]);
 
   if (!enhancedHits.length) {
     return (

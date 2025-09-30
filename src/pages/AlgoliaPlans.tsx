@@ -1,11 +1,11 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { InstantSearch, Configure, useSearchBox, useHits, useRefinementList, useStats, usePagination } from 'react-instantsearch';
 import { getSearchClient, ESIM_PLANS_INDEX } from "@/lib/algolia";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Globe, Clock, Database, Wifi, ShoppingCart, Check, Search as SearchIcon, AlertCircle, RefreshCw, Loader2 } from "lucide-react";
+import { Globe, Clock, Database, Wifi, ShoppingCart, Check, Search as SearchIcon, AlertCircle, RefreshCw, Loader2, Bug } from "lucide-react";
 import Layout from "@/components/Layout";
 import { getCountryFlag } from "@/utils/countryFlags";
 import { useCart } from "@/contexts/CartContext";
@@ -14,6 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { AgentPreviewSelector } from "@/components/AgentPreviewSelector";
 import { AlgoliaErrorBoundary } from "@/components/AlgoliaErrorBoundary";
 import { usePriceCalculator } from "@/hooks/usePriceCalculator";
+import { usePlanIdMapping } from "@/hooks/usePlanIdMapping";
 
 interface EsimPlan {
   objectID: string;
@@ -211,7 +212,7 @@ function SearchResults({ calculatePrice, debugGetPriceMeta, isAdmin }: { calcula
   );
 }
 
-function PlanHit({ hit, isAdmin, priceMeta }: { hit: EsimPlan; isAdmin?: boolean; priceMeta?: any }) {
+function PlanHit({ hit, isAdmin }: { hit: EsimPlan & { _canonical_supplier_id?: string }; isAdmin?: boolean }) {
   const [addedToCart, setAddedToCart] = useState(false);
   const [dayPassDays, setDayPassDays] = useState(Math.max(hit.validity_days || 1, 1));
   const { toast } = useToast();
@@ -277,8 +278,16 @@ function PlanHit({ hit, isAdmin, priceMeta }: { hit: EsimPlan; isAdmin?: boolean
             </CardDescription>
           </div>
           <div className="text-right flex-shrink-0">
-            <div className="text-2xl font-bold text-primary">
-              {getCurrencySymbol()}{convertedPrice.toFixed(2)}
+            <div className="flex flex-col items-end gap-1">
+              <div className="text-2xl font-bold text-primary">
+                {getCurrencySymbol()}{convertedPrice.toFixed(2)}
+              </div>
+              {isAdmin && hit._canonical_supplier_id && (
+                <Badge variant="outline" className="text-[9px] bg-purple-50 border-purple-200">
+                  <Bug className="h-2 w-2 mr-1" />
+                  {hit._canonical_supplier_id.substring(0, 10)}
+                </Badge>
+              )}
             </div>
             <div className="text-xs text-muted-foreground">
               Total Price
@@ -349,8 +358,9 @@ export default function AlgoliaPlans() {
   const [algoliaError, setAlgoliaError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
   const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const { toast } = useToast();
-  const { calculatePrice, refreshPricing } = usePriceCalculator();
+  const { calculatePrice, refreshPricing, debugGetPriceMeta } = usePriceCalculator();
 
   // Error boundary for Algolia failures
   const handleAlgoliaError = useCallback((error: Error) => {
@@ -410,6 +420,23 @@ export default function AlgoliaPlans() {
       supabase.removeChannel(channel);
     };
   }, [toast]);
+
+  useEffect(() => {
+    const checkAdmin = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: roleData } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .eq('role', 'admin')
+        .maybeSingle();
+
+      setIsAdmin(!!roleData);
+    };
+    checkAdmin();
+  }, []);
 
   useEffect(() => {
     const initializeAlgolia = async () => {
@@ -618,7 +645,7 @@ export default function AlgoliaPlans() {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                  <SearchResults calculatePrice={calculatePrice} />
+                  <SearchResults calculatePrice={calculatePrice} debugGetPriceMeta={debugGetPriceMeta} isAdmin={isAdmin} />
                 </div>
 
                 <CustomPagination />

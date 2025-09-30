@@ -178,13 +178,17 @@ function CustomPagination() {
   );
 }
 
-function SearchResults({ calculatePrice }: { calculatePrice: (price: number, options?: { supplierPlanId?: string; countryCode?: string }) => number }) {
+function SearchResults({ calculatePrice, debugGetPriceMeta, isAdmin }: { calculatePrice: (price: number, options?: { supplierPlanId?: string; countryCode?: string; planId?: string }) => number; debugGetPriceMeta?: (price: number, options?: { supplierPlanId?: string; countryCode?: string; planId?: string }) => any; isAdmin?: boolean }) {
   const { hits } = useHits();
   
   const transformHits = (hits: any[]) => {
     return hits.map(hit => {
       const basePrice = Number(hit.wholesale_price) || 0;
-      const agentPrice = calculatePrice(basePrice, { supplierPlanId: hit.supplier_plan_id, countryCode: hit.country_code });
+      const agentPrice = calculatePrice(basePrice, { supplierPlanId: hit.supplier_plan_id, countryCode: hit.country_code, planId: hit.id });
+      if (isAdmin && debugGetPriceMeta) {
+        const meta = debugGetPriceMeta(basePrice, { supplierPlanId: hit.supplier_plan_id, countryCode: hit.country_code, planId: hit.id });
+        console.log('PricingDebug (AlgoliaPlans)', { title: hit.title, supplier_plan_id: hit.supplier_plan_id, supplier_name: hit.supplier_name, basePrice, agentPrice, meta });
+      }
       
       return {
         ...hit,
@@ -192,7 +196,6 @@ function SearchResults({ calculatePrice }: { calculatePrice: (price: number, opt
       };
     });
   };
-
   const transformedHits = transformHits(hits);
 
   if (transformedHits.length === 0) {
@@ -208,7 +211,7 @@ function SearchResults({ calculatePrice }: { calculatePrice: (price: number, opt
   );
 }
 
-function PlanHit({ hit }: { hit: EsimPlan }) {
+function PlanHit({ hit, isAdmin, priceMeta }: { hit: EsimPlan; isAdmin?: boolean; priceMeta?: any }) {
   const [addedToCart, setAddedToCart] = useState(false);
   const [dayPassDays, setDayPassDays] = useState(Math.max(hit.validity_days || 1, 1));
   const { toast } = useToast();

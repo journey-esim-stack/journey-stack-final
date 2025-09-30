@@ -11,7 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { usePriceCalculator } from "@/hooks/usePriceCalculator";
 import { useCart } from "@/contexts/CartContext";
-import { Globe, Clock, Database, Wifi, ShoppingCart, Check, Search as SearchIcon, AlertCircle, RefreshCw, Loader2, Plus, Search, Filter, MapPin, Zap } from "lucide-react";
+import { Globe, Clock, Database, Wifi, ShoppingCart, Check, Search as SearchIcon, AlertCircle, RefreshCw, Loader2, Plus, Search, Filter, MapPin, Zap, Bug } from "lucide-react";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { SearchAutocomplete } from "@/components/SearchAutocomplete";
 import { useSearchHistory } from "@/hooks/useSearchHistory";
@@ -40,10 +40,14 @@ interface EsimPlan {
 }
 function PlanCard({
   plan,
-  calculatePrice
+  calculatePrice,
+  debugGetPriceMeta,
+  isAdmin
 }: {
   plan: EsimPlan;
   calculatePrice?: (price: number, options?: { supplierPlanId?: string; countryCode?: string; }) => number;
+  debugGetPriceMeta?: (price: number, options?: { supplierPlanId?: string; countryCode?: string; }) => any;
+  isAdmin?: boolean;
 }) {
   const [addedToCart, setAddedToCart] = useState(false);
   const [dayPassDays, setDayPassDays] = useState(Math.max(plan.validity_days || 1, 1));
@@ -54,12 +58,19 @@ function PlanCard({
 
   // Compute agent price from wholesale using markup (USD base)
   const agentPrice = calculatePrice?.(plan.wholesale_price || 0, { supplierPlanId: plan.supplier_plan_id, countryCode: plan.country_code }) ?? 0;
+  
+  // Get debug meta for admins
+  const priceMeta = isAdmin && debugGetPriceMeta 
+    ? debugGetPriceMeta(plan.wholesale_price || 0, { supplierPlanId: plan.supplier_plan_id, countryCode: plan.country_code })
+    : null;
+
   console.log('PricingDebug', {
     plan: plan.title,
     supplier_plan_id: plan.supplier_plan_id,
     wholesale_price: plan.wholesale_price,
     previewAgentId,
-    agentPrice
+    agentPrice,
+    priceMeta
   });
 
   // Detect Day Pass plans
@@ -114,6 +125,14 @@ function PlanCard({
             <div className="text-xs text-muted-foreground">
               Total Price
             </div>
+            {isAdmin && priceMeta?.selectedRule && (
+              <Badge variant="outline" className="mt-1 text-[10px] bg-purple-50 border-purple-300">
+                <Bug className="h-2.5 w-2.5 mr-1" />
+                {priceMeta.selectedRule.rule_type}:{priceMeta.selectedRule.target_id?.substring(0, 8)}
+                {priceMeta.selectedRule.agent_filter && ' (agent)'}
+                {' '}p{priceMeta.selectedRule.priority}
+              </Badge>
+            )}
           </div>
         </div>
       </CardHeader>
@@ -163,8 +182,11 @@ export default function AlgoliaPlansSimple() {
   const {
     calculatePrice,
     loading: markupLoading,
-    refreshPricing
+    refreshPricing,
+    debugGetPriceMeta
   } = usePriceCalculator();
+  
+  const [isAdmin, setIsAdmin] = useState(false);
 
   // Filter states
   const [selectedCountry, setSelectedCountry] = useState<string>("");
@@ -187,6 +209,24 @@ export default function AlgoliaPlansSimple() {
     searchHistory,
     addToHistory
   } = useSearchHistory();
+  
+  // Check if user is admin
+  useEffect(() => {
+    const checkAdmin = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: roleData } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .eq('role', 'admin')
+        .maybeSingle();
+
+      setIsAdmin(!!roleData);
+    };
+    checkAdmin();
+  }, []);
 
   // In preview environments, Algolia adds a query param that causes 400s.
   // Force direct Supabase search to guarantee a working page.
@@ -744,7 +784,7 @@ export default function AlgoliaPlansSimple() {
                         <div className="h-8 bg-muted rounded"></div>
                       </div>
                     </CardContent>
-                  </Card>) : plans.length > 0 ? plans.map(plan => <PlanCard key={plan.objectID} plan={plan} calculatePrice={calculatePrice} />) : <div className="col-span-full flex flex-col items-center justify-center py-12 text-center">
+                  </Card>) : plans.length > 0 ? plans.map(plan => <PlanCard key={plan.objectID} plan={plan} calculatePrice={calculatePrice} debugGetPriceMeta={debugGetPriceMeta} isAdmin={isAdmin} />) : <div className="col-span-full flex flex-col items-center justify-center py-12 text-center">
                   <AlertCircle className="h-12 w-12 text-muted-foreground mb-4" />
                   <h3 className="text-lg font-semibold text-foreground mb-2">No Plans Found</h3>
                   <p className="text-muted-foreground max-w-md">

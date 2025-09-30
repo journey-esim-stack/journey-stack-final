@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Search, MapPin, Calendar, Database, TrendingUp, Filter, SortAsc, SortDesc, Zap, RefreshCw } from 'lucide-react';
+import { Search, MapPin, Calendar, Database, TrendingUp, Filter, SortAsc, SortDesc, Zap, RefreshCw, Bug } from 'lucide-react';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -123,7 +123,7 @@ const EnhancedRefinementList = ({ attribute, title, icon }: { attribute: string;
 };
 
 // Enhanced Plan Card with better UX
-const PlanCard = ({ plan, calculatePrice }: { plan: EsimPlan, calculatePrice: (price: number, options?: { supplierPlanId?: string; countryCode?: string; }) => number }) => {
+const PlanCard = ({ plan, calculatePrice, debugGetPriceMeta, isAdmin }: { plan: EsimPlan, calculatePrice: (price: number, options?: { supplierPlanId?: string; countryCode?: string; }) => number, debugGetPriceMeta?: (price: number, options?: { supplierPlanId?: string; countryCode?: string; }) => any, isAdmin?: boolean }) => {
   const { addToCart } = useCart();
   const { convertPrice, selectedCurrency, getCurrencySymbol } = useCurrency();
   const [isAdding, setIsAdding] = useState(false);
@@ -133,6 +133,10 @@ const PlanCard = ({ plan, calculatePrice }: { plan: EsimPlan, calculatePrice: (p
     setIsAdding(true);
     try {
       const priceUSD = calculatePrice?.(plan.wholesale_price || 0, { supplierPlanId: plan.supplier_plan_id, countryCode: plan.country_code }) ?? 0;
+      
+      // Get debug meta for console
+      const priceMeta = debugGetPriceMeta?.(plan.wholesale_price || 0, { supplierPlanId: plan.supplier_plan_id, countryCode: plan.country_code });
+      console.log('PricingDebug (Optimized)', { plan: plan.title, supplier_plan_id: plan.supplier_plan_id, priceUSD, priceMeta });
       await addToCart({
         id: `${plan.id}-${Date.now()}`,
         planId: plan.id,
@@ -207,12 +211,29 @@ const PlanCard = ({ plan, calculatePrice }: { plan: EsimPlan, calculatePrice: (p
 
         <div className="mt-4 space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-lg font-bold text-primary">
-              {(() => {
-                const priceUSD = calculatePrice?.(plan.wholesale_price || 0, { supplierPlanId: plan.supplier_plan_id, countryCode: plan.country_code }) ?? 0;
-                return getCurrencySymbol() + convertPrice(priceUSD).toFixed(2);
-              })()}
-            </span>
+            <div className="flex flex-col">
+              <span className="text-lg font-bold text-primary">
+                {(() => {
+                  const priceUSD = calculatePrice?.(plan.wholesale_price || 0, { supplierPlanId: plan.supplier_plan_id, countryCode: plan.country_code }) ?? 0;
+                  const priceMeta = isAdmin && debugGetPriceMeta 
+                    ? debugGetPriceMeta(plan.wholesale_price || 0, { supplierPlanId: plan.supplier_plan_id, countryCode: plan.country_code })
+                    : null;
+                  return (
+                    <>
+                      {getCurrencySymbol() + convertPrice(priceUSD).toFixed(2)}
+                      {isAdmin && priceMeta?.selectedRule && (
+                        <Badge variant="outline" className="ml-2 text-[10px] bg-purple-50 border-purple-300">
+                          <Bug className="h-2.5 w-2.5 mr-1" />
+                          {priceMeta.selectedRule.rule_type}:{priceMeta.selectedRule.target_id?.substring(0, 8)}
+                          {priceMeta.selectedRule.agent_filter && ' (agent)'}
+                          {' '}p{priceMeta.selectedRule.priority}
+                        </Badge>
+                      )}
+                    </>
+                  );
+                })()}
+              </span>
+            </div>
             {isDayPass && (
               <Badge variant="outline" className="text-xs">
                 Day Pass
@@ -235,7 +256,7 @@ const PlanCard = ({ plan, calculatePrice }: { plan: EsimPlan, calculatePrice: (p
 };
 
 // Enhanced Search Results with performance optimizations
-const SearchResults = ({ calculatePrice }: { calculatePrice: (price: number) => number }) => {
+const SearchResults = ({ calculatePrice, debugGetPriceMeta, isAdmin }: { calculatePrice: (price: number, options?: { supplierPlanId?: string; countryCode?: string; }) => number, debugGetPriceMeta?: (price: number, options?: { supplierPlanId?: string; countryCode?: string; }) => any, isAdmin?: boolean }) => {
   const { hits } = useHits<EsimPlan>();
 
   const enhancedHits = useMemo(() => {
@@ -258,7 +279,7 @@ const SearchResults = ({ calculatePrice }: { calculatePrice: (price: number) => 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
       {enhancedHits.map((plan) => (
-        <PlanCard key={plan.objectID} plan={plan as any} calculatePrice={calculatePrice} />
+        <PlanCard key={plan.objectID} plan={plan as any} calculatePrice={calculatePrice} debugGetPriceMeta={debugGetPriceMeta} isAdmin={isAdmin} />
       ))}
     </div>
   );
@@ -331,7 +352,8 @@ export default function AlgoliaPlansOptimized() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
-  const { calculatePrice, refreshPricing } = usePriceCalculator();
+  const { calculatePrice, refreshPricing, debugGetPriceMeta } = usePriceCalculator();
+  const [isAdmin, setIsAdmin] = useState(false);
 
   // Initialize Algolia client
   useEffect(() => {
@@ -356,6 +378,24 @@ export default function AlgoliaPlansOptimized() {
 
     initializeAlgolia();
   }, [toast]);
+
+  // Check if user is admin
+  useEffect(() => {
+    const checkAdmin = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: roleData } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .eq('role', 'admin')
+        .maybeSingle();
+
+      setIsAdmin(!!roleData);
+    };
+    checkAdmin();
+  }, []);
 
   // Real-time sync monitoring
   useEffect(() => {
@@ -463,7 +503,7 @@ export default function AlgoliaPlansOptimized() {
               </div>
 
 {/* Results */}
-              <SearchResults calculatePrice={calculatePrice} />
+              <SearchResults calculatePrice={calculatePrice} debugGetPriceMeta={debugGetPriceMeta} isAdmin={isAdmin} />
 
               {/* Pagination */}
               <EnhancedPagination />

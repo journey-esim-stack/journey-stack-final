@@ -22,6 +22,7 @@ import { getCountryFlag } from "@/utils/countryFlags";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import RegionalPlanDropdown from "@/components/RegionalPlanDropdown";
 import { AgentPreviewSelector } from "@/components/AgentPreviewSelector";
+import { useAgentPreview } from "@/contexts/AgentPreviewContext";
 interface EsimPlan {
   objectID: string;
   id: string;
@@ -46,19 +47,20 @@ function PlanCard({
 }) {
   const [addedToCart, setAddedToCart] = useState(false);
   const [dayPassDays, setDayPassDays] = useState(Math.max(plan.validity_days || 1, 1));
-  const {
-    toast
-  } = useToast();
-  const {
-    addToCart
-  } = useCart();
-  const {
-    convertPrice,
-    getCurrencySymbol
-  } = useCurrency();
+  const { toast } = useToast();
+  const { addToCart } = useCart();
+  const { convertPrice, getCurrencySymbol } = useCurrency();
+  const { previewAgentId } = useAgentPreview();
 
   // Compute agent price from wholesale using markup (USD base)
   const agentPrice = calculatePrice?.(plan.wholesale_price || 0, { supplierPlanId: plan.supplier_plan_id }) ?? 0;
+  console.log('PricingDebug', {
+    plan: plan.title,
+    supplier_plan_id: plan.supplier_plan_id,
+    wholesale_price: plan.wholesale_price,
+    previewAgentId,
+    agentPrice
+  });
 
   // Detect Day Pass plans
   const isDayPass = (plan: EsimPlan) => {

@@ -63,7 +63,12 @@ export const usePricingRules = () => {
       // First, check if the rule could apply in this context
       switch (rule.rule_type) {
         case 'plan':
-          return rule.target_id === supplierPlanId || rule.target_id === planId;
+          const planMatches = rule.target_id === supplierPlanId || rule.target_id === planId;
+          // If rule has agent_filter, it must match the current agentId
+          if (rule.agent_filter) {
+            return planMatches && rule.agent_filter === agentId;
+          }
+          return planMatches;
         case 'agent':
           return rule.target_id === agentId;
         case 'country':

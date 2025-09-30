@@ -3,7 +3,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAgentPreview } from '@/contexts/AgentPreviewContext';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import { Eye } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Eye, RefreshCw } from 'lucide-react';
+import { usePriceCalculator } from '@/hooks/usePriceCalculator';
 
 interface Agent {
   id: string;
@@ -13,7 +15,9 @@ interface Agent {
 export const AgentPreviewSelector = () => {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const { previewAgentId, setPreviewAgentId } = useAgentPreview();
+  const { refreshPricing } = usePriceCalculator();
 
   useEffect(() => {
     checkAdminAndLoadAgents();
@@ -51,6 +55,12 @@ export const AgentPreviewSelector = () => {
     }
   };
 
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await refreshPricing();
+    setTimeout(() => setIsRefreshing(false), 500);
+  };
+
   if (!isAdmin || agents.length === 0) {
     return null;
   }
@@ -79,6 +89,15 @@ export const AgentPreviewSelector = () => {
           </SelectContent>
         </Select>
       </div>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={handleRefresh}
+        disabled={isRefreshing}
+        className="bg-white"
+      >
+        <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+      </Button>
     </div>
   );
 };

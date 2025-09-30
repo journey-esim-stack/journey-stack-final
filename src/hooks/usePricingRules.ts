@@ -130,6 +130,59 @@ export const usePricingRules = () => {
     return wholesalePrice * 4;
   }, [rules]);
 
+  // Debug helper to inspect which rule would apply
+  const getAppliedRule = useCallback((params: CalculatePriceParams) => {
+    const { wholesalePrice, agentId, countryCode, planId, supplierPlanId } = params;
+
+    const matches = rules.filter(rule => {
+      switch (rule.rule_type) {
+        case 'plan': {
+          const planMatches = rule.target_id === supplierPlanId || rule.target_id === planId;
+          if (rule.agent_filter) return planMatches && rule.agent_filter === agentId;
+          return planMatches;
+        }
+        case 'agent':
+          return rule.target_id === agentId;
+        case 'country':
+          return rule.target_id === countryCode;
+        case 'default':
+          return true;
+        default:
+          return false;
+      }
+    });
+
+    const specificity = (rule: PricingRule) => {
+      if (
+        rule.rule_type === 'plan' &&
+        rule.agent_filter &&
+        agentId &&
+        rule.agent_filter === agentId &&
+        (rule.target_id === supplierPlanId || rule.target_id === planId)
+      ) return 5;
+      if (rule.rule_type === 'plan' && (rule.target_id === supplierPlanId || rule.target_id === planId)) return 4;
+      if (rule.rule_type === 'agent' && rule.target_id === agentId) return 3;
+      if (rule.rule_type === 'country' && rule.target_id === countryCode) return 2;
+      return 1;
+    };
+
+    const selectedRule = matches.reduce<PricingRule | undefined>((best, rule) => {
+      if (!best) return rule;
+      if (rule.priority < best.priority) return rule;
+      if (rule.priority === best.priority && specificity(rule) > specificity(best)) return rule;
+      return best;
+    }, undefined);
+
+    let price = wholesalePrice * 4;
+    if (selectedRule) {
+      if (selectedRule.markup_type === 'fixed_price') price = selectedRule.markup_value;
+      else if (selectedRule.markup_type === 'percent') price = wholesalePrice * (1 + selectedRule.markup_value / 100);
+      else if (selectedRule.markup_type === 'fixed') price = wholesalePrice + selectedRule.markup_value;
+    }
+
+    return { selectedRule, price };
+  }, [rules]);
+
   // Setup real-time updates for pricing rules
   useEffect(() => {
     fetchRules();
@@ -164,6 +217,7 @@ export const usePricingRules = () => {
     loading,
     isConnected,
     calculatePrice,
+    getAppliedRule,
     refetch: fetchRules
   };
 };

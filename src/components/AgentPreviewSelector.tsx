@@ -74,7 +74,10 @@ export const AgentPreviewSelector = () => {
         </Label>
         <Select 
           value={previewAgentId || 'none'} 
-          onValueChange={(value) => setPreviewAgentId(value === 'none' ? null : value)}
+          onValueChange={async (value) => {
+            setPreviewAgentId(value === 'none' ? null : value);
+            await handleRefresh();
+          }}
         >
           <SelectTrigger className="mt-1 bg-white">
             <SelectValue placeholder="Preview as agent..." />

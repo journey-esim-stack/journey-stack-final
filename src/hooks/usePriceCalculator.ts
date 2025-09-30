@@ -12,7 +12,7 @@ export const usePriceCalculator = () => {
   const [agentId, setAgentId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const { previewAgentId } = useAgentPreview();
-  const { calculatePrice: calculatePriceWithRules, loading: rulesLoading, refetch: refetchRules } = usePricingRules();
+  const { calculatePrice: calculatePriceWithRules, loading: rulesLoading, refetch: refetchRules, getAppliedRule } = usePricingRules();
 
   // Fetch current agent ID
   const fetchAgentId = useCallback(async () => {
@@ -65,6 +65,25 @@ export const usePriceCalculator = () => {
     });
   }, [agentId, previewAgentId, calculatePriceWithRules]);
 
+  // Debug meta
+  const debugGetPriceMeta = useCallback((
+    wholesalePrice: number,
+    options?: {
+      countryCode?: string;
+      planId?: string;
+      supplierPlanId?: string;
+    }
+  ) => {
+    const effectiveAgentId = previewAgentId || agentId;
+    return getAppliedRule({
+      wholesalePrice,
+      agentId: effectiveAgentId || undefined,
+      countryCode: options?.countryCode,
+      planId: options?.planId,
+      supplierPlanId: options?.supplierPlanId
+    });
+  }, [agentId, previewAgentId, getAppliedRule]);
+
   // Refresh pricing rules
   const refreshPricing = useCallback(async () => {
     await refetchRules();
@@ -87,6 +106,7 @@ export const usePriceCalculator = () => {
     calculatePrice,
     loading: loading || rulesLoading,
     refreshPricing,
-    agentId: previewAgentId || agentId
+    agentId: previewAgentId || agentId,
+    debugGetPriceMeta,
   };
 };

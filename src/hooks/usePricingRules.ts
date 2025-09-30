@@ -36,7 +36,8 @@ export const usePricingRules = () => {
         .from('pricing_rules')
         .select('*')
         .eq('is_active', true)
-        .order('priority', { ascending: true }); // Lower priority number = higher priority
+        .order('priority', { ascending: true }) // Lower priority number = higher priority
+        .range(0, 9999); // fetch up to 10k rules to avoid 1000-row cap
 
       if (error) {
         throw error;

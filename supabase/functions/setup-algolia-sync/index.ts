@@ -141,12 +141,13 @@ serve(async (req) => {
       );
     }
 
-    // Get current eSIM plans data
+    // Get current eSIM plans data (fetch all records, not just default 1000)
     const { data: plans, error: plansError } = await supabaseClient
       .from('esim_plans')
       .select('*')
       .eq('is_active', true)
-      .eq('admin_only', false);
+      .eq('admin_only', false)
+      .range(0, 10000);
 
     if (plansError) {
       console.error('Error fetching plans:', plansError);

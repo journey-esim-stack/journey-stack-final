@@ -178,13 +178,13 @@ function CustomPagination() {
   );
 }
 
-function SearchResults({ calculatePrice }: { calculatePrice: (price: number, options?: { supplierPlanId?: string }) => number }) {
+function SearchResults({ calculatePrice }: { calculatePrice: (price: number, options?: { supplierPlanId?: string; countryCode?: string }) => number }) {
   const { hits } = useHits();
   
   const transformHits = (hits: any[]) => {
     return hits.map(hit => {
       const basePrice = Number(hit.wholesale_price) || 0;
-      const agentPrice = calculatePrice(basePrice, { supplierPlanId: hit.supplier_plan_id });
+      const agentPrice = calculatePrice(basePrice, { supplierPlanId: hit.supplier_plan_id, countryCode: hit.country_code });
       
       return {
         ...hit,

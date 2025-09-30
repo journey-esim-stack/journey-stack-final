@@ -132,7 +132,7 @@ const PlanCard = ({ plan, calculatePrice }: { plan: EsimPlan, calculatePrice: (p
   const handleAddToCart = async () => {
     setIsAdding(true);
     try {
-      const priceUSD = calculatePrice?.(plan.wholesale_price || 0, { supplierPlanId: plan.supplier_plan_id }) ?? 0;
+      const priceUSD = calculatePrice?.(plan.wholesale_price || 0, { supplierPlanId: plan.supplier_plan_id, countryCode: plan.country_code }) ?? 0;
       await addToCart({
         id: `${plan.id}-${Date.now()}`,
         planId: plan.id,
@@ -209,7 +209,7 @@ const PlanCard = ({ plan, calculatePrice }: { plan: EsimPlan, calculatePrice: (p
           <div className="flex items-center justify-between">
             <span className="text-lg font-bold text-primary">
               {(() => {
-                const priceUSD = calculatePrice?.(plan.wholesale_price || 0, { supplierPlanId: plan.supplier_plan_id }) ?? 0;
+                const priceUSD = calculatePrice?.(plan.wholesale_price || 0, { supplierPlanId: plan.supplier_plan_id, countryCode: plan.country_code }) ?? 0;
                 return getCurrencySymbol() + convertPrice(priceUSD).toFixed(2);
               })()}
             </span>

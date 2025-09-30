@@ -53,7 +53,7 @@ function PlanCard({
   const { previewAgentId } = useAgentPreview();
 
   // Compute agent price from wholesale using markup (USD base)
-  const agentPrice = calculatePrice?.(plan.wholesale_price || 0, { supplierPlanId: plan.supplier_plan_id }) ?? 0;
+  const agentPrice = calculatePrice?.(plan.wholesale_price || 0, { supplierPlanId: plan.supplier_plan_id, countryCode: plan.country_code }) ?? 0;
   console.log('PricingDebug', {
     plan: plan.title,
     supplier_plan_id: plan.supplier_plan_id,
@@ -391,14 +391,14 @@ export default function AlgoliaPlansSimple() {
 
     // Apply price filter (calculate agent price for filtering)
     filtered = filtered.filter(plan => {
-      const priceUSD = calculatePrice?.(plan.wholesale_price || 0, { supplierPlanId: plan.supplier_plan_id }) ?? 0;
+      const priceUSD = calculatePrice?.(plan.wholesale_price || 0, { supplierPlanId: plan.supplier_plan_id, countryCode: plan.country_code }) ?? 0;
       return priceUSD >= priceRange[0] && priceUSD <= priceRange[1];
     });
 
     // Apply sorting
     filtered.sort((a, b) => {
-      const aPrice = calculatePrice?.(a.wholesale_price || 0, { supplierPlanId: a.supplier_plan_id }) ?? 0;
-      const bPrice = calculatePrice?.(b.wholesale_price || 0, { supplierPlanId: b.supplier_plan_id }) ?? 0;
+      const aPrice = calculatePrice?.(a.wholesale_price || 0, { supplierPlanId: a.supplier_plan_id, countryCode: a.country_code }) ?? 0;
+      const bPrice = calculatePrice?.(b.wholesale_price || 0, { supplierPlanId: b.supplier_plan_id, countryCode: b.country_code }) ?? 0;
       switch (sortBy) {
         case 'price-asc':
           return aPrice - bPrice;

@@ -123,7 +123,7 @@ const EnhancedRefinementList = ({ attribute, title, icon }: { attribute: string;
 };
 
 // Enhanced Plan Card with better UX
-const PlanCard = ({ plan, calculatePrice, debugGetPriceMeta, isAdmin }: { plan: EsimPlan, calculatePrice: (price: number, options?: { supplierPlanId?: string; countryCode?: string; }) => number, debugGetPriceMeta?: (price: number, options?: { supplierPlanId?: string; countryCode?: string; }) => any, isAdmin?: boolean }) => {
+const PlanCard = ({ plan, calculatePrice, debugGetPriceMeta, isAdmin }: { plan: EsimPlan, calculatePrice: (price: number, options?: { supplierPlanId?: string; countryCode?: string; planId?: string; }) => number, debugGetPriceMeta?: (price: number, options?: { supplierPlanId?: string; countryCode?: string; planId?: string; }) => any, isAdmin?: boolean }) => {
   const { addToCart } = useCart();
   const { convertPrice, selectedCurrency, getCurrencySymbol } = useCurrency();
   const [isAdding, setIsAdding] = useState(false);
@@ -132,10 +132,10 @@ const PlanCard = ({ plan, calculatePrice, debugGetPriceMeta, isAdmin }: { plan: 
   const handleAddToCart = async () => {
     setIsAdding(true);
     try {
-      const priceUSD = calculatePrice?.(plan.wholesale_price || 0, { supplierPlanId: plan.supplier_plan_id, countryCode: plan.country_code }) ?? 0;
+      const priceUSD = calculatePrice?.(plan.wholesale_price || 0, { supplierPlanId: plan.supplier_plan_id, countryCode: plan.country_code, planId: plan.id }) ?? 0;
       
       // Get debug meta for console
-      const priceMeta = debugGetPriceMeta?.(plan.wholesale_price || 0, { supplierPlanId: plan.supplier_plan_id, countryCode: plan.country_code });
+      const priceMeta = debugGetPriceMeta?.(plan.wholesale_price || 0, { supplierPlanId: plan.supplier_plan_id, countryCode: plan.country_code, planId: plan.id });
       console.log('PricingDebug (Optimized)', { plan: plan.title, supplier_plan_id: plan.supplier_plan_id, priceUSD, priceMeta });
       await addToCart({
         id: `${plan.id}-${Date.now()}`,
@@ -214,9 +214,9 @@ const PlanCard = ({ plan, calculatePrice, debugGetPriceMeta, isAdmin }: { plan: 
             <div className="flex flex-col">
               <span className="text-lg font-bold text-primary">
                 {(() => {
-                  const priceUSD = calculatePrice?.(plan.wholesale_price || 0, { supplierPlanId: plan.supplier_plan_id, countryCode: plan.country_code }) ?? 0;
+                  const priceUSD = calculatePrice?.(plan.wholesale_price || 0, { supplierPlanId: plan.supplier_plan_id, countryCode: plan.country_code, planId: plan.id }) ?? 0;
                   const priceMeta = isAdmin && debugGetPriceMeta 
-                    ? debugGetPriceMeta(plan.wholesale_price || 0, { supplierPlanId: plan.supplier_plan_id, countryCode: plan.country_code })
+                    ? debugGetPriceMeta(plan.wholesale_price || 0, { supplierPlanId: plan.supplier_plan_id, countryCode: plan.country_code, planId: plan.id })
                     : null;
                   return (
                     <>
@@ -256,7 +256,7 @@ const PlanCard = ({ plan, calculatePrice, debugGetPriceMeta, isAdmin }: { plan: 
 };
 
 // Enhanced Search Results with performance optimizations
-const SearchResults = ({ calculatePrice, debugGetPriceMeta, isAdmin }: { calculatePrice: (price: number, options?: { supplierPlanId?: string; countryCode?: string; }) => number, debugGetPriceMeta?: (price: number, options?: { supplierPlanId?: string; countryCode?: string; }) => any, isAdmin?: boolean }) => {
+const SearchResults = ({ calculatePrice, debugGetPriceMeta, isAdmin }: { calculatePrice: (price: number, options?: { supplierPlanId?: string; countryCode?: string; planId?: string; }) => number, debugGetPriceMeta?: (price: number, options?: { supplierPlanId?: string; countryCode?: string; planId?: string; }) => any, isAdmin?: boolean }) => {
   const { hits } = useHits<EsimPlan>();
 
   const enhancedHits = useMemo(() => {

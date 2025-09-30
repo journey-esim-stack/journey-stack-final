@@ -6,15 +6,24 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-interface AirtableRule {
+// Simplified input format from Airtable
+interface AirtableSimplifiedRule {
   record_id: string;
-  rule_type: string; // 'agent', 'country', 'plan', 'default'
-  target_id?: string; // agent_id, country_code, supplier_plan_id
-  agent_filter?: string | null; // For agent-specific plan pricing
-  markup_type: string; // 'percent', 'fixed', or 'fixed_price'
+  agent_id: string;
+  supplier_plan_id: string;
+  final_price: number;
+}
+
+// Internal rule format for database
+interface PricingRule {
+  record_id: string;
+  rule_type: string;
+  target_id: string;
+  agent_filter: string;
+  markup_type: string;
   markup_value: number;
-  min_order_amount?: number;
-  max_order_amount?: number | null;
+  min_order_amount: number;
+  max_order_amount: number | null;
   is_active: boolean;
   priority: number;
 }
@@ -36,25 +45,31 @@ serve(async (req) => {
     const payload = await req.json()
     console.log('📦 Webhook payload:', JSON.stringify(payload, null, 2))
 
-    // Process each rule from Airtable
+    // Process each rule from Airtable (simplified 3-column format)
     const results = []
     
     for (const rule of payload.rules || []) {
       try {
-        const ruleData: AirtableRule = {
+        // Auto-populate all fields from simplified input
+        const ruleData: PricingRule = {
           record_id: rule.record_id,
-          rule_type: rule.rule_type,
-          target_id: rule.target_id || null,
-          agent_filter: rule.agent_filter || null,
-          markup_type: rule.markup_type || 'percent',
-          markup_value: parseFloat(rule.markup_value) || 300,
-          min_order_amount: rule.min_order_amount ? parseFloat(rule.min_order_amount) : 0,
-          max_order_amount: rule.max_order_amount ? parseFloat(rule.max_order_amount) : undefined,
-          is_active: rule.is_active !== false, // Default to true
-          priority: parseInt(rule.priority) || 100
+          rule_type: 'plan', // Always 'plan' for agent-specific pricing
+          target_id: rule.supplier_plan_id, // The plan being priced
+          agent_filter: rule.agent_id, // The specific agent
+          markup_type: 'fixed_price', // Always fixed price
+          markup_value: parseFloat(rule.final_price), // The final retail price
+          min_order_amount: 0, // No minimum
+          max_order_amount: null, // No maximum
+          is_active: true, // Active by default
+          priority: 1 // Highest priority for agent-specific rules
         }
 
-        console.log('💡 Processing rule:', ruleData)
+        console.log('💡 Processing simplified rule:', {
+          agent_id: rule.agent_id,
+          supplier_plan_id: rule.supplier_plan_id,
+          final_price: rule.final_price,
+          auto_populated: ruleData
+        })
 
         // Upsert the pricing rule
         const { error: upsertError } = await supabase

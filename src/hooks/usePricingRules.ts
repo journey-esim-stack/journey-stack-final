@@ -4,8 +4,9 @@ import { supabase } from '@/integrations/supabase/client';
 interface PricingRule {
   id: string;
   rule_type: string; // 'agent', 'country', 'plan', 'default'
-  target_id: string | null; // agent_id, country_code, plan_id
-  markup_type: string; // 'percent' or 'fixed'
+  target_id: string | null; // agent_id, country_code, supplier_plan_id
+  agent_filter?: string | null; // For agent-specific plan pricing
+  markup_type: string; // 'percent', 'fixed', or 'fixed_price'
   markup_value: number;
   min_order_amount: number;
   max_order_amount: number | null;
@@ -18,6 +19,7 @@ interface CalculatePriceParams {
   agentId?: string;
   countryCode?: string;
   planId?: string;
+  supplierPlanId?: string;
 }
 
 export const usePricingRules = () => {
@@ -53,14 +55,19 @@ export const usePricingRules = () => {
 
   // Calculate price based on rules hierarchy
   const calculatePrice = useCallback((params: CalculatePriceParams): number => {
-    const { wholesalePrice, agentId, countryCode, planId } = params;
+    const { wholesalePrice, agentId, countryCode, planId, supplierPlanId } = params;
 
     // Find the best matching rule in priority order
     const applicableRules = rules.filter(rule => {
+      // Agent-specific plan pricing (highest priority)
+      if (rule.rule_type === 'plan' && rule.agent_filter && rule.target_id === supplierPlanId) {
+        return rule.agent_filter === agentId;
+      }
+      
       // Check if rule applies to this context
       switch (rule.rule_type) {
         case 'plan':
-          return rule.target_id === planId;
+          return rule.target_id === supplierPlanId || rule.target_id === planId;
         case 'agent':
           return rule.target_id === agentId;
         case 'country':
@@ -84,12 +91,16 @@ export const usePricingRules = () => {
     console.log('💰 Applying pricing rule:', {
       rule_type: selectedRule.rule_type,
       target_id: selectedRule.target_id,
+      agent_filter: selectedRule.agent_filter,
       markup_type: selectedRule.markup_type,
       markup_value: selectedRule.markup_value
     });
 
     // Apply the markup based on type
-    if (selectedRule.markup_type === 'percent') {
+    if (selectedRule.markup_type === 'fixed_price') {
+      // For fixed_price, markup_value IS the final retail price
+      return selectedRule.markup_value;
+    } else if (selectedRule.markup_type === 'percent') {
       return wholesalePrice * (1 + selectedRule.markup_value / 100);
     } else if (selectedRule.markup_type === 'fixed') {
       return wholesalePrice + selectedRule.markup_value;

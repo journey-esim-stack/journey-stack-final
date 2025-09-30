@@ -9,8 +9,9 @@ const corsHeaders = {
 interface AirtableRule {
   record_id: string;
   rule_type: string; // 'agent', 'country', 'plan', 'default'
-  target_id?: string; // agent_id, country_code, plan_id
-  markup_type: string; // 'percent' or 'fixed'
+  target_id?: string; // agent_id, country_code, supplier_plan_id
+  agent_filter?: string | null; // For agent-specific plan pricing
+  markup_type: string; // 'percent', 'fixed', or 'fixed_price'
   markup_value: number;
   min_order_amount?: number;
   max_order_amount?: number | null;
@@ -44,6 +45,7 @@ serve(async (req) => {
           record_id: rule.record_id,
           rule_type: rule.rule_type,
           target_id: rule.target_id || null,
+          agent_filter: rule.agent_filter || null,
           markup_type: rule.markup_type || 'percent',
           markup_value: parseFloat(rule.markup_value) || 300,
           min_order_amount: rule.min_order_amount ? parseFloat(rule.min_order_amount) : 0,
@@ -61,6 +63,7 @@ serve(async (req) => {
             airtable_record_id: ruleData.record_id,
             rule_type: ruleData.rule_type,
             target_id: ruleData.target_id,
+            agent_filter: ruleData.agent_filter,
             markup_type: ruleData.markup_type,
             markup_value: ruleData.markup_value,
             min_order_amount: ruleData.min_order_amount,

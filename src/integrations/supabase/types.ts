@@ -440,6 +440,7 @@ export type Database = {
       }
       pricing_rules: {
         Row: {
+          agent_filter: string | null
           airtable_record_id: string
           created_at: string
           id: string
@@ -454,6 +455,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          agent_filter?: string | null
           airtable_record_id: string
           created_at?: string
           id?: string
@@ -468,6 +470,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          agent_filter?: string | null
           airtable_record_id?: string
           created_at?: string
           id?: string

@@ -29,6 +29,7 @@ interface EsimPlan {
   currency: string;
   is_active: boolean;
   wholesale_price: number;
+  supplier_plan_id: string;
 }
 
 // Enhanced Search Box with analytics tracking
@@ -121,7 +122,7 @@ const EnhancedRefinementList = ({ attribute, title, icon }: { attribute: string;
 };
 
 // Enhanced Plan Card with better UX
-const PlanCard = ({ plan, calculatePrice }: { plan: EsimPlan, calculatePrice: (price: number) => number }) => {
+const PlanCard = ({ plan, calculatePrice }: { plan: EsimPlan, calculatePrice: (price: number, options?: { supplierPlanId?: string; countryCode?: string; }) => number }) => {
   const { addToCart } = useCart();
   const { convertPrice, selectedCurrency, getCurrencySymbol } = useCurrency();
   const [isAdding, setIsAdding] = useState(false);
@@ -130,7 +131,7 @@ const PlanCard = ({ plan, calculatePrice }: { plan: EsimPlan, calculatePrice: (p
   const handleAddToCart = async () => {
     setIsAdding(true);
     try {
-      const priceUSD = calculatePrice?.(plan.wholesale_price || 0) ?? 0;
+      const priceUSD = calculatePrice?.(plan.wholesale_price || 0, { supplierPlanId: plan.supplier_plan_id }) ?? 0;
       await addToCart({
         id: `${plan.id}-${Date.now()}`,
         planId: plan.id,
@@ -207,7 +208,7 @@ const PlanCard = ({ plan, calculatePrice }: { plan: EsimPlan, calculatePrice: (p
           <div className="flex items-center justify-between">
             <span className="text-lg font-bold text-primary">
               {(() => {
-                const priceUSD = calculatePrice?.(plan.wholesale_price || 0) ?? 0;
+                const priceUSD = calculatePrice?.(plan.wholesale_price || 0, { supplierPlanId: plan.supplier_plan_id }) ?? 0;
                 return getCurrencySymbol() + convertPrice(priceUSD).toFixed(2);
               })()}
             </span>

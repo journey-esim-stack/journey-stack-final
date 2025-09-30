@@ -19,6 +19,7 @@ interface AlgoliaRecord {
   wholesale_price: number;
   currency: string;
   supplier_name: string;
+  supplier_plan_id: string;
   is_active: boolean;
   admin_only: boolean;
   created_at: string;
@@ -55,6 +56,7 @@ async function transformSupabaseToAlgolia(supabaseRecord: any): Promise<AlgoliaR
     wholesale_price: parseFloat(supabaseRecord.wholesale_price),
     currency: supabaseRecord.currency,
     supplier_name: supabaseRecord.supplier_name,
+    supplier_plan_id: supabaseRecord.supplier_plan_id,
     is_active: supabaseRecord.is_active,
     admin_only: supabaseRecord.admin_only,
     created_at: supabaseRecord.created_at,

@@ -106,7 +106,7 @@ serve(async (req) => {
       attributesToRetrieve: [
         'objectID', 'id', 'title', 'description', 'country_name', 
         'country_code', 'data_amount', 'validity_days', 'wholesale_price', 
-        'currency', 'supplier_name', 'is_active', 'admin_only'
+        'currency', 'supplier_name', 'supplier_plan_id', 'is_active', 'admin_only'
       ],
       attributesToHighlight: ['title', 'country_name', 'data_amount'],
       attributesToSnippet: ['description:20'],
@@ -187,6 +187,7 @@ serve(async (req) => {
         wholesale_price: parseFloat(plan.wholesale_price),
         currency: plan.currency,
         supplier_name: plan.supplier_name,
+        supplier_plan_id: plan.supplier_plan_id,
         is_active: plan.is_active,
         admin_only: plan.admin_only,
         created_at: plan.created_at,

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { usePricingRules } from './usePricingRules';
 
 interface AgentMarkup {
   markup_type: string;
@@ -13,6 +14,7 @@ export const useAgentMarkup = () => {
   const [isConnected, setIsConnected] = useState(true);
   const [connectionAttempts, setConnectionAttempts] = useState(0);
   const [hasInitialized, setHasInitialized] = useState(false);
+  const [agentId, setAgentId] = useState<string | null>(null);
   
   const channelRef = useRef<any>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -21,8 +23,27 @@ export const useAgentMarkup = () => {
   const circuitBreakerRef = useRef(false);
   const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const calculatePrice = (wholesalePrice: number, markupData?: AgentMarkup) => {
-    const currentMarkup = markupData || markup;
+  const { calculatePrice: calculatePriceWithRules } = usePricingRules();
+
+  const calculatePrice = useCallback((
+    wholesalePrice: number, 
+    options?: { 
+      supplierPlanId?: string;
+      countryCode?: string;
+    }
+  ) => {
+    // If supplier_plan_id is provided, use the pricing rules system
+    if (options?.supplierPlanId && agentId) {
+      return calculatePriceWithRules({
+        wholesalePrice,
+        agentId,
+        supplierPlanId: options.supplierPlanId,
+        countryCode: options.countryCode
+      });
+    }
+
+    // Fallback to legacy markup calculation
+    const currentMarkup = markup;
     
     // Default to 300% markup if no markup is set
     if (!currentMarkup) {
@@ -40,7 +61,7 @@ export const useAgentMarkup = () => {
     
     // Fallback to default 300% markup
     return wholesalePrice * 4;
-  };
+  }, [markup, agentId, calculatePriceWithRules]);
 
   const setupRealtimeChannel = useCallback(async () => {
     if (channelRef.current) {
@@ -169,7 +190,7 @@ export const useAgentMarkup = () => {
 
           const { data: profile, error } = await supabase
             .from('agent_profiles')
-            .select('markup_type, markup_value')
+            .select('id, markup_type, markup_value')
             .eq('user_id', user.id)
             .maybeSingle();
 
@@ -180,6 +201,7 @@ export const useAgentMarkup = () => {
           if (!profile) {
             console.log('No agent profile found - using default markup');
             setMarkup({ markup_type: 'percent', markup_value: 300 });
+            setAgentId(null);
           } else {
             const markupData = {
               markup_type: profile.markup_type || 'percent',
@@ -187,6 +209,7 @@ export const useAgentMarkup = () => {
             };
             console.log('Fetched markup from database:', markupData);
             setMarkup(markupData);
+            setAgentId(profile.id);
           }
           setHasInitialized(true);
           

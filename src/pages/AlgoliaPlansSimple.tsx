@@ -34,13 +34,14 @@ interface EsimPlan {
   is_active: boolean;
   admin_only: boolean;
   wholesale_price: number;
+  supplier_plan_id: string;
 }
 function PlanCard({
   plan,
   calculatePrice
 }: {
   plan: EsimPlan;
-  calculatePrice?: (price: number) => number;
+  calculatePrice?: (price: number, options?: { supplierPlanId?: string; countryCode?: string; }) => number;
 }) {
   const [addedToCart, setAddedToCart] = useState(false);
   const [dayPassDays, setDayPassDays] = useState(Math.max(plan.validity_days || 1, 1));
@@ -56,7 +57,7 @@ function PlanCard({
   } = useCurrency();
 
   // Compute agent price from wholesale using markup (USD base)
-  const agentPrice = calculatePrice?.(plan.wholesale_price || 0) ?? 0;
+  const agentPrice = calculatePrice?.(plan.wholesale_price || 0, { supplierPlanId: plan.supplier_plan_id }) ?? 0;
 
   // Detect Day Pass plans
   const isDayPass = (plan: EsimPlan) => {
@@ -388,14 +389,14 @@ export default function AlgoliaPlansSimple() {
 
     // Apply price filter (calculate agent price for filtering)
     filtered = filtered.filter(plan => {
-      const priceUSD = calculatePrice?.(plan.wholesale_price || 0) ?? 0;
+      const priceUSD = calculatePrice?.(plan.wholesale_price || 0, { supplierPlanId: plan.supplier_plan_id }) ?? 0;
       return priceUSD >= priceRange[0] && priceUSD <= priceRange[1];
     });
 
     // Apply sorting
     filtered.sort((a, b) => {
-      const aPrice = calculatePrice?.(a.wholesale_price || 0) ?? 0;
-      const bPrice = calculatePrice?.(b.wholesale_price || 0) ?? 0;
+      const aPrice = calculatePrice?.(a.wholesale_price || 0, { supplierPlanId: a.supplier_plan_id }) ?? 0;
+      const bPrice = calculatePrice?.(b.wholesale_price || 0, { supplierPlanId: b.supplier_plan_id }) ?? 0;
       switch (sortBy) {
         case 'price-asc':
           return aPrice - bPrice;

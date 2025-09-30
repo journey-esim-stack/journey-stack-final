@@ -42,7 +42,8 @@ export const useAgentMarkupRules = () => {
     wholesalePrice: number, 
     options?: { 
       countryCode?: string; 
-      planId?: string; 
+      planId?: string;
+      supplierPlanId?: string;
     }
   ): number => {
     if (!agentId) {
@@ -54,7 +55,8 @@ export const useAgentMarkupRules = () => {
       wholesalePrice,
       agentId,
       countryCode: options?.countryCode,
-      planId: options?.planId
+      planId: options?.planId,
+      supplierPlanId: options?.supplierPlanId
     });
   }, [agentId, calculatePriceWithRules]);
 

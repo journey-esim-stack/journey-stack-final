@@ -70,19 +70,23 @@ export const usePricingRules = () => {
 
     // Find best matching rule using priority + specificity (plan+agent > plan > agent > country > default)
     const matches = rules.filter(rule => {
-      // First, check if the rule could apply in this context
-      switch (rule.rule_type) {
-        case 'plan':
-          const planMatches = rule.target_id === supplierPlanId || rule.target_id === planId;
-          // If rule has agent_filter, it must match the current agentId
+      const type = rule.rule_type?.toLowerCase();
+      const tgt = (rule.target_id ?? '').toString();
+      switch (type) {
+        case 'plan': {
+          const planMatches = !!tgt && (
+            tgt.trim().toLowerCase() === (supplierPlanId ?? '').toString().trim().toLowerCase() ||
+            tgt.trim().toLowerCase() === (planId ?? '').toString().trim().toLowerCase()
+          );
           if (rule.agent_filter) {
-            return planMatches && rule.agent_filter === agentId;
+            return planMatches && rule.agent_filter.toString().trim().toLowerCase() === (agentId ?? '').toString().trim().toLowerCase();
           }
           return planMatches;
+        }
         case 'agent':
-          return rule.target_id === agentId;
+          return tgt.trim().toLowerCase() === (agentId ?? '').toString().trim().toLowerCase();
         case 'country':
-          return rule.target_id === countryCode;
+          return tgt.trim().toUpperCase() === (countryCode ?? '').toString().trim().toUpperCase();
         case 'default':
           return true;
         default:
@@ -97,16 +101,16 @@ export const usePricingRules = () => {
     })));
 
     const specificity = (rule: PricingRule) => {
-      if (
-        rule.rule_type === 'plan' &&
-        rule.agent_filter &&
-        agentId &&
-        rule.agent_filter === agentId &&
-        (rule.target_id === supplierPlanId || rule.target_id === planId)
-      ) return 5;
-      if (rule.rule_type === 'plan' && (rule.target_id === supplierPlanId || rule.target_id === planId)) return 4;
-      if (rule.rule_type === 'agent' && rule.target_id === agentId) return 3;
-      if (rule.rule_type === 'country' && rule.target_id === countryCode) return 2;
+      const type = rule.rule_type?.toLowerCase();
+      const tgt = (rule.target_id ?? '').toString();
+      const planMatch = !!tgt && (
+        tgt.trim().toLowerCase() === (supplierPlanId ?? '').toString().trim().toLowerCase() ||
+        tgt.trim().toLowerCase() === (planId ?? '').toString().trim().toLowerCase()
+      );
+      if (type === 'plan' && rule.agent_filter && agentId && rule.agent_filter.toString().trim().toLowerCase() === (agentId ?? '').toString().trim().toLowerCase() && planMatch) return 5;
+      if (type === 'plan' && planMatch) return 4;
+      if (type === 'agent' && tgt.trim().toLowerCase() === (agentId ?? '').toString().trim().toLowerCase()) return 3;
+      if (type === 'country' && tgt.trim().toUpperCase() === (countryCode ?? '').toString().trim().toUpperCase()) return 2;
       return 1; // default
     };
 
@@ -151,16 +155,21 @@ export const usePricingRules = () => {
     const { wholesalePrice, agentId, countryCode, planId, supplierPlanId } = params;
 
     const matches = rules.filter(rule => {
-      switch (rule.rule_type) {
+      const type = rule.rule_type?.toLowerCase();
+      const tgt = (rule.target_id ?? '').toString();
+      switch (type) {
         case 'plan': {
-          const planMatches = rule.target_id === supplierPlanId || rule.target_id === planId;
-          if (rule.agent_filter) return planMatches && rule.agent_filter === agentId;
+          const planMatches = !!tgt && (
+            tgt.trim().toLowerCase() === (supplierPlanId ?? '').toString().trim().toLowerCase() ||
+            tgt.trim().toLowerCase() === (planId ?? '').toString().trim().toLowerCase()
+          );
+          if (rule.agent_filter) return planMatches && rule.agent_filter.toString().trim().toLowerCase() === (agentId ?? '').toString().trim().toLowerCase();
           return planMatches;
         }
         case 'agent':
-          return rule.target_id === agentId;
+          return tgt.trim().toLowerCase() === (agentId ?? '').toString().trim().toLowerCase();
         case 'country':
-          return rule.target_id === countryCode;
+          return tgt.trim().toUpperCase() === (countryCode ?? '').toString().trim().toUpperCase();
         case 'default':
           return true;
         default:
@@ -169,16 +178,16 @@ export const usePricingRules = () => {
     });
 
     const specificity = (rule: PricingRule) => {
-      if (
-        rule.rule_type === 'plan' &&
-        rule.agent_filter &&
-        agentId &&
-        rule.agent_filter === agentId &&
-        (rule.target_id === supplierPlanId || rule.target_id === planId)
-      ) return 5;
-      if (rule.rule_type === 'plan' && (rule.target_id === supplierPlanId || rule.target_id === planId)) return 4;
-      if (rule.rule_type === 'agent' && rule.target_id === agentId) return 3;
-      if (rule.rule_type === 'country' && rule.target_id === countryCode) return 2;
+      const type = rule.rule_type?.toLowerCase();
+      const tgt = (rule.target_id ?? '').toString();
+      const planMatch = !!tgt && (
+        tgt.trim().toLowerCase() === (supplierPlanId ?? '').toString().trim().toLowerCase() ||
+        tgt.trim().toLowerCase() === (planId ?? '').toString().trim().toLowerCase()
+      );
+      if (type === 'plan' && rule.agent_filter && agentId && rule.agent_filter.toString().trim().toLowerCase() === (agentId ?? '').toString().trim().toLowerCase() && planMatch) return 5;
+      if (type === 'plan' && planMatch) return 4;
+      if (type === 'agent' && tgt.trim().toLowerCase() === (agentId ?? '').toString().trim().toLowerCase()) return 3;
+      if (type === 'country' && tgt.trim().toUpperCase() === (countryCode ?? '').toString().trim().toUpperCase()) return 2;
       return 1;
     };
 

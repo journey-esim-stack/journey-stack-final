@@ -21,6 +21,7 @@ import Layout from "@/components/Layout";
 import { getCountryFlag } from "@/utils/countryFlags";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import RegionalPlanDropdown from "@/components/RegionalPlanDropdown";
+import { AgentPreviewSelector } from "@/components/AgentPreviewSelector";
 interface EsimPlan {
   objectID: string;
   id: string;
@@ -550,6 +551,11 @@ export default function AlgoliaPlansSimple() {
               Direct Search
             </Badge>
           </div>
+        </div>
+
+        {/* Admin Preview Selector */}
+        <div className="max-w-4xl mx-auto">
+          <AgentPreviewSelector />
         </div>
 
         {/* Enhanced Search Section */}

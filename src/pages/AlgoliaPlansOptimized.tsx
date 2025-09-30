@@ -16,6 +16,7 @@ import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { Skeleton } from "@/components/ui/skeleton";
 import { InstantSearch, SearchBox, RefinementList, Stats, Configure, useHits, useStats, useSearchBox, useRefinementList, Pagination, usePagination, useInstantSearch } from 'react-instantsearch';
 import { AlgoliaErrorBoundary } from '@/components/AlgoliaErrorBoundary';
+import { AgentPreviewSelector } from '@/components/AgentPreviewSelector';
 
 interface EsimPlan {
   objectID: string;
@@ -419,6 +420,11 @@ export default function AlgoliaPlansOptimized() {
           <div className="text-center space-y-2">
             <h1 className="text-3xl font-bold">Premium eSIM Plans</h1>
             <p className="text-muted-foreground">Advanced search powered by Algolia</p>
+          </div>
+
+          {/* Admin Preview Selector */}
+          <div className="max-w-2xl mx-auto">
+            <AgentPreviewSelector />
           </div>
 
           {/* Search */}

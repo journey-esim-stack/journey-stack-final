@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { Routes, Route } from "react-router-dom";
 import { CartProvider } from "@/contexts/CartContext";
 import { CurrencyProvider } from "@/contexts/CurrencyContext";
+import { AgentPreviewProvider } from "@/contexts/AgentPreviewContext";
 import AgentApprovalGuard from "@/components/AgentApprovalGuard";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import Index from "./pages/Index";
@@ -37,10 +38,11 @@ const App = () => (
   <ErrorBoundary>
     <TooltipProvider>
       <CurrencyProvider>
-        <CartProvider>
-          <Toaster />
-          <Sonner />
-          <Routes>
+        <AgentPreviewProvider>
+          <CartProvider>
+            <Toaster />
+            <Sonner />
+            <Routes>
           {/* Public routes */}
           <Route path="/auth" element={<Auth />} />
           <Route path="/auth/confirmed" element={<AuthConfirmed />} />
@@ -70,8 +72,9 @@ const App = () => (
           
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
-          </Routes>
-        </CartProvider>
+            </Routes>
+          </CartProvider>
+        </AgentPreviewProvider>
       </CurrencyProvider>
     </TooltipProvider>
   </ErrorBoundary>

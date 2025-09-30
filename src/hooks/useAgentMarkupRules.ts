@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { usePricingRules } from './usePricingRules';
+import { useAgentPreview } from '@/contexts/AgentPreviewContext';
 
 interface AgentMarkup {
   markup_type: string;
@@ -10,6 +11,7 @@ interface AgentMarkup {
 export const useAgentMarkupRules = () => {
   const [loading, setLoading] = useState(true);
   const [agentId, setAgentId] = useState<string | null>(null);
+  const { previewAgentId } = useAgentPreview();
   const { calculatePrice: calculatePriceWithRules, loading: rulesLoading } = usePricingRules();
 
   // Get current agent ID
@@ -46,19 +48,22 @@ export const useAgentMarkupRules = () => {
       supplierPlanId?: string;
     }
   ): number => {
-    if (!agentId) {
+    // Use preview agent ID if available (for admin testing), otherwise use actual agent ID
+    const effectiveAgentId = previewAgentId || agentId;
+    
+    if (!effectiveAgentId) {
       // Fallback to default 300% markup if no agent
       return wholesalePrice * 4;
     }
 
     return calculatePriceWithRules({
       wholesalePrice,
-      agentId,
+      agentId: effectiveAgentId,
       countryCode: options?.countryCode,
       planId: options?.planId,
       supplierPlanId: options?.supplierPlanId
     });
-  }, [agentId, calculatePriceWithRules]);
+  }, [agentId, previewAgentId, calculatePriceWithRules]);
 
   // Legacy compatibility - return markup object for backward compatibility
   const markup: AgentMarkup | null = {

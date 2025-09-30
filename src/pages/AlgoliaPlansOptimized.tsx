@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Search, MapPin, Calendar, Database, TrendingUp, Filter, SortAsc, SortDesc, Zap } from 'lucide-react';
+import { Search, MapPin, Calendar, Database, TrendingUp, Filter, SortAsc, SortDesc, Zap, RefreshCw } from 'lucide-react';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,7 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useCart } from '@/contexts/CartContext';
 import { useCurrency } from '@/contexts/CurrencyContext';
 import { supabase } from '@/integrations/supabase/client';
-import { useAgentMarkup } from '@/hooks/useAgentMarkup';
+import { usePriceCalculator } from '@/hooks/usePriceCalculator';
 import { getSearchClient, ESIM_PLANS_INDEX } from '@/lib/algolia';
 import { getCountryFlag } from '@/utils/countryFlags';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
@@ -331,7 +331,7 @@ export default function AlgoliaPlansOptimized() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
-  const { calculatePrice } = useAgentMarkup();
+  const { calculatePrice, refreshPricing } = usePriceCalculator();
 
   // Initialize Algolia client
   useEffect(() => {
@@ -452,6 +452,14 @@ export default function AlgoliaPlansOptimized() {
               {/* Stats and Controls */}
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <EnhancedStats />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={refreshPricing}
+                >
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Refresh Pricing
+                </Button>
               </div>
 
 {/* Results */}

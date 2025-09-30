@@ -9,7 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { getSearchClient, ESIM_PLANS_INDEX } from "@/lib/algolia";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { useAgentMarkup } from "@/hooks/useAgentMarkup";
+import { usePriceCalculator } from "@/hooks/usePriceCalculator";
 import { useCart } from "@/contexts/CartContext";
 import { Globe, Clock, Database, Wifi, ShoppingCart, Check, Search as SearchIcon, AlertCircle, RefreshCw, Loader2, Plus, Search, Filter, MapPin, Zap } from "lucide-react";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
@@ -161,11 +161,10 @@ export default function AlgoliaPlansSimple() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const {
-    markup: realAgentMarkup,
     calculatePrice,
     loading: markupLoading,
-    isConnected
-  } = useAgentMarkup();
+    refreshPricing
+  } = usePriceCalculator();
 
   // Filter states
   const [selectedCountry, setSelectedCountry] = useState<string>("");
@@ -420,7 +419,7 @@ export default function AlgoliaPlansSimple() {
       }
     });
     setPlans(filtered);
-  }, [allPlans, selectedCountry, selectedRegionType, validityFilter, dataFilter, priceRange, sortBy, calculatePrice, searchQuery, realAgentMarkup]);
+  }, [allPlans, selectedCountry, selectedRegionType, validityFilter, dataFilter, priceRange, sortBy, calculatePrice, searchQuery]);
   const extractDataValue = (dataStr: string): number => {
     const match = dataStr.match(/(\d+(?:\.\d+)?)\s*(GB|MB|TB)/i);
     if (!match) return 0;

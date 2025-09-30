@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useAgentMarkup } from './useAgentMarkup';
+import { usePriceCalculator } from './usePriceCalculator';
 
 interface FallbackPlan {
   id: string;
@@ -21,7 +21,7 @@ export const useAlgoliaFallback = () => {
   const [fallbackPlans, setFallbackPlans] = useState<FallbackPlan[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { calculatePrice } = useAgentMarkup();
+  const { calculatePrice } = usePriceCalculator();
 
   const searchFallback = async (query: string = '', filters: Record<string, string> = {}) => {
     try {

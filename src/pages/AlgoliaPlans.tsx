@@ -13,6 +13,7 @@ import { useCurrency } from "@/contexts/CurrencyContext";
 import { supabase } from "@/integrations/supabase/client";
 import { AgentPreviewSelector } from "@/components/AgentPreviewSelector";
 import { AlgoliaErrorBoundary } from "@/components/AlgoliaErrorBoundary";
+import { usePriceCalculator } from "@/hooks/usePriceCalculator";
 
 interface EsimPlan {
   objectID: string;
@@ -177,19 +178,13 @@ function CustomPagination() {
   );
 }
 
-function SearchResults({ agentMarkup }: { agentMarkup: { type: string; value: number } }) {
+function SearchResults({ calculatePrice }: { calculatePrice: (price: number, options?: { supplierPlanId?: string }) => number }) {
   const { hits } = useHits();
   
   const transformHits = (hits: any[]) => {
     return hits.map(hit => {
       const basePrice = Number(hit.wholesale_price) || 0;
-      let agentPrice = basePrice;
-      
-      if (agentMarkup.type === 'percent') {
-        agentPrice = basePrice * (1 + agentMarkup.value / 100);
-      } else {
-        agentPrice = basePrice + agentMarkup.value;
-      }
+      const agentPrice = calculatePrice(basePrice, { supplierPlanId: hit.supplier_plan_id });
       
       return {
         ...hit,
@@ -346,14 +341,13 @@ function PlanHit({ hit }: { hit: EsimPlan }) {
 }
 
 export default function AlgoliaPlans() {
-  const [userId, setUserId] = useState<string | null>(null);
-  const [agentMarkup, setAgentMarkup] = useState({ type: 'percent', value: 300 });
   const [searchClient, setSearchClient] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [algoliaError, setAlgoliaError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
   const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
   const { toast } = useToast();
+  const { calculatePrice, refreshPricing } = usePriceCalculator();
 
   // Error boundary for Algolia failures
   const handleAlgoliaError = useCallback((error: Error) => {
@@ -421,31 +415,6 @@ export default function AlgoliaPlans() {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) {
           throw new Error('User not authenticated');
-        }
-        
-        setUserId(user.id);
-        
-        // Fetch agent markup with caching
-        const cachedMarkup = localStorage.getItem(`agent_markup_${user.id}`);
-        if (cachedMarkup) {
-          setAgentMarkup(JSON.parse(cachedMarkup));
-        }
-
-        const { data: agentProfile } = await supabase
-          .from("agent_profiles")
-          .select("markup_type, markup_value")
-          .eq("user_id", user.id)
-          .single();
-
-        if (agentProfile) {
-          const markup = {
-            type: agentProfile.markup_type || 'percent',
-            value: agentProfile.markup_value !== null && agentProfile.markup_value !== undefined 
-              ? Number(agentProfile.markup_value) 
-              : 300
-          };
-          setAgentMarkup(markup);
-          localStorage.setItem(`agent_markup_${user.id}`, JSON.stringify(markup));
         }
 
         // Get dynamic Algolia client
@@ -635,10 +604,18 @@ export default function AlgoliaPlans() {
               <div className="lg:col-span-3 space-y-6">
                 <div className="flex items-center justify-between">
                   <CustomStats />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={refreshPricing}
+                  >
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Refresh Pricing
+                  </Button>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                  <SearchResults agentMarkup={agentMarkup} />
+                  <SearchResults calculatePrice={calculatePrice} />
                 </div>
 
                 <CustomPagination />

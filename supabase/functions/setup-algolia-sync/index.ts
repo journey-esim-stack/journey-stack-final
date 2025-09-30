@@ -141,21 +141,36 @@ serve(async (req) => {
       );
     }
 
-    // Get current eSIM plans data (fetch all records, not just default 1000)
-    const { data: plans, error: plansError } = await supabaseClient
-      .from('esim_plans')
-      .select('*')
-      .eq('is_active', true)
-      .eq('admin_only', false)
-      .range(0, 10000);
+    // Get current eSIM plans data with pagination to bypass 1000-row limit
+    const pageSize = 1000;
+    let fromIndex = 0;
+    let allPlans: any[] = [];
 
-    if (plansError) {
-      console.error('Error fetching plans:', plansError);
-      return new Response(
-        JSON.stringify({ error: 'Failed to fetch plans data' }),
-        { status: 500, headers: corsHeaders }
-      );
+    while (true) {
+      const { data: page, error: pageError } = await supabaseClient
+        .from('esim_plans')
+        .select('*')
+        .eq('is_active', true)
+        .eq('admin_only', false)
+        .range(fromIndex, fromIndex + pageSize - 1);
+
+      if (pageError) {
+        console.error('Error fetching plans page:', pageError);
+        return new Response(
+          JSON.stringify({ error: 'Failed to fetch plans data' }),
+          { status: 500, headers: corsHeaders }
+        );
+      }
+
+      if (page && page.length > 0) {
+        allPlans = allPlans.concat(page);
+      }
+
+      if (!page || page.length < pageSize) break; // last page reached
+      fromIndex += pageSize;
     }
+
+    const plans = allPlans;
 
     // Transform plans data for Algolia with enhanced data processing
     const algoliaRecords = plans?.map(plan => {

@@ -4,7 +4,8 @@ import { supabase } from '@/integrations/supabase/client';
 interface PricingRule {
   id: string;
   rule_type: string; // 'agent', 'country', 'plan', 'default'
-  target_id: string | null; // agent_id, country_code, supplier_plan_id
+  target_id: string | null; // agent_id, country_code (not used for plan rules anymore)
+  plan_id: string | null; // UUID reference to esim_plans.id (for plan rules)
   agent_filter?: string | null; // For agent-specific plan pricing
   markup_type: string; // 'percent', 'fixed', or 'fixed_price'
   markup_value: number;
@@ -75,10 +76,8 @@ export const usePricingRules = () => {
       const tgt = (rule.target_id ?? '').toString();
       switch (type) {
         case 'plan': {
-          const planMatches = !!tgt && (
-            tgt.trim().toLowerCase() === (supplierPlanId ?? '').toString().trim().toLowerCase() ||
-            tgt.trim().toLowerCase() === (planId ?? '').toString().trim().toLowerCase()
-          );
+          // NEW: Use plan_id (UUID) for exact matching
+          const planMatches = rule.plan_id && planId && rule.plan_id === planId;
           if (rule.agent_filter) {
             return planMatches && rule.agent_filter.toString().trim().toLowerCase() === (agentId ?? '').toString().trim().toLowerCase();
           }
@@ -104,10 +103,7 @@ export const usePricingRules = () => {
     const specificity = (rule: PricingRule) => {
       const type = rule.rule_type?.toLowerCase();
       const tgt = (rule.target_id ?? '').toString();
-      const planMatch = !!tgt && (
-        tgt.trim().toLowerCase() === (supplierPlanId ?? '').toString().trim().toLowerCase() ||
-        tgt.trim().toLowerCase() === (planId ?? '').toString().trim().toLowerCase()
-      );
+      const planMatch = rule.plan_id && planId && rule.plan_id === planId;
       if (type === 'plan' && rule.agent_filter && agentId && rule.agent_filter.toString().trim().toLowerCase() === (agentId ?? '').toString().trim().toLowerCase() && planMatch) return 5;
       if (type === 'plan' && planMatch) return 4;
       if (type === 'agent' && tgt.trim().toLowerCase() === (agentId ?? '').toString().trim().toLowerCase()) return 3;
@@ -160,10 +156,8 @@ export const usePricingRules = () => {
       const tgt = (rule.target_id ?? '').toString();
       switch (type) {
         case 'plan': {
-          const planMatches = !!tgt && (
-            tgt.trim().toLowerCase() === (supplierPlanId ?? '').toString().trim().toLowerCase() ||
-            tgt.trim().toLowerCase() === (planId ?? '').toString().trim().toLowerCase()
-          );
+          // NEW: Use plan_id (UUID) for exact matching
+          const planMatches = rule.plan_id && planId && rule.plan_id === planId;
           if (rule.agent_filter) return planMatches && rule.agent_filter.toString().trim().toLowerCase() === (agentId ?? '').toString().trim().toLowerCase();
           return planMatches;
         }
@@ -181,10 +175,7 @@ export const usePricingRules = () => {
     const specificity = (rule: PricingRule) => {
       const type = rule.rule_type?.toLowerCase();
       const tgt = (rule.target_id ?? '').toString();
-      const planMatch = !!tgt && (
-        tgt.trim().toLowerCase() === (supplierPlanId ?? '').toString().trim().toLowerCase() ||
-        tgt.trim().toLowerCase() === (planId ?? '').toString().trim().toLowerCase()
-      );
+      const planMatch = rule.plan_id && planId && rule.plan_id === planId;
       if (type === 'plan' && rule.agent_filter && agentId && rule.agent_filter.toString().trim().toLowerCase() === (agentId ?? '').toString().trim().toLowerCase() && planMatch) return 5;
       if (type === 'plan' && planMatch) return 4;
       if (type === 'agent' && tgt.trim().toLowerCase() === (agentId ?? '').toString().trim().toLowerCase()) return 3;

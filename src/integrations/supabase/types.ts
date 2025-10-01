@@ -449,6 +449,7 @@ export type Database = {
           markup_value: number
           max_order_amount: number | null
           min_order_amount: number | null
+          plan_id: string | null
           priority: number
           rule_type: string
           target_id: string | null
@@ -464,6 +465,7 @@ export type Database = {
           markup_value?: number
           max_order_amount?: number | null
           min_order_amount?: number | null
+          plan_id?: string | null
           priority?: number
           rule_type: string
           target_id?: string | null
@@ -479,12 +481,21 @@ export type Database = {
           markup_value?: number
           max_order_amount?: number | null
           min_order_amount?: number | null
+          plan_id?: string | null
           priority?: number
           rule_type?: string
           target_id?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fk_pricing_rules_plan_id"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "esim_plans"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       system_settings: {
         Row: {

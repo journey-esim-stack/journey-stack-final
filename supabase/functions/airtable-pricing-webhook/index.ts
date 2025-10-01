@@ -10,7 +10,7 @@ const corsHeaders = {
 interface AirtableSimplifiedRule {
   record_id: string;
   agent_id: string;
-  supplier_plan_id: string;
+  plan_id: string; // NOW ACCEPTS UUID DIRECTLY
   final_price: number;
 }
 
@@ -18,7 +18,8 @@ interface AirtableSimplifiedRule {
 interface PricingRule {
   record_id: string;
   rule_type: string;
-  target_id: string;
+  target_id: string | null;
+  plan_id: string; // UUID reference to esim_plans.id
   agent_filter: string;
   markup_type: string;
   markup_value: number;
@@ -54,7 +55,8 @@ serve(async (req) => {
         const ruleData: PricingRule = {
           record_id: rule.record_id,
           rule_type: 'plan', // Always 'plan' for agent-specific pricing
-          target_id: rule.supplier_plan_id, // The plan being priced
+          target_id: null, // DEPRECATED: No longer used for plan rules
+          plan_id: rule.plan_id, // UUID from esim_plans.id
           agent_filter: rule.agent_id, // The specific agent
           markup_type: 'fixed_price', // Always fixed price
           markup_value: parseFloat(rule.final_price), // The final retail price
@@ -66,7 +68,7 @@ serve(async (req) => {
 
         console.log('💡 Processing simplified rule:', {
           agent_id: rule.agent_id,
-          supplier_plan_id: rule.supplier_plan_id,
+          plan_id: rule.plan_id,
           final_price: rule.final_price,
           auto_populated: ruleData
         })
@@ -78,6 +80,7 @@ serve(async (req) => {
             airtable_record_id: ruleData.record_id,
             rule_type: ruleData.rule_type,
             target_id: ruleData.target_id,
+            plan_id: ruleData.plan_id, // NEW: UUID reference
             agent_filter: ruleData.agent_filter,
             markup_type: ruleData.markup_type,
             markup_value: ruleData.markup_value,

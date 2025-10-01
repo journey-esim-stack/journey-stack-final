@@ -14,6 +14,7 @@ interface PricingRule {
   airtable_record_id: string;
   rule_type: string;
   target_id: string | null;
+  plan_id: string | null;
   markup_type: string;
   markup_value: number;
   min_order_amount: number;
@@ -24,8 +25,15 @@ interface PricingRule {
   updated_at: string;
 }
 
+interface PlanInfo {
+  id: string;
+  title: string;
+  country_code: string;
+}
+
 export default function AdminPricingRules() {
   const [rules, setRules] = useState<PricingRule[]>([]);
+  const [planInfo, setPlanInfo] = useState<Record<string, PlanInfo>>({});
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [isConnected, setIsConnected] = useState(false);
@@ -41,6 +49,24 @@ export default function AdminPricingRules() {
       if (error) throw error;
       
       setRules(data || []);
+      
+      // Fetch plan info for plan rules
+      const planIds = data?.filter(r => r.rule_type === 'plan' && r.plan_id).map(r => r.plan_id) || [];
+      if (planIds.length > 0) {
+        const { data: plans } = await supabase
+          .from('esim_plans')
+          .select('id, title, country_code')
+          .in('id', planIds);
+        
+        if (plans) {
+          const planMap: Record<string, PlanInfo> = {};
+          plans.forEach(p => {
+            planMap[p.id] = p;
+          });
+          setPlanInfo(planMap);
+        }
+      }
+      
       toast.success(`Loaded ${data?.length || 0} pricing rules`);
     } catch (error) {
       console.error('Error fetching pricing rules:', error);
@@ -216,23 +242,23 @@ export default function AdminPricingRules() {
           </TabsList>
 
           <TabsContent value="all">
-            <RulesTable rules={filteredRules} loading={loading} getRuleTypeColor={getRuleTypeColor} getMarkupDisplay={getMarkupDisplay} />
+            <RulesTable rules={filteredRules} loading={loading} getRuleTypeColor={getRuleTypeColor} getMarkupDisplay={getMarkupDisplay} planInfo={planInfo} />
           </TabsContent>
 
           <TabsContent value="agent">
-            <RulesTable rules={rulesByType.agent} loading={loading} getRuleTypeColor={getRuleTypeColor} getMarkupDisplay={getMarkupDisplay} />
+            <RulesTable rules={rulesByType.agent} loading={loading} getRuleTypeColor={getRuleTypeColor} getMarkupDisplay={getMarkupDisplay} planInfo={planInfo} />
           </TabsContent>
 
           <TabsContent value="country">
-            <RulesTable rules={rulesByType.country} loading={loading} getRuleTypeColor={getRuleTypeColor} getMarkupDisplay={getMarkupDisplay} />
+            <RulesTable rules={rulesByType.country} loading={loading} getRuleTypeColor={getRuleTypeColor} getMarkupDisplay={getMarkupDisplay} planInfo={planInfo} />
           </TabsContent>
 
           <TabsContent value="plan">
-            <RulesTable rules={rulesByType.plan} loading={loading} getRuleTypeColor={getRuleTypeColor} getMarkupDisplay={getMarkupDisplay} />
+            <RulesTable rules={rulesByType.plan} loading={loading} getRuleTypeColor={getRuleTypeColor} getMarkupDisplay={getMarkupDisplay} planInfo={planInfo} />
           </TabsContent>
 
           <TabsContent value="default">
-            <RulesTable rules={rulesByType.default} loading={loading} getRuleTypeColor={getRuleTypeColor} getMarkupDisplay={getMarkupDisplay} />
+            <RulesTable rules={rulesByType.default} loading={loading} getRuleTypeColor={getRuleTypeColor} getMarkupDisplay={getMarkupDisplay} planInfo={planInfo} />
           </TabsContent>
         </Tabs>
       </div>
@@ -244,12 +270,14 @@ function RulesTable({
   rules, 
   loading, 
   getRuleTypeColor, 
-  getMarkupDisplay 
+  getMarkupDisplay,
+  planInfo 
 }: { 
   rules: PricingRule[]; 
   loading: boolean;
   getRuleTypeColor: (type: string) => string;
   getMarkupDisplay: (rule: PricingRule) => string;
+  planInfo?: Record<string, PlanInfo>;
 }) {
   if (loading) {
     return (
@@ -307,8 +335,15 @@ function RulesTable({
                       {rule.rule_type}
                     </Badge>
                   </td>
-                  <td className="p-2 font-mono text-sm">
-                    {rule.target_id || '-'}
+                  <td className="p-2 text-sm">
+                    {rule.rule_type === 'plan' && rule.plan_id && planInfo?.[rule.plan_id] ? (
+                      <div>
+                        <div className="font-semibold">{planInfo[rule.plan_id].title}</div>
+                        <div className="text-xs text-muted-foreground font-mono">{planInfo[rule.plan_id].country_code}</div>
+                      </div>
+                    ) : (
+                      <span className="font-mono">{rule.target_id || '-'}</span>
+                    )}
                   </td>
                   <td className="p-2 font-semibold">
                     {getMarkupDisplay(rule)}

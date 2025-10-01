@@ -10,7 +10,8 @@ const corsHeaders = {
 interface AirtableSimplifiedRule {
   record_id: string;
   agent_id: string;
-  plan_id: string; // NOW ACCEPTS UUID DIRECTLY
+  plan_id?: string; // Preferred: UUID from esim_plans.id
+  supplier_plan_id?: string; // Backward-compat: treat as plan_id if provided
   final_price: number;
 }
 
@@ -51,12 +52,24 @@ serve(async (req) => {
     
     for (const rule of payload.rules || []) {
       try {
+        // Normalize plan id: accept plan_id (preferred) or supplier_plan_id (back-compat)
+        const incomingPlanId = (rule.plan_id ?? rule.supplier_plan_id)?.toString().trim();
+        if (!incomingPlanId || incomingPlanId === '#N/A') {
+          console.warn('⚠️ Skipping rule - missing plan_id', { record_id: rule.record_id, keys: Object.keys(rule) });
+          results.push({
+            record_id: rule.record_id,
+            status: 'error',
+            error: 'Missing plan_id (ensure your webhook sends plan_id UUID)'
+          });
+          continue;
+        }
+
         // Auto-populate all fields from simplified input
         const ruleData: PricingRule = {
           record_id: rule.record_id,
           rule_type: 'plan', // Always 'plan' for agent-specific pricing
           target_id: null, // DEPRECATED: No longer used for plan rules
-          plan_id: rule.plan_id, // UUID from esim_plans.id
+          plan_id: incomingPlanId, // UUID from esim_plans.id
           agent_filter: rule.agent_id, // The specific agent
           markup_type: 'fixed_price', // Always fixed price
           markup_value: parseFloat(rule.final_price), // The final retail price
@@ -68,8 +81,9 @@ serve(async (req) => {
 
         console.log('💡 Processing simplified rule:', {
           agent_id: rule.agent_id,
-          plan_id: rule.plan_id,
+          plan_id: incomingPlanId, // value being used
           final_price: rule.final_price,
+          received_keys: Object.keys(rule),
           auto_populated: ruleData
         })
 

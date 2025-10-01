@@ -48,6 +48,7 @@ export const usePricingRules = () => {
           .select('*')
           .eq('is_active', true)
           .order('priority', { ascending: true }) // Lower priority number = higher priority
+          .order('id', { ascending: true }) // Ensure stable pagination across pages
           .range(start, end);
 
         if (error) {

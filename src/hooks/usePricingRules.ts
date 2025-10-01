@@ -28,24 +28,48 @@ export const usePricingRules = () => {
   const [loading, setLoading] = useState(true);
   const [isConnected, setIsConnected] = useState(true);
 
-  // Fetch pricing rules from database
+  // Fetch pricing rules from database with pagination
   const fetchRules = useCallback(async () => {
     try {
       setLoading(true);
       
-      const { data, error } = await supabase
-        .from('pricing_rules')
-        .select('*')
-        .eq('is_active', true)
-        .order('priority', { ascending: true }) // Lower priority number = higher priority
-        .range(0, 9999); // fetch up to 10k rules to avoid 1000-row cap
+      let allRules: PricingRule[] = [];
+      let page = 0;
+      const pageSize = 1000;
+      let hasMore = true;
 
-      if (error) {
-        throw error;
+      // Fetch in batches to handle more than 1000 rules
+      while (hasMore) {
+        const start = page * pageSize;
+        const end = start + pageSize - 1;
+
+        const { data, error } = await supabase
+          .from('pricing_rules')
+          .select('*')
+          .eq('is_active', true)
+          .order('priority', { ascending: true }) // Lower priority number = higher priority
+          .range(start, end);
+
+        if (error) {
+          throw error;
+        }
+
+        if (data && data.length > 0) {
+          allRules = [...allRules, ...data];
+          hasMore = data.length === pageSize; // Continue if we got a full page
+          page++;
+        } else {
+          hasMore = false;
+        }
       }
 
-      setRules(data || []);
-      console.log('✅ Fetched pricing rules:', data?.length || 0);
+      setRules(allRules);
+      console.log(`✅ Fetched ${allRules.length} pricing rules across ${page} page(s)`);
+      
+      // Warn if we're approaching large numbers
+      if (allRules.length >= 5000) {
+        console.warn('⚠️ Large number of pricing rules loaded. Consider optimizing rule structure.');
+      }
       
     } catch (error) {
       console.error('❌ Error fetching pricing rules:', error);

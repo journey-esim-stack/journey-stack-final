@@ -64,12 +64,40 @@ serve(async (req) => {
           continue;
         }
 
+        // Validate if incomingPlanId is a UUID; if not, look up by supplier_plan_id
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        let finalPlanId = incomingPlanId;
+        
+        if (!uuidRegex.test(incomingPlanId)) {
+          // Not a UUID - assume it's a supplier_plan_id, look up the real UUID
+          console.log(`🔍 Looking up plan UUID for supplier_plan_id: ${incomingPlanId}`);
+          const { data: planData, error: lookupError } = await supabase
+            .from('esim_plans')
+            .select('id')
+            .ilike('supplier_plan_id', incomingPlanId)
+            .limit(1)
+            .single();
+          
+          if (lookupError || !planData) {
+            console.warn(`⚠️ No plan found for supplier_plan_id: ${incomingPlanId}`);
+            results.push({
+              record_id: rule.record_id,
+              status: 'error',
+              error: `Plan not found for supplier_plan_id: ${incomingPlanId}`
+            });
+            continue;
+          }
+          
+          finalPlanId = planData.id;
+          console.log(`✅ Resolved ${incomingPlanId} → ${finalPlanId}`);
+        }
+
         // Auto-populate all fields from simplified input
         const ruleData: PricingRule = {
           record_id: rule.record_id,
           rule_type: 'plan', // Always 'plan' for agent-specific pricing
           target_id: null, // DEPRECATED: No longer used for plan rules
-          plan_id: incomingPlanId, // UUID from esim_plans.id
+          plan_id: finalPlanId, // UUID from esim_plans.id
           agent_filter: rule.agent_id, // The specific agent
           markup_type: 'fixed_price', // Always fixed price
           markup_value: parseFloat(rule.final_price), // The final retail price
@@ -81,7 +109,8 @@ serve(async (req) => {
 
         console.log('💡 Processing simplified rule:', {
           agent_id: rule.agent_id,
-          plan_id: incomingPlanId, // value being used
+          incoming_plan_id: incomingPlanId,
+          final_plan_id: finalPlanId,
           final_price: rule.final_price,
           received_keys: Object.keys(rule),
           auto_populated: ruleData

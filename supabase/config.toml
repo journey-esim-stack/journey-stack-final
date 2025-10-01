@@ -71,3 +71,6 @@ verify_jwt = true
 
 [functions.export-plan-uuids]
 verify_jwt = true
+
+[functions.backfill-pricing-plan-ids]
+verify_jwt = true

@@ -102,7 +102,16 @@ export const usePricingRules = () => {
       switch (type) {
         case 'plan': {
           // NEW: Use plan_id (UUID) for exact matching
-          const planMatches = rule.plan_id && planId && rule.plan_id === planId;
+          let planMatches = rule.plan_id && planId && rule.plan_id === planId;
+          
+          // LEGACY: Fallback to target_id matching against supplierPlanId (case-insensitive)
+          if (!planMatches && !rule.plan_id && rule.target_id && supplierPlanId) {
+            planMatches = rule.target_id.toLowerCase() === supplierPlanId.toLowerCase();
+            if (planMatches) {
+              console.log('🔄 Legacy supplier_plan_id match:', { rule_target_id: rule.target_id, supplierPlanId });
+            }
+          }
+          
           if (rule.agent_filter) {
             return planMatches && rule.agent_filter.toString().trim().toLowerCase() === (agentId ?? '').toString().trim().toLowerCase();
           }
@@ -182,7 +191,13 @@ export const usePricingRules = () => {
       switch (type) {
         case 'plan': {
           // NEW: Use plan_id (UUID) for exact matching
-          const planMatches = rule.plan_id && planId && rule.plan_id === planId;
+          let planMatches = rule.plan_id && planId && rule.plan_id === planId;
+          
+          // LEGACY: Fallback to target_id matching against supplierPlanId (case-insensitive)
+          if (!planMatches && !rule.plan_id && rule.target_id && supplierPlanId) {
+            planMatches = rule.target_id.toLowerCase() === supplierPlanId.toLowerCase();
+          }
+          
           if (rule.agent_filter) return planMatches && rule.agent_filter.toString().trim().toLowerCase() === (agentId ?? '').toString().trim().toLowerCase();
           return planMatches;
         }

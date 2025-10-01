@@ -51,14 +51,11 @@ export const usePriceCalculator = () => {
     // Use preview agent ID if available (for admin testing), otherwise use actual agent ID
     const effectiveAgentId = previewAgentId || agentId;
 
-    if (!effectiveAgentId) {
-      // Fallback to default 300% markup if no agent
-      return wholesalePrice * 4;
-    }
+    // No agent? Still evaluate rules (plan/country/default). The rules hook handles fallback to 300% if none matches.
 
     return calculatePriceWithRules({
       wholesalePrice,
-      agentId: effectiveAgentId,
+      agentId: effectiveAgentId || undefined,
       countryCode: options?.countryCode,
       planId: options?.planId,
       supplierPlanId: options?.supplierPlanId

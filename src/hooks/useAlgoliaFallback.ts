@@ -64,7 +64,7 @@ export const useAlgoliaFallback = () => {
 
       const plansWithPricing = (data || []).map(plan => ({
         ...plan,
-        agent_price: calculatePrice(plan.wholesale_price, { supplierPlanId: (plan as any).supplier_plan_id, countryCode: (plan as any).country_code })
+        agent_price: calculatePrice(plan.wholesale_price, { supplierPlanId: (plan as any).supplier_plan_id, countryCode: (plan as any).country_code, planId: (plan as any).id })
       }));
 
       setFallbackPlans(plansWithPricing);

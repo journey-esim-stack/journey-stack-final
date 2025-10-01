@@ -45,8 +45,8 @@ function PlanCard({
   isAdmin
 }: {
   plan: EsimPlan;
-  calculatePrice?: (price: number, options?: { supplierPlanId?: string; countryCode?: string; }) => number;
-  debugGetPriceMeta?: (price: number, options?: { supplierPlanId?: string; countryCode?: string; }) => any;
+  calculatePrice?: (price: number, options?: { supplierPlanId?: string; countryCode?: string; planId?: string; }) => number;
+  debugGetPriceMeta?: (price: number, options?: { supplierPlanId?: string; countryCode?: string; planId?: string; }) => any;
   isAdmin?: boolean;
 }) {
   const [addedToCart, setAddedToCart] = useState(false);
@@ -57,11 +57,11 @@ function PlanCard({
   const { previewAgentId } = useAgentPreview();
 
   // Compute agent price from wholesale using markup (USD base)
-  const agentPrice = calculatePrice?.(plan.wholesale_price || 0, { supplierPlanId: plan.supplier_plan_id, countryCode: plan.country_code }) ?? 0;
+  const agentPrice = calculatePrice?.(plan.wholesale_price || 0, { supplierPlanId: plan.supplier_plan_id, countryCode: plan.country_code, planId: plan.id }) ?? 0;
   
   // Get debug meta for admins
   const priceMeta = isAdmin && debugGetPriceMeta 
-    ? debugGetPriceMeta(plan.wholesale_price || 0, { supplierPlanId: plan.supplier_plan_id, countryCode: plan.country_code })
+    ? debugGetPriceMeta(plan.wholesale_price || 0, { supplierPlanId: plan.supplier_plan_id, countryCode: plan.country_code, planId: plan.id })
     : null;
 
   console.log('PricingDebug', {
@@ -431,14 +431,14 @@ export default function AlgoliaPlansSimple() {
 
     // Apply price filter (calculate agent price for filtering)
     filtered = filtered.filter(plan => {
-      const priceUSD = calculatePrice?.(plan.wholesale_price || 0, { supplierPlanId: plan.supplier_plan_id, countryCode: plan.country_code }) ?? 0;
+      const priceUSD = calculatePrice?.(plan.wholesale_price || 0, { supplierPlanId: plan.supplier_plan_id, countryCode: plan.country_code, planId: plan.id }) ?? 0;
       return priceUSD >= priceRange[0] && priceUSD <= priceRange[1];
     });
 
     // Apply sorting
     filtered.sort((a, b) => {
-      const aPrice = calculatePrice?.(a.wholesale_price || 0, { supplierPlanId: a.supplier_plan_id, countryCode: a.country_code }) ?? 0;
-      const bPrice = calculatePrice?.(b.wholesale_price || 0, { supplierPlanId: b.supplier_plan_id, countryCode: b.country_code }) ?? 0;
+      const aPrice = calculatePrice?.(a.wholesale_price || 0, { supplierPlanId: a.supplier_plan_id, countryCode: a.country_code, planId: a.id }) ?? 0;
+      const bPrice = calculatePrice?.(b.wholesale_price || 0, { supplierPlanId: b.supplier_plan_id, countryCode: b.country_code, planId: b.id }) ?? 0;
       switch (sortBy) {
         case 'price-asc':
           return aPrice - bPrice;

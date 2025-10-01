@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Settings, RefreshCw, Database, Zap, TrendingUp } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { ExportPlanUuidsButton } from '@/components/ExportPlanUuidsButton';
 
 interface PricingRule {
   id: string;
@@ -159,6 +160,7 @@ export default function AdminPricingRules() {
             <Badge variant={isConnected ? "default" : "destructive"}>
               {isConnected ? "Real-time Connected" : "Disconnected"}
             </Badge>
+            <ExportPlanUuidsButton />
             <Button 
               onClick={fetchRules} 
               disabled={loading}

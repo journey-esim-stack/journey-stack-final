@@ -124,7 +124,7 @@ const EnhancedRefinementList = ({ attribute, title, icon }: { attribute: string;
 };
 
 // Enhanced Plan Card with better UX
-const PlanCard = ({ plan, calculatePrice, debugGetPriceMeta, isAdmin }: { plan: EsimPlan & { _canonical_supplier_id?: string }, calculatePrice: (price: number, options?: { supplierPlanId?: string; countryCode?: string; planId?: string; }) => number, debugGetPriceMeta?: (price: number, options?: { supplierPlanId?: string; countryCode?: string; planId?: string; }) => any, isAdmin?: boolean }) => {
+const PlanCard = ({ plan, calculatePrice, debugGetPriceMeta, isAdmin, isPriceLoading }: { plan: EsimPlan & { _canonical_supplier_id?: string }, calculatePrice: (price: number, options?: { supplierPlanId?: string; countryCode?: string; planId?: string; }) => number, debugGetPriceMeta?: (price: number, options?: { supplierPlanId?: string; countryCode?: string; planId?: string; }) => any, isAdmin?: boolean, isPriceLoading?: boolean }) => {
   const { addToCart } = useCart();
   const { convertPrice, selectedCurrency, getCurrencySymbol } = useCurrency();
   const [isAdding, setIsAdding] = useState(false);
@@ -134,11 +134,15 @@ const PlanCard = ({ plan, calculatePrice, debugGetPriceMeta, isAdmin }: { plan: 
     setIsAdding(true);
     try {
       const supplierPlanId = plan._canonical_supplier_id || plan.supplier_plan_id;
+      if (isPriceLoading) {
+        toast({ title: "Pricing is loading", description: "Please wait a moment and try again." });
+        return;
+      }
       const priceUSD = calculatePrice?.(plan.wholesale_price || 0, { 
         supplierPlanId, 
         countryCode: plan.country_code, 
         planId: plan.id 
-      }) ?? plan.wholesale_price * 4; // Fallback to default markup
+      });
       
       // Get debug meta for console
       const priceMeta = debugGetPriceMeta?.(plan.wholesale_price || 0, { 
@@ -230,32 +234,35 @@ const PlanCard = ({ plan, calculatePrice, debugGetPriceMeta, isAdmin }: { plan: 
             <div className="flex flex-col">
               <span className="text-lg font-bold text-primary">
                 {(() => {
-                  const supplierPlanId = plan._canonical_supplier_id || plan.supplier_plan_id;
-                  const priceUSD = calculatePrice?.(plan.wholesale_price || 0, { 
-                    supplierPlanId, 
-                    countryCode: plan.country_code, 
-                    planId: plan.id 
-                  }) ?? plan.wholesale_price * 4; // Fallback to default markup
-                  const priceMeta = isAdmin && debugGetPriceMeta 
-                    ? debugGetPriceMeta(plan.wholesale_price || 0, { 
-                        supplierPlanId, 
-                        countryCode: plan.country_code, 
-                        planId: plan.id 
-                      })
-                    : null;
-                  return (
-                    <>
-                      {getCurrencySymbol() + convertPrice(priceUSD).toFixed(2)}
-                      {isAdmin && priceMeta?.selectedRule && (
-                        <Badge variant="outline" className="ml-2 text-[10px] bg-purple-50 border-purple-300">
-                          <Bug className="h-2.5 w-2.5 mr-1" />
-                          {priceMeta.selectedRule.rule_type}:{priceMeta.selectedRule.target_id?.substring(0, 8)}
-                          {priceMeta.selectedRule.agent_filter && ' (agent)'}
-                          {' '}p{priceMeta.selectedRule.priority}
-                        </Badge>
-                      )}
-                    </>
-                  );
+                   const supplierPlanId = plan._canonical_supplier_id || plan.supplier_plan_id;
+                   if (isPriceLoading) {
+                     return <Skeleton className="h-5 w-24" />;
+                   }
+                   const priceUSD = calculatePrice?.(plan.wholesale_price || 0, { 
+                     supplierPlanId, 
+                     countryCode: plan.country_code, 
+                     planId: plan.id 
+                   });
+                   const priceMeta = isAdmin && debugGetPriceMeta 
+                     ? debugGetPriceMeta(plan.wholesale_price || 0, { 
+                         supplierPlanId, 
+                         countryCode: plan.country_code, 
+                         planId: plan.id 
+                       })
+                     : null;
+                   return (
+                     <>
+                       {getCurrencySymbol() + convertPrice(priceUSD || 0).toFixed(2)}
+                       {isAdmin && priceMeta?.selectedRule && (
+                         <Badge variant="outline" className="ml-2 text-[10px] bg-purple-50 border-purple-300">
+                           <Bug className="h-2.5 w-2.5 mr-1" />
+                           {priceMeta.selectedRule.rule_type}:{priceMeta.selectedRule.target_id?.substring(0, 8)}
+                           {priceMeta.selectedRule.agent_filter && ' (agent)'}
+                           {' '}p{priceMeta.selectedRule.priority}
+                         </Badge>
+                       )}
+                     </>
+                   );
                 })()}
               </span>
             </div>
@@ -267,13 +274,13 @@ const PlanCard = ({ plan, calculatePrice, debugGetPriceMeta, isAdmin }: { plan: 
           </div>
 
           <Button
-            onClick={handleAddToCart}
-            disabled={isAdding}
-            className="w-full"
-            size="sm"
-          >
-            {isAdding ? "Adding..." : "Add to Cart"}
-          </Button>
+             onClick={handleAddToCart}
+             disabled={isAdding || isPriceLoading}
+             className="w-full"
+             size="sm"
+           >
+             {isPriceLoading ? "Loading price..." : (isAdding ? "Adding..." : "Add to Cart")}
+           </Button>
         </div>
       </CardContent>
     </Card>
@@ -299,27 +306,6 @@ const SearchResults = ({ calculatePrice, debugGetPriceMeta, isAdmin, pricingLoad
     });
   }, [hits, getCanonicalId]);
 
-  // Show loading skeleton while pricing data is loading
-  const isDataLoading = pricingLoading || mappingLoading;
-  
-  if (isDataLoading && hits.length > 0) {
-    return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-        {Array.from({ length: Math.min(8, hits.length) }).map((_, i) => (
-          <Card key={i} className="h-64">
-            <CardHeader>
-              <Skeleton className="h-4 w-3/4" />
-              <Skeleton className="h-3 w-1/2" />
-            </CardHeader>
-            <CardContent>
-              <Skeleton className="h-16 w-full mb-4" />
-              <Skeleton className="h-8 w-full" />
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-    );
-  }
 
   if (!enhancedHits.length) {
     return (
@@ -334,7 +320,7 @@ const SearchResults = ({ calculatePrice, debugGetPriceMeta, isAdmin, pricingLoad
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
       {enhancedHits.map((plan) => (
-        <PlanCard key={plan.objectID} plan={plan as any} calculatePrice={calculatePrice} debugGetPriceMeta={debugGetPriceMeta} isAdmin={isAdmin} />
+        <PlanCard key={plan.objectID} plan={plan as any} calculatePrice={calculatePrice} debugGetPriceMeta={debugGetPriceMeta} isAdmin={isAdmin} isPriceLoading={pricingLoading || mappingLoading} />
       ))}
     </div>
   );

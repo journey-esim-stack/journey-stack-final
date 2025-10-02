@@ -30,6 +30,7 @@ interface EsimPlan {
   validity_days: number;
   currency: string;
   is_active: boolean;
+  admin_only?: boolean;
   wholesale_price: number;
   supplier_plan_id: string;
 }
@@ -295,7 +296,7 @@ const SearchResults = ({ calculatePrice, debugGetPriceMeta, isAdmin, pricingLoad
   const { getCanonicalId, loading: mappingLoading } = usePlanIdMapping(planIds);
 
   const enhancedHits = useMemo(() => {
-    return hits.map(hit => {
+    const enhanced = hits.map(hit => {
       const canonicalId = getCanonicalId(hit.id);
       const supplierPlanId = canonicalId || hit.supplier_plan_id;
       return {
@@ -303,7 +304,9 @@ const SearchResults = ({ calculatePrice, debugGetPriceMeta, isAdmin, pricingLoad
         wholesale_price: (hit as any).wholesale_price ?? 0,
         _canonical_supplier_id: supplierPlanId
       };
-    });
+    }).filter((h: any) => (h.is_active !== false) && (h.admin_only !== true));
+
+    return enhanced;
   }, [hits, getCanonicalId]);
 
 
@@ -494,11 +497,7 @@ export default function AlgoliaPlansOptimized() {
   return (
     <AlgoliaErrorBoundary>
       <InstantSearch searchClient={searchClient} indexName={ESIM_PLANS_INDEX}>
-        <Configure 
-          hitsPerPage={20} 
-          maxValuesPerFacet={100}
-          filters="is_active:true AND admin_only:false"
-        />
+        <Configure hitsPerPage={20} maxValuesPerFacet={100} />
         
         <div className="container mx-auto p-6 space-y-6">
           {/* Header */}

@@ -172,9 +172,13 @@ export const usePricingRules = () => {
       markup_value: selectedRule.markup_value
     });
 
+    // TEMP: Diagnostics for specific plan
+    if (planId === '50bfeb60-7219-40b2-b59d-092d8d24caf0') {
+      console.log('🔎 Debug specific plan 50bf... selectedRule', selectedRule);
+    }
+
     // Apply the markup based on type
     if (selectedRule.markup_type === 'fixed_price') {
-      // For fixed_price, markup_value IS the final retail price
       return selectedRule.markup_value;
     } else if (selectedRule.markup_type === 'percent') {
       return wholesalePrice * (1 + selectedRule.markup_value / 100);

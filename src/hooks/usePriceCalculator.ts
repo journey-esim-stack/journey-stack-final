@@ -11,6 +11,7 @@ import { useAgentPreview } from '@/contexts/AgentPreviewContext';
 export const usePriceCalculator = () => {
   const [agentId, setAgentId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [agentResolved, setAgentResolved] = useState(false);
   const { previewAgentId } = useAgentPreview();
   const { calculatePrice: calculatePriceWithRules, loading: rulesLoading, refetch: refetchRules, getAppliedRule } = usePricingRules();
 
@@ -21,6 +22,7 @@ export const usePriceCalculator = () => {
       if (!user) {
         setAgentId(null);
         setLoading(false);
+        setAgentResolved(true);
         return;
       }
 
@@ -31,9 +33,11 @@ export const usePriceCalculator = () => {
         .maybeSingle();
 
       setAgentId(profile?.id || null);
+      setAgentResolved(true);
     } catch (error) {
       console.error('Error fetching agent ID:', error);
       setAgentId(null);
+      setAgentResolved(true);
     } finally {
       setLoading(false);
     }
@@ -104,6 +108,7 @@ export const usePriceCalculator = () => {
     loading: loading || rulesLoading,
     refreshPricing,
     agentId: previewAgentId || agentId,
+    agentResolved,
     debugGetPriceMeta,
   };
 };

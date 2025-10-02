@@ -126,7 +126,7 @@ const EnhancedRefinementList = ({ attribute, title, icon }: { attribute: string;
 };
 
 // Enhanced Plan Card with better UX
-const PlanCard = ({ plan, calculatePrice, debugGetPriceMeta, isAdmin, isPriceLoading, batchPrice }: { plan: EsimPlan & { _canonical_supplier_id?: string }, calculatePrice: (price: number, options?: { supplierPlanId?: string; countryCode?: string; planId?: string; }) => number, debugGetPriceMeta?: (price: number, options?: { supplierPlanId?: string; countryCode?: string; planId?: string; }) => any, isAdmin?: boolean, isPriceLoading?: boolean, batchPrice?: number }) => {
+const PlanCard = ({ plan, calculatePrice, debugGetPriceMeta, isAdmin, isPriceLoading, batchPrice, agentResolved }: { plan: EsimPlan & { _canonical_supplier_id?: string }, calculatePrice: (price: number, options?: { supplierPlanId?: string; countryCode?: string; planId?: string; }) => number, debugGetPriceMeta?: (price: number, options?: { supplierPlanId?: string; countryCode?: string; planId?: string; }) => any, isAdmin?: boolean, isPriceLoading?: boolean, batchPrice?: number, agentResolved?: boolean }) => {
   const { addToCart } = useCart();
   const { convertPrice, selectedCurrency, getCurrencySymbol } = useCurrency();
   const [isAdding, setIsAdding] = useState(false);
@@ -282,17 +282,35 @@ const PlanCard = ({ plan, calculatePrice, debugGetPriceMeta, isAdmin, isPriceLoa
               <span className="text-lg font-bold text-primary">
                 {(() => {
                    const supplierPlanId = plan._canonical_supplier_id || plan.supplier_plan_id;
-                   if (isPriceLoading) {
+                   // Gate: Wait for all three conditions before showing price
+                   const allDataReady = agentResolved && !isPriceLoading;
+                   
+                   if (!allDataReady) {
                      return <Skeleton className="h-5 w-24" />;
                    }
-                   // Prioritize batch-fetched price from agent_pricing
-                   const priceUSD = batchPrice !== undefined 
-                     ? batchPrice 
-                     : calculatePrice?.(plan.wholesale_price || 0, { 
-                         supplierPlanId, 
-                         countryCode: plan.country_code, 
-                         planId: plan.id 
-                       });
+                   
+                   // Prefer batch price from agent_pricing if available
+                   if (batchPrice !== undefined) {
+                     return (
+                       <>
+                         {getCurrencySymbol() + convertPrice(batchPrice).toFixed(2)}
+                         {isAdmin && (
+                           <Badge variant="outline" className="ml-2 text-[10px] bg-green-50 border-green-300">
+                             <Bug className="h-2.5 w-2.5 mr-1" />
+                             agent_pricing
+                           </Badge>
+                         )}
+                       </>
+                     );
+                   }
+                   
+                   // Otherwise use pricing rules calculation
+                   const priceUSD = calculatePrice?.(plan.wholesale_price || 0, { 
+                     supplierPlanId, 
+                     countryCode: plan.country_code, 
+                     planId: plan.id 
+                   });
+                   
                    const priceMeta = isAdmin && debugGetPriceMeta 
                      ? debugGetPriceMeta(plan.wholesale_price || 0, { 
                          supplierPlanId, 
@@ -300,6 +318,7 @@ const PlanCard = ({ plan, calculatePrice, debugGetPriceMeta, isAdmin, isPriceLoa
                          planId: plan.id 
                        })
                      : null;
+                   
                    return (
                      <>
                        {getCurrencySymbol() + convertPrice(priceUSD || 0).toFixed(2)}
@@ -351,7 +370,7 @@ const PlanCard = ({ plan, calculatePrice, debugGetPriceMeta, isAdmin, isPriceLoa
 };
 
 // Enhanced Search Results with performance optimizations
-const SearchResults = ({ calculatePrice, debugGetPriceMeta, isAdmin, pricingLoading }: { calculatePrice: (price: number, options?: { supplierPlanId?: string; countryCode?: string; planId?: string; }) => number, debugGetPriceMeta?: (price: number, options?: { supplierPlanId?: string; countryCode?: string; planId?: string; }) => any, isAdmin?: boolean, pricingLoading?: boolean }) => {
+const SearchResults = ({ calculatePrice, debugGetPriceMeta, isAdmin, pricingLoading, agentResolved }: { calculatePrice: (price: number, options?: { supplierPlanId?: string; countryCode?: string; planId?: string; }) => number, debugGetPriceMeta?: (price: number, options?: { supplierPlanId?: string; countryCode?: string; planId?: string; }) => any, isAdmin?: boolean, pricingLoading?: boolean, agentResolved?: boolean }) => {
   const { hits } = useHits<EsimPlan>();
 
   const planIds = useMemo(() => hits.map(hit => hit.id), [hits]);
@@ -392,6 +411,7 @@ const SearchResults = ({ calculatePrice, debugGetPriceMeta, isAdmin, pricingLoad
           isAdmin={isAdmin} 
           isPriceLoading={pricingLoading || mappingLoading || batchPriceLoading}
           batchPrice={getBatchPrice(plan.id)}
+          agentResolved={agentResolved}
         />
       ))}
     </div>
@@ -465,8 +485,9 @@ export default function AlgoliaPlansOptimized() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
-  const { calculatePrice, refreshPricing, debugGetPriceMeta, loading: pricingLoading } = usePriceCalculator();
+  const { calculatePrice, refreshPricing, debugGetPriceMeta, loading: pricingLoading, agentResolved } = usePriceCalculator();
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isBulkResyncing, setIsBulkResyncing] = useState(false);
 
   // Initialize Algolia client
   useEffect(() => {
@@ -491,6 +512,61 @@ export default function AlgoliaPlansOptimized() {
 
     initializeAlgolia();
   }, [toast]);
+
+  // Bulk index repair function
+  const handleBulkRepairIndex = async () => {
+    setIsBulkResyncing(true);
+    try {
+      // Get all plan IDs currently visible on the page from Algolia
+      const algoliaIndex = searchClient.initIndex(ESIM_PLANS_INDEX);
+      const { hits } = await algoliaIndex.search('', { hitsPerPage: 1000 });
+      const visiblePlanIds = hits.map((hit: any) => hit.id);
+
+      // Fetch those plans from Supabase to check for discrepancies
+      const { data: dbPlans, error: fetchError } = await supabase
+        .from('esim_plans')
+        .select('*')
+        .eq('is_active', true)
+        .in('id', visiblePlanIds);
+
+      if (fetchError) throw fetchError;
+
+      let repairedCount = 0;
+      const maxRepairs = 50; // Throttle to avoid overwhelming the system
+
+      for (const plan of dbPlans || []) {
+        if (repairedCount >= maxRepairs) break;
+        
+        // Invoke sync for each plan
+        const { error: syncError } = await supabase.functions.invoke('sync-algolia-realtime', {
+          body: {
+            operation: 'UPDATE',
+            recordId: plan.id,
+            record: plan,
+          },
+        });
+
+        if (!syncError) repairedCount++;
+      }
+
+      toast({
+        title: "Index repair complete",
+        description: `Resynced ${repairedCount} plans to Algolia.`,
+      });
+
+      // Refresh after repair
+      setTimeout(() => window.location.reload(), 1500);
+    } catch (error) {
+      console.error('Bulk repair error:', error);
+      toast({
+        title: "Bulk repair failed",
+        description: error instanceof Error ? error.message : "Failed to repair search index.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsBulkResyncing(false);
+    }
+  };
 
   // Check if user is admin
   useEffect(() => {
@@ -609,18 +685,31 @@ export default function AlgoliaPlansOptimized() {
               {/* Stats and Controls */}
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <EnhancedStats />
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={refreshPricing}
-                >
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                  Refresh Pricing
-                </Button>
+                <div className="flex gap-2">
+                  {isAdmin && (
+                    <Button
+                      onClick={handleBulkRepairIndex}
+                      disabled={isBulkResyncing}
+                      variant="outline"
+                      size="sm"
+                    >
+                      <RefreshCw className={`h-4 w-4 mr-2 ${isBulkResyncing ? 'animate-spin' : ''}`} />
+                      {isBulkResyncing ? 'Repairing...' : 'Repair Search Index'}
+                    </Button>
+                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={refreshPricing}
+                  >
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Refresh Pricing
+                  </Button>
+                </div>
               </div>
 
               {/* Results */}
-              <SearchResults calculatePrice={calculatePrice} debugGetPriceMeta={debugGetPriceMeta} isAdmin={isAdmin} pricingLoading={pricingLoading} />
+              <SearchResults calculatePrice={calculatePrice} debugGetPriceMeta={debugGetPriceMeta} isAdmin={isAdmin} pricingLoading={pricingLoading} agentResolved={agentResolved} />
 
               {/* Pagination */}
               <EnhancedPagination />

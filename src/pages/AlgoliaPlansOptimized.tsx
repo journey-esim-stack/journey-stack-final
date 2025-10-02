@@ -18,6 +18,7 @@ import { InstantSearch, SearchBox, RefinementList, Stats, Configure, useHits, us
 import { AlgoliaErrorBoundary } from '@/components/AlgoliaErrorBoundary';
 import { AgentPreviewSelector } from '@/components/AgentPreviewSelector';
 import { usePlanIdMapping } from '@/hooks/usePlanIdMapping';
+import { useAgentPlanPrices } from '@/hooks/useAgentPlanPrices';
 
 interface EsimPlan {
   objectID: string;
@@ -125,7 +126,7 @@ const EnhancedRefinementList = ({ attribute, title, icon }: { attribute: string;
 };
 
 // Enhanced Plan Card with better UX
-const PlanCard = ({ plan, calculatePrice, debugGetPriceMeta, isAdmin, isPriceLoading }: { plan: EsimPlan & { _canonical_supplier_id?: string }, calculatePrice: (price: number, options?: { supplierPlanId?: string; countryCode?: string; planId?: string; }) => number, debugGetPriceMeta?: (price: number, options?: { supplierPlanId?: string; countryCode?: string; planId?: string; }) => any, isAdmin?: boolean, isPriceLoading?: boolean }) => {
+const PlanCard = ({ plan, calculatePrice, debugGetPriceMeta, isAdmin, isPriceLoading, batchPrice }: { plan: EsimPlan & { _canonical_supplier_id?: string }, calculatePrice: (price: number, options?: { supplierPlanId?: string; countryCode?: string; planId?: string; }) => number, debugGetPriceMeta?: (price: number, options?: { supplierPlanId?: string; countryCode?: string; planId?: string; }) => any, isAdmin?: boolean, isPriceLoading?: boolean, batchPrice?: number }) => {
   const { addToCart } = useCart();
   const { convertPrice, selectedCurrency, getCurrencySymbol } = useCurrency();
   const [isAdding, setIsAdding] = useState(false);
@@ -239,11 +240,14 @@ const PlanCard = ({ plan, calculatePrice, debugGetPriceMeta, isAdmin, isPriceLoa
                    if (isPriceLoading) {
                      return <Skeleton className="h-5 w-24" />;
                    }
-                   const priceUSD = calculatePrice?.(plan.wholesale_price || 0, { 
-                     supplierPlanId, 
-                     countryCode: plan.country_code, 
-                     planId: plan.id 
-                   });
+                   // Prioritize batch-fetched price from agent_pricing
+                   const priceUSD = batchPrice !== undefined 
+                     ? batchPrice 
+                     : calculatePrice?.(plan.wholesale_price || 0, { 
+                         supplierPlanId, 
+                         countryCode: plan.country_code, 
+                         planId: plan.id 
+                       });
                    const priceMeta = isAdmin && debugGetPriceMeta 
                      ? debugGetPriceMeta(plan.wholesale_price || 0, { 
                          supplierPlanId, 
@@ -294,6 +298,7 @@ const SearchResults = ({ calculatePrice, debugGetPriceMeta, isAdmin, pricingLoad
 
   const planIds = useMemo(() => hits.map(hit => hit.id), [hits]);
   const { getCanonicalId, loading: mappingLoading } = usePlanIdMapping(planIds);
+  const { getPrice: getBatchPrice, loading: batchPriceLoading } = useAgentPlanPrices(planIds);
 
   const enhancedHits = useMemo(() => {
     return hits.map(hit => {
@@ -321,7 +326,15 @@ const SearchResults = ({ calculatePrice, debugGetPriceMeta, isAdmin, pricingLoad
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
       {enhancedHits.map((plan) => (
-        <PlanCard key={plan.id} plan={plan as any} calculatePrice={calculatePrice} debugGetPriceMeta={debugGetPriceMeta} isAdmin={isAdmin} isPriceLoading={pricingLoading || mappingLoading} />
+        <PlanCard 
+          key={plan.id} 
+          plan={plan as any} 
+          calculatePrice={calculatePrice} 
+          debugGetPriceMeta={debugGetPriceMeta} 
+          isAdmin={isAdmin} 
+          isPriceLoading={pricingLoading || mappingLoading || batchPriceLoading}
+          batchPrice={getBatchPrice(plan.id)}
+        />
       ))}
     </div>
   );

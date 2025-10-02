@@ -409,7 +409,7 @@ const SearchResults = ({ calculatePrice, debugGetPriceMeta, isAdmin, pricingLoad
           calculatePrice={calculatePrice} 
           debugGetPriceMeta={debugGetPriceMeta} 
           isAdmin={isAdmin} 
-          isPriceLoading={pricingLoading || mappingLoading || batchPriceLoading}
+          isPriceLoading={pricingLoading || !agentResolved}
           batchPrice={getBatchPrice(plan.id)}
           agentResolved={agentResolved}
         />

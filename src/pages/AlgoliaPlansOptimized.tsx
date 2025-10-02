@@ -19,6 +19,7 @@ import { AlgoliaErrorBoundary } from '@/components/AlgoliaErrorBoundary';
 import { AgentPreviewSelector } from '@/components/AgentPreviewSelector';
 import { usePlanIdMapping } from '@/hooks/usePlanIdMapping';
 import { useAgentPlanPrices } from '@/hooks/useAgentPlanPrices';
+import { CountryAwareSearch } from '@/components/CountryAwareSearch';
 
 interface EsimPlan {
   objectID: string;
@@ -646,7 +647,13 @@ export default function AlgoliaPlansOptimized() {
           hitsPerPage={20} 
           maxValuesPerFacet={100}
           filters="is_active:true AND admin_only:false"
+          ignorePlurals={true}
+          removeStopWords={true}
+          queryLanguages={['en']}
         />
+        
+        {/* Country-aware search component that auto-applies country filters */}
+        <CountryAwareSearch />
         
         <div className="container mx-auto p-6 space-y-6">
           {/* Header */}

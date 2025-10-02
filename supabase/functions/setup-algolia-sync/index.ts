@@ -75,8 +75,8 @@ serve(async (req) => {
     // Configure optimized index settings based on implementation guide
     const indexSettings = {
       searchableAttributes: [
+        'country_name',  // Prioritize country for accurate country-based search
         'title',
-        'country_name', 
         'data_amount',
         'description'
       ],
@@ -115,8 +115,11 @@ serve(async (req) => {
       typoTolerance: true,
       minWordSizefor1Typo: 4,
       minWordSizefor2Typos: 8,
-      removeWordsIfNoResults: 'allOptional',
+      removeWordsIfNoResults: 'none',  // Changed from 'allOptional' to prevent irrelevant results
       queryType: 'prefixLast',
+      queryLanguages: ['en'],  // Added for better language-specific search
+      ignorePlurals: true,  // Added to handle singular/plural variations
+      advancedSyntax: true,  // Added for advanced query features
       highlightPreTag: '<mark>',
       highlightPostTag: '</mark>',
       snippetEllipsisText: '…'

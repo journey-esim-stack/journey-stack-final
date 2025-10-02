@@ -494,7 +494,11 @@ export default function AlgoliaPlansOptimized() {
   return (
     <AlgoliaErrorBoundary>
       <InstantSearch searchClient={searchClient} indexName={ESIM_PLANS_INDEX}>
-        <Configure hitsPerPage={20} maxValuesPerFacet={100} />
+        <Configure 
+          hitsPerPage={20} 
+          maxValuesPerFacet={100}
+          filters="is_active:true AND admin_only:false"
+        />
         
         <div className="container mx-auto p-6 space-y-6">
           {/* Header */}

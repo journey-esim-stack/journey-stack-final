@@ -145,11 +145,16 @@ export const usePricingRules = () => {
       return 1; // default
     };
 
-    // Choose rule: lowest priority number wins; if tie, higher specificity wins
+    // Choose rule: SPECIFICITY FIRST, then lowest priority number within same specificity
     const selectedRule = matches.reduce<PricingRule | undefined>((best, rule) => {
       if (!best) return rule;
+      const ruleSpec = specificity(rule);
+      const bestSpec = specificity(best);
+      // Higher specificity always wins
+      if (ruleSpec > bestSpec) return rule;
+      if (ruleSpec < bestSpec) return best;
+      // Same specificity: lower priority number wins
       if (rule.priority < best.priority) return rule;
-      if (rule.priority === best.priority && specificity(rule) > specificity(best)) return rule;
       return best;
     }, undefined);
 
@@ -225,8 +230,13 @@ export const usePricingRules = () => {
 
     const selectedRule = matches.reduce<PricingRule | undefined>((best, rule) => {
       if (!best) return rule;
+      const ruleSpec = specificity(rule);
+      const bestSpec = specificity(best);
+      // Higher specificity always wins
+      if (ruleSpec > bestSpec) return rule;
+      if (ruleSpec < bestSpec) return best;
+      // Same specificity: lower priority number wins
       if (rule.priority < best.priority) return rule;
-      if (rule.priority === best.priority && specificity(rule) > specificity(best)) return rule;
       return best;
     }, undefined);
 

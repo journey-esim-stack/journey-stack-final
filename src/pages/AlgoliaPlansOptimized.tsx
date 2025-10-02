@@ -138,7 +138,7 @@ const PlanCard = ({ plan, calculatePrice, debugGetPriceMeta, isAdmin }: { plan: 
         supplierPlanId, 
         countryCode: plan.country_code, 
         planId: plan.id 
-      }) ?? 0;
+      }) ?? plan.wholesale_price * 4; // Fallback to default markup
       
       // Get debug meta for console
       const priceMeta = debugGetPriceMeta?.(plan.wholesale_price || 0, { 
@@ -235,7 +235,7 @@ const PlanCard = ({ plan, calculatePrice, debugGetPriceMeta, isAdmin }: { plan: 
                     supplierPlanId, 
                     countryCode: plan.country_code, 
                     planId: plan.id 
-                  }) ?? 0;
+                  }) ?? plan.wholesale_price * 4; // Fallback to default markup
                   const priceMeta = isAdmin && debugGetPriceMeta 
                     ? debugGetPriceMeta(plan.wholesale_price || 0, { 
                         supplierPlanId, 
@@ -281,11 +281,11 @@ const PlanCard = ({ plan, calculatePrice, debugGetPriceMeta, isAdmin }: { plan: 
 };
 
 // Enhanced Search Results with performance optimizations
-const SearchResults = ({ calculatePrice, debugGetPriceMeta, isAdmin }: { calculatePrice: (price: number, options?: { supplierPlanId?: string; countryCode?: string; planId?: string; }) => number, debugGetPriceMeta?: (price: number, options?: { supplierPlanId?: string; countryCode?: string; planId?: string; }) => any, isAdmin?: boolean }) => {
+const SearchResults = ({ calculatePrice, debugGetPriceMeta, isAdmin, pricingLoading }: { calculatePrice: (price: number, options?: { supplierPlanId?: string; countryCode?: string; planId?: string; }) => number, debugGetPriceMeta?: (price: number, options?: { supplierPlanId?: string; countryCode?: string; planId?: string; }) => any, isAdmin?: boolean, pricingLoading?: boolean }) => {
   const { hits } = useHits<EsimPlan>();
 
   const planIds = useMemo(() => hits.map(hit => hit.id), [hits]);
-  const { getCanonicalId } = usePlanIdMapping(planIds);
+  const { getCanonicalId, loading: mappingLoading } = usePlanIdMapping(planIds);
 
   const enhancedHits = useMemo(() => {
     return hits.map(hit => {
@@ -298,6 +298,28 @@ const SearchResults = ({ calculatePrice, debugGetPriceMeta, isAdmin }: { calcula
       };
     });
   }, [hits, getCanonicalId]);
+
+  // Show loading skeleton while pricing data is loading
+  const isDataLoading = pricingLoading || mappingLoading;
+  
+  if (isDataLoading && hits.length > 0) {
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        {Array.from({ length: Math.min(8, hits.length) }).map((_, i) => (
+          <Card key={i} className="h-64">
+            <CardHeader>
+              <Skeleton className="h-4 w-3/4" />
+              <Skeleton className="h-3 w-1/2" />
+            </CardHeader>
+            <CardContent>
+              <Skeleton className="h-16 w-full mb-4" />
+              <Skeleton className="h-8 w-full" />
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    );
+  }
 
   if (!enhancedHits.length) {
     return (
@@ -385,7 +407,7 @@ export default function AlgoliaPlansOptimized() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
-  const { calculatePrice, refreshPricing, debugGetPriceMeta } = usePriceCalculator();
+  const { calculatePrice, refreshPricing, debugGetPriceMeta, loading: pricingLoading } = usePriceCalculator();
   const [isAdmin, setIsAdmin] = useState(false);
 
   // Initialize Algolia client
@@ -535,8 +557,8 @@ export default function AlgoliaPlansOptimized() {
                 </Button>
               </div>
 
-{/* Results */}
-              <SearchResults calculatePrice={calculatePrice} debugGetPriceMeta={debugGetPriceMeta} isAdmin={isAdmin} />
+              {/* Results */}
+              <SearchResults calculatePrice={calculatePrice} debugGetPriceMeta={debugGetPriceMeta} isAdmin={isAdmin} pricingLoading={pricingLoading} />
 
               {/* Pagination */}
               <EnhancedPagination />

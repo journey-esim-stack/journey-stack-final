@@ -296,7 +296,7 @@ const SearchResults = ({ calculatePrice, debugGetPriceMeta, isAdmin, pricingLoad
   const { getCanonicalId, loading: mappingLoading } = usePlanIdMapping(planIds);
 
   const enhancedHits = useMemo(() => {
-    const enhanced = hits.map(hit => {
+    return hits.map(hit => {
       const canonicalId = getCanonicalId(hit.id);
       const supplierPlanId = canonicalId || hit.supplier_plan_id;
       return {
@@ -304,9 +304,7 @@ const SearchResults = ({ calculatePrice, debugGetPriceMeta, isAdmin, pricingLoad
         wholesale_price: (hit as any).wholesale_price ?? 0,
         _canonical_supplier_id: supplierPlanId
       };
-    }).filter((h: any) => (h.is_active !== false) && (h.admin_only !== true));
-
-    return enhanced;
+    });
   }, [hits, getCanonicalId]);
 
 
@@ -323,7 +321,7 @@ const SearchResults = ({ calculatePrice, debugGetPriceMeta, isAdmin, pricingLoad
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
       {enhancedHits.map((plan) => (
-        <PlanCard key={plan.objectID} plan={plan as any} calculatePrice={calculatePrice} debugGetPriceMeta={debugGetPriceMeta} isAdmin={isAdmin} isPriceLoading={pricingLoading || mappingLoading} />
+        <PlanCard key={plan.id} plan={plan as any} calculatePrice={calculatePrice} debugGetPriceMeta={debugGetPriceMeta} isAdmin={isAdmin} isPriceLoading={pricingLoading || mappingLoading} />
       ))}
     </div>
   );
@@ -497,7 +495,11 @@ export default function AlgoliaPlansOptimized() {
   return (
     <AlgoliaErrorBoundary>
       <InstantSearch searchClient={searchClient} indexName={ESIM_PLANS_INDEX}>
-        <Configure hitsPerPage={20} maxValuesPerFacet={100} />
+        <Configure 
+          hitsPerPage={20} 
+          maxValuesPerFacet={100}
+          filters="is_active:true AND admin_only:false"
+        />
         
         <div className="container mx-auto p-6 space-y-6">
           {/* Header */}

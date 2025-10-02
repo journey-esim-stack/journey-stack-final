@@ -130,7 +130,52 @@ const PlanCard = ({ plan, calculatePrice, debugGetPriceMeta, isAdmin, isPriceLoa
   const { addToCart } = useCart();
   const { convertPrice, selectedCurrency, getCurrencySymbol } = useCurrency();
   const [isAdding, setIsAdding] = useState(false);
+  const [isResyncing, setIsResyncing] = useState(false);
   const { toast } = useToast();
+
+  const handleResyncToAlgolia = async () => {
+    setIsResyncing(true);
+    try {
+      // Fetch the fresh plan data from Supabase
+      const { data: freshPlan, error: fetchError } = await supabase
+        .from('esim_plans')
+        .select('*')
+        .eq('id', plan.id)
+        .single();
+
+      if (fetchError || !freshPlan) {
+        throw new Error('Failed to fetch plan from database');
+      }
+
+      // Call the sync function to update Algolia
+      const { data, error } = await supabase.functions.invoke('sync-algolia-realtime', {
+        body: {
+          operation: 'UPDATE',
+          recordId: plan.id,
+          record: freshPlan,
+        },
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Synced to Algolia",
+        description: `${plan.title} has been resynced successfully.`,
+      });
+
+      // Refresh the page after a short delay to show updated data
+      setTimeout(() => window.location.reload(), 1000);
+    } catch (error) {
+      console.error('Resync error:', error);
+      toast({
+        title: "Resync failed",
+        description: error instanceof Error ? error.message : "Failed to resync plan to Algolia.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsResyncing(false);
+    }
+  };
 
   const handleAddToCart = async () => {
     setIsAdding(true);
@@ -278,14 +323,27 @@ const PlanCard = ({ plan, calculatePrice, debugGetPriceMeta, isAdmin, isPriceLoa
             )}
           </div>
 
-          <Button
-             onClick={handleAddToCart}
-             disabled={isAdding || isPriceLoading}
-             className="w-full"
-             size="sm"
-           >
-             {isPriceLoading ? "Loading price..." : (isAdding ? "Adding..." : "Add to Cart")}
-           </Button>
+          <div className="flex gap-2">
+            <Button
+              onClick={handleAddToCart}
+              disabled={isAdding || isPriceLoading}
+              className="flex-1"
+              size="sm"
+            >
+              {isPriceLoading ? "Loading price..." : (isAdding ? "Adding..." : "Add to Cart")}
+            </Button>
+            {isAdmin && (
+              <Button
+                onClick={handleResyncToAlgolia}
+                disabled={isResyncing}
+                variant="outline"
+                size="sm"
+                title="Resync this plan to Algolia"
+              >
+                <RefreshCw className={`h-4 w-4 ${isResyncing ? 'animate-spin' : ''}`} />
+              </Button>
+            )}
+          </div>
         </div>
       </CardContent>
     </Card>

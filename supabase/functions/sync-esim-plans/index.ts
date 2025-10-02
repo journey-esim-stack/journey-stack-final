@@ -143,13 +143,18 @@ const transformedPlans = plans.map((plan: any) => {
     // Deactivate plans that are no longer available
     const activePlanIds = transformedPlans.map(p => p.supplier_plan_id);
     if (activePlanIds.length > 0) {
-      const { error: deactivateError } = await supabase
+      console.log(`Deactivating esim_access plans not in active list of ${activePlanIds.length} plans...`);
+      const { data: deactivatedPlans, error: deactivateError } = await supabase
         .from('esim_plans')
         .update({ is_active: false })
-        .not('supplier_plan_id', 'in', `(${activePlanIds.map(id => `"${id}"`).join(',')})`);
+        .eq('supplier_name', 'esim_access')
+        .not('supplier_plan_id', 'in', `(${activePlanIds.join(',')})`)
+        .select('supplier_plan_id');
 
       if (deactivateError) {
         console.error('Error deactivating old plans:', deactivateError);
+      } else {
+        console.log(`Successfully deactivated ${deactivatedPlans?.length || 0} stale plans`);
       }
     } else {
       console.log('No active plans returned; skipping deactivation step.');

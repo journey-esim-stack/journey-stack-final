@@ -74,33 +74,41 @@ export const useAgentPlanPrices = (planIds: string[]) => {
     }
 
     try {
-      // Batch-fetch from agent_pricing table in CHUNKS to avoid URL length limits
-      const chunkSize = 100; // keep small to prevent long query strings
-      const allResults: Array<{ plan_id: string; retail_price: number }> = [];
-
-      for (let i = 0; i < idsToFetch.length; i += chunkSize) {
-        const planSlice = idsToFetch.slice(i, i + chunkSize);
-        const { data, error } = await supabase
-          .from('agent_pricing')
-          .select('plan_id, retail_price')
-          .eq('agent_id', effectiveAgentId)
-          .in('plan_id', planSlice);
-
-        if (error) {
-          console.error('[useAgentPlanPrices] Chunk fetch error', { index: i, size: planSlice.length, error });
-          continue; // proceed with other chunks
-        }
-        if (data) allResults.push(...(data as any));
-      }
-
-      const priceMap: PlanPriceMap = {};
-      allResults.forEach((ap) => {
-        priceMap[ap.plan_id] = Number(ap.retail_price);
-        fetchedPlanIdsRef.current.add(ap.plan_id);
+      // Prefer Edge Function to avoid URL length limits and ensure auth checks
+      const { data, error } = await supabase.functions.invoke('get-agent-plan-prices', {
+        body: { agentId: effectiveAgentId, planIds: idsToFetch }
       });
 
-      // Merge instead of replace to prevent flickering
-      setPrices((prev) => ({ ...prev, ...priceMap }));
+      if (error) {
+        console.error('[useAgentPlanPrices] Edge function error', error);
+        // Fallback to chunked REST calls if function fails
+        const chunkSize = 100;
+        const allResults: Array<{ plan_id: string; retail_price: number }> = [];
+        for (let i = 0; i < idsToFetch.length; i += chunkSize) {
+          const planSlice = idsToFetch.slice(i, i + chunkSize);
+          const { data, error } = await supabase
+            .from('agent_pricing')
+            .select('plan_id, retail_price')
+            .eq('agent_id', effectiveAgentId)
+            .in('plan_id', planSlice);
+          if (error) {
+            console.error('[useAgentPlanPrices] Chunk fetch error', { index: i, size: planSlice.length, error });
+            continue;
+          }
+          if (data) allResults.push(...(data as any));
+        }
+        const priceMap: PlanPriceMap = {};
+        allResults.forEach((ap) => {
+          priceMap[ap.plan_id] = Number(ap.retail_price);
+          fetchedPlanIdsRef.current.add(ap.plan_id);
+        });
+        setPrices((prev) => ({ ...prev, ...priceMap }));
+      } else {
+        const priceMap: PlanPriceMap = data?.prices || {};
+        // Mark fetched
+        Object.keys(priceMap).forEach((pid) => fetchedPlanIdsRef.current.add(pid));
+        setPrices((prev) => ({ ...prev, ...priceMap }));
+      }
     } catch (error) {
       console.error('Error fetching agent plan prices:', error);
     } finally {

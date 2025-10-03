@@ -320,21 +320,19 @@ export default function AdminAgentPricing() {
             });
           }
 
-          if (errors.length > 0) {
+          // We won't block the whole import on errors; we'll import valid rows and report skips
+          const skippedCount = errors.length;
+          if (skippedCount > 0) {
             const firstFiveErrors = errors.slice(0, 5).join("; ");
+            console.warn("CSV validation errors (skipped):", errors);
             toast({
-              title: "Validation Errors",
-              description: `${errors.length} errors found. First errors: ${firstFiveErrors}`,
-              variant: "destructive",
+              title: "Some rows will be skipped",
+              description: `${skippedCount} invalid rows detected. First: ${firstFiveErrors}`,
             });
-            console.error("CSV validation errors:", errors);
-            console.error("Sample CSV row:", records[0]);
-            console.error("Expected columns: plan_id, retail_price");
-            return;
           }
 
           if (validRecords.length === 0) {
-            toast({ title: "Error", description: "No valid records to import", variant: "destructive" });
+            toast({ title: "No valid rows", description: "0 rows to import. Check errors in console.", variant: "destructive" });
             return;
           }
 
@@ -349,8 +347,8 @@ export default function AdminAgentPricing() {
           if (error) throw error;
 
           toast({
-            title: "Success",
-            description: `Imported ${validRecords.length} pricing records`,
+            title: "Import complete",
+            description: `Imported ${validRecords.length} rows. Skipped ${skippedCount}.`,
           });
           await fetchPricing(selectedAgentId);
           setBulkUploadOpen(false);

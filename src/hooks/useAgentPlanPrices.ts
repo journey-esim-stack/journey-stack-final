@@ -42,6 +42,20 @@ export const useAgentPlanPrices = (planIds: string[]) => {
 
   useEffect(() => {
     fetchAgentId();
+
+    // Listen for auth changes to refresh agent ID and prices when user logs in/out
+    const { data: authSub } = supabase.auth.onAuthStateChange(() => {
+      console.log('[useAgentPlanPrices] Auth state changed, refetching agentId and clearing cache');
+      setLoading(true);
+      fetchedPlanIdsRef.current.clear();
+      setPrices({});
+      setInitialLoadComplete(false);
+      fetchAgentId();
+    });
+
+    return () => {
+      authSub?.subscription?.unsubscribe?.();
+    };
   }, [fetchAgentId]);
 
   // Fetch prices for specific plan IDs

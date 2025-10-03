@@ -347,32 +347,33 @@ export default function AdminAgentPricing() {
             toast({ title: "Duplicates collapsed", description: `${duplicateCount} duplicate plan entries consolidated.` });
           }
 
-          // Delete existing records for these plan_ids for the selected agent to avoid ON CONFLICT errors
-          const planIds = uniqueRecords.map((r) => r.plan_id);
-          const deleteBatchSize = 1000;
-          for (let i = 0; i < planIds.length; i += deleteBatchSize) {
-            const planSlice = planIds.slice(i, i + deleteBatchSize);
-            const { error: delErr } = await supabase
-              .from("agent_pricing")
-              .delete()
-              .eq("agent_id", selectedAgentId)
-              .in("plan_id", planSlice);
-            if (delErr) throw delErr;
+          // Delete all existing pricing for this agent, then insert fresh records
+          const { error: delErr } = await supabase
+            .from("agent_pricing")
+            .delete()
+            .eq("agent_id", selectedAgentId);
+
+          if (delErr) {
+            console.error("Delete error:", delErr);
+            throw delErr;
           }
 
-          // Insert fresh records in chunks (no upsert needed now)
+          // Insert fresh records in batches
           const insertBatchSize = 500;
           for (let i = 0; i < uniqueRecords.length; i += insertBatchSize) {
             const batch = uniqueRecords.slice(i, i + insertBatchSize);
             const { error: insErr } = await supabase
               .from("agent_pricing")
               .insert(batch);
-            if (insErr) throw insErr;
+            if (insErr) {
+              console.error("Insert error:", insErr);
+              throw insErr;
+            }
           }
 
           toast({
             title: "Import complete",
-            description: `Imported ${uniqueRecords.length} rows. Skipped ${skippedCount}${duplicateCount ? `, Duplicates ${duplicateCount}` : ""}.`,
+            description: `Imported ${uniqueRecords.length} pricing records. Skipped ${skippedCount}${duplicateCount ? `, Duplicates ${duplicateCount}` : ""}.`,
           });
           await fetchPricing(selectedAgentId);
           setBulkUploadOpen(false);

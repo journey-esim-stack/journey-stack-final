@@ -336,19 +336,30 @@ export default function AdminAgentPricing() {
             return;
           }
 
-          // Insert records (upsert to handle duplicates)
-          const { error } = await supabase
-            .from("agent_pricing")
-            .upsert(validRecords, { 
-              onConflict: "agent_id,plan_id",
-              ignoreDuplicates: false 
-            });
+          // Deduplicate by (agent_id, plan_id) to avoid ON CONFLICT updating same row twice
+          const uniqueMap = new Map<string, { agent_id: string; plan_id: string; retail_price: number }>();
+          for (const rec of validRecords) {
+            uniqueMap.set(`${rec.agent_id}:${rec.plan_id}`, rec); // last one wins
+          }
+          const uniqueRecords = Array.from(uniqueMap.values());
+          const duplicateCount = validRecords.length - uniqueRecords.length;
+          if (duplicateCount > 0) {
+            toast({ title: "Duplicates collapsed", description: `${duplicateCount} duplicate plan entries consolidated.` });
+          }
 
-          if (error) throw error;
+          // Upsert in chunks to stay under payload limits and avoid locking issues
+          const batchSize = 500;
+          for (let i = 0; i < uniqueRecords.length; i += batchSize) {
+            const batch = uniqueRecords.slice(i, i + batchSize);
+            const { error } = await supabase
+              .from("agent_pricing")
+              .upsert(batch, { onConflict: "agent_id,plan_id", ignoreDuplicates: false });
+            if (error) throw error;
+          }
 
           toast({
             title: "Import complete",
-            description: `Imported ${validRecords.length} rows. Skipped ${skippedCount}.`,
+            description: `Imported ${uniqueRecords.length} rows. Skipped ${skippedCount}${duplicateCount ? `, Duplicates ${duplicateCount}` : ""}.`,
           });
           await fetchPricing(selectedAgentId);
           setBulkUploadOpen(false);

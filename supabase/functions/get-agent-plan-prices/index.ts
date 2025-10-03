@@ -8,10 +8,23 @@ const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_PUBLISHABLE_KEY')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
 serve(async (req: Request) => {
+  // Handle CORS preflight requests
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+
   try {
     if (req.method !== 'POST') {
-      return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405 });
+      return new Response(JSON.stringify({ error: 'Method not allowed' }), { 
+        status: 405,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
     }
 
     const authHeader = req.headers.get('Authorization') || '';
@@ -24,17 +37,26 @@ serve(async (req: Request) => {
     const { agentId, planIds } = await req.json();
 
     if (!agentId || !Array.isArray(planIds)) {
-      return new Response(JSON.stringify({ error: 'Invalid payload' }), { status: 400 });
+      return new Response(JSON.stringify({ error: 'Invalid payload' }), { 
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
     }
 
     // Authorization: ensure requester can access this agent
     const { data: hasAccess, error: accessErr } = await userClient.rpc('validate_agent_wallet_access', { _agent_id: agentId });
     if (accessErr) {
       console.error('validate_agent_wallet_access error', accessErr);
-      return new Response(JSON.stringify({ error: 'Access check failed' }), { status: 500 });
+      return new Response(JSON.stringify({ error: 'Access check failed' }), { 
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
     }
     if (!hasAccess) {
-      return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403 });
+      return new Response(JSON.stringify({ error: 'Forbidden' }), { 
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
     }
 
     // Fetch prices in chunks to be safe
@@ -50,7 +72,10 @@ serve(async (req: Request) => {
         .in('plan_id', slice);
       if (error) {
         console.error('agent_pricing fetch error', { index: i, error });
-        return new Response(JSON.stringify({ error: 'Failed to fetch pricing' }), { status: 500 });
+        return new Response(JSON.stringify({ error: 'Failed to fetch pricing' }), { 
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
       }
       if (data) results.push(...(data as any));
     }
@@ -60,9 +85,15 @@ serve(async (req: Request) => {
       map[row.plan_id] = Number(row.retail_price);
     }
 
-    return new Response(JSON.stringify({ prices: map }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    return new Response(JSON.stringify({ prices: map }), { 
+      status: 200, 
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+    });
   } catch (e) {
     console.error('Unhandled error', e);
-    return new Response(JSON.stringify({ error: 'Internal error' }), { status: 500 });
+    return new Response(JSON.stringify({ error: 'Internal error' }), { 
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
   }
 });

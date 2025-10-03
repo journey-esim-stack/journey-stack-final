@@ -43,14 +43,18 @@ export const useAgentPlanPrices = (planIds: string[]) => {
   useEffect(() => {
     fetchAgentId();
 
-    // Listen for auth changes to refresh agent ID and prices when user logs in/out
-    const { data: authSub } = supabase.auth.onAuthStateChange(() => {
-      console.log('[useAgentPlanPrices] Auth state changed, refetching agentId and clearing cache');
-      setLoading(true);
-      fetchedPlanIdsRef.current.clear();
-      setPrices({});
-      setInitialLoadComplete(false);
-      fetchAgentId();
+    // Listen for relevant auth changes only (avoid clearing on INITIAL_SESSION/TOKEN_REFRESHED)
+    const { data: authSub } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'USER_UPDATED') {
+        console.log('[useAgentPlanPrices] Auth event:', event, '-> refetching agentId and clearing cache');
+        setLoading(true);
+        fetchedPlanIdsRef.current.clear();
+        setPrices({});
+        setInitialLoadComplete(false);
+        fetchAgentId();
+      } else {
+        // Ignoring noise events like INITIAL_SESSION/TOKEN_REFRESHED to prevent flicker
+      }
     });
 
     return () => {

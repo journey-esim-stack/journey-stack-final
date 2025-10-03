@@ -278,7 +278,7 @@ const PlanCard = ({ plan, calculatePrice, debugGetPriceMeta, isAdmin, isPriceLoa
         </div>
 
         <div className="mt-4 space-y-3">
-          <div className="flex items-center justify-between">
+           <div className="flex items-center justify-between">
             <div className="flex flex-col">
               <span className="text-lg font-bold text-primary">
                 {(() => {
@@ -290,8 +290,9 @@ const PlanCard = ({ plan, calculatePrice, debugGetPriceMeta, isAdmin, isPriceLoa
                      return <Skeleton className="h-5 w-24" />;
                    }
                    
-                   // Prefer batch price from agent_pricing if available
+                   // PRIORITY 1: agent_pricing table (CSV uploaded prices)
                    if (batchPrice !== undefined) {
+                     console.log('✅ Displaying agent_pricing:', { planId: plan.id, batchPrice });
                      return (
                        <>
                          {getCurrencySymbol() + convertPrice(batchPrice).toFixed(2)}
@@ -305,7 +306,7 @@ const PlanCard = ({ plan, calculatePrice, debugGetPriceMeta, isAdmin, isPriceLoa
                      );
                    }
                    
-                   // Otherwise use pricing rules calculation
+                   // PRIORITY 2: pricing_rules (Airtable synced rules)
                    const priceUSD = calculatePrice?.(plan.wholesale_price || 0, { 
                      supplierPlanId, 
                      countryCode: plan.country_code, 
@@ -319,6 +320,8 @@ const PlanCard = ({ plan, calculatePrice, debugGetPriceMeta, isAdmin, isPriceLoa
                          planId: plan.id 
                        })
                      : null;
+                   
+                   console.log('⚠️ No agent_pricing, using pricing_rules:', { planId: plan.id, priceUSD });
                    
                    return (
                      <>
@@ -382,13 +385,20 @@ const SearchResults = ({ calculatePrice, debugGetPriceMeta, isAdmin, pricingLoad
     return hits.map(hit => {
       const canonicalId = getCanonicalId(hit.id);
       const supplierPlanId = canonicalId || hit.supplier_plan_id;
+      const batchPrice = getBatchPrice(hit.id);
+      
+      // Debug logging for agent_pricing
+      if (batchPrice !== undefined) {
+        console.log('📊 agent_pricing found:', { planId: hit.id, title: hit.title, batchPrice });
+      }
+      
       return {
         ...hit,
         wholesale_price: (hit as any).wholesale_price ?? 0,
         _canonical_supplier_id: supplierPlanId
       };
     });
-  }, [hits, getCanonicalId]);
+  }, [hits, getCanonicalId, getBatchPrice]);
 
 
   if (!enhancedHits.length) {

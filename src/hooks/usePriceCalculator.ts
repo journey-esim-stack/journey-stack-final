@@ -5,8 +5,9 @@ import { useAgentPreview } from '@/contexts/AgentPreviewContext';
 
 /**
  * Centralized price calculator hook
- * Uses the new pricing_rules system with Airtable integration
- * Default: 300% markup, overridden by Airtable custom prices
+ * Uses pricing_rules system with Airtable integration
+ * Note: For CSV-uploaded agent_pricing, use useAgentPlanPrices hook directly
+ * Default: 300% markup, overridden by pricing rules
  */
 export const usePriceCalculator = () => {
   const [agentId, setAgentId] = useState<string | null>(null);
@@ -43,7 +44,7 @@ export const usePriceCalculator = () => {
     }
   }, []);
 
-  // Calculate price using pricing rules
+  // Calculate price using pricing rules (fallback for when agent_pricing is not available)
   const calculatePrice = useCallback((
     wholesalePrice: number,
     options?: {
@@ -55,8 +56,7 @@ export const usePriceCalculator = () => {
     // Use preview agent ID if available (for admin testing), otherwise use actual agent ID
     const effectiveAgentId = previewAgentId || agentId;
 
-    // No agent? Still evaluate rules (plan/country/default). The rules hook handles fallback to 300% if none matches.
-
+    // Evaluate pricing rules (plan/country/agent-specific/default). Falls back to 300% if no matches.
     return calculatePriceWithRules({
       wholesalePrice,
       agentId: effectiveAgentId || undefined,

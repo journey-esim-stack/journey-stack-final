@@ -183,7 +183,7 @@ export default function AdminAgents() {
         <header className="flex justify-between items-start">
           <div>
             <h1 className="text-3xl font-bold">Agent Management</h1>
-            <p className="text-muted-foreground">Manage agent approvals and track performance. Pricing is now controlled via Airtable.</p>
+            <p className="text-muted-foreground">Manage agent approvals and track performance. Pricing is controlled via Agent Pricing Manager.</p>
           </div>
           <div className="text-right text-sm text-muted-foreground">
             <div>Total Agents: {agents.length}</div>
@@ -323,7 +323,7 @@ export default function AdminAgents() {
                       </Button>
                       
                       <div className="text-xs text-muted-foreground text-center pt-2 border-t">
-                        Pricing is managed via Airtable. Default: 300% markup.
+                        Custom pricing available in Agent Pricing Manager. Default: 300% markup.
                       </div>
                     </div>
                   )}

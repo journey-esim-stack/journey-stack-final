@@ -263,12 +263,26 @@ export default function AdminAgentPricing() {
             const rawPlanIdInput = String(
               row.plan_id ?? row["plan_id"] ?? row["plan id"] ?? row["plan-id"] ?? row["Plan ID"] ?? ""
             ).trim();
+            
+            // Skip Excel error values
+            if (/^#(N\/A|REF!|VALUE!|DIV\/0!|NAME\?|NULL!|NUM!)$/i.test(rawPlanIdInput)) {
+              console.log(`Row ${rowNum}: Skipping Excel error value "${rawPlanIdInput}"`);
+              continue;
+            }
+            
             const uuidMatch = rawPlanIdInput.match(/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/);
             const planId = uuidMatch ? uuidMatch[0] : rawPlanIdInput.replace(/^#/, "");
 
             const rawPriceInput = String(
               row.retail_price ?? row["retail_price"] ?? row["retail price"] ?? row["Retail Price"] ?? ""
             ).trim();
+            
+            // Skip Excel error values in price column too
+            if (/^#(N\/A|REF!|VALUE!|DIV\/0!|NAME\?|NULL!|NUM!)$/i.test(rawPriceInput)) {
+              console.log(`Row ${rowNum}: Skipping Excel error value in price "${rawPriceInput}"`);
+              continue;
+            }
+            
             const priceStr = rawPriceInput
               .replace(/,/g, "")
               .replace(/^[^\d-]*/, "") // strip currency symbols at start

@@ -185,9 +185,12 @@ export default function AdminAgentPricing() {
 
       if (error) throw error;
 
-      toast({ title: "Success", description: "Custom pricing saved" });
+      // Refresh pricing data to reflect changes
       await fetchPricing(selectedAgentId);
+      
+      toast({ title: "Success", description: "Custom pricing saved" });
       setAddDialogOpen(false);
+      setSelectedPlan(null);
     } catch (err: any) {
       console.error("Error adding pricing:", err);
       toast({ 
@@ -207,9 +210,12 @@ export default function AdminAgentPricing() {
 
       if (error) throw error;
 
-      toast({ title: "Success", description: "Pricing updated" });
+      // Refresh pricing data to reflect changes
       await fetchPricing(selectedAgentId);
+      
+      toast({ title: "Success", description: "Pricing updated" });
       setEditDialogOpen(false);
+      setSelectedPlan(null);
     } catch (err) {
       console.error("Error updating pricing:", err);
       toast({ title: "Error", description: "Failed to update pricing", variant: "destructive" });

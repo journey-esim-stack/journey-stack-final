@@ -175,22 +175,24 @@ export default function AdminAgentPricing() {
     try {
       const { error } = await supabase
         .from("agent_pricing")
-        .insert({
+        .upsert({
           agent_id: selectedAgentId,
           plan_id: planId,
           retail_price: retailPrice,
+        }, {
+          onConflict: 'agent_id,plan_id'
         });
 
       if (error) throw error;
 
-      toast({ title: "Success", description: "Custom pricing added" });
+      toast({ title: "Success", description: "Custom pricing saved" });
       await fetchPricing(selectedAgentId);
       setAddDialogOpen(false);
     } catch (err: any) {
       console.error("Error adding pricing:", err);
       toast({ 
         title: "Error", 
-        description: err.message || "Failed to add pricing", 
+        description: err.message || "Failed to save pricing", 
         variant: "destructive" 
       });
     }

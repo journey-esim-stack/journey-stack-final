@@ -125,13 +125,11 @@ export default function AdminAgentPricing() {
 
   const fetchPricing = async (agentId: string) => {
     try {
-      const { data, error } = await supabase
-        .from("agent_pricing")
-        .select("*")
-        .eq("agent_id", agentId);
-
+      const { data, error } = await supabase.functions.invoke('admin-agent-pricing', {
+        body: { action: 'list', agentId }
+      });
       if (error) throw error;
-      setPricing(data || []);
+      setPricing((data as any)?.pricing || []);
     } catch (err) {
       console.error("Error fetching pricing:", err);
       toast({ title: "Error", description: "Failed to load pricing", variant: "destructive" });
@@ -173,21 +171,12 @@ export default function AdminAgentPricing() {
     if (!selectedAgentId) return;
 
     try {
-      const { data: upserted, error } = await supabase
-        .from("agent_pricing")
-        .upsert(
-          {
-            agent_id: selectedAgentId,
-            plan_id: planId,
-            retail_price: retailPrice,
-          },
-          { onConflict: "agent_id,plan_id" }
-        )
-        .select()
-        .maybeSingle();
-
+      const { data, error } = await supabase.functions.invoke('admin-agent-pricing', {
+        body: { action: 'upsert', agentId: selectedAgentId, planId, retailPrice }
+      });
       if (error) throw error;
 
+      const upserted = (data as any)?.pricing;
       if (upserted) {
         setPricing((prev) => {
           const idx = prev.findIndex(
@@ -202,10 +191,7 @@ export default function AdminAgentPricing() {
         });
       }
 
-      // Also refetch to be 100% in sync
       await fetchPricing(selectedAgentId);
-
-      // Notify other parts of the app
       window.dispatchEvent(new CustomEvent('agent-pricing-updated', { detail: { agentId: selectedAgentId } }));
 
       toast({ title: "Success", description: "Custom pricing saved" });
@@ -213,33 +199,23 @@ export default function AdminAgentPricing() {
       setSelectedPlan(null);
     } catch (err: any) {
       console.error("Error adding pricing:", err);
-      toast({
-        title: "Error",
-        description: err.message || "Failed to save pricing",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: err.message || "Failed to save pricing", variant: "destructive" });
     }
   };
 
   const handleUpdatePricing = async (pricingId: string, retailPrice: number) => {
     try {
-      const { data: updated, error } = await supabase
-        .from("agent_pricing")
-        .update({ retail_price: retailPrice })
-        .eq("id", pricingId)
-        .select()
-        .maybeSingle();
-
+      const { data, error } = await supabase.functions.invoke('admin-agent-pricing', {
+        body: { action: 'update', pricingId, retailPrice }
+      });
       if (error) throw error;
 
+      const updated = (data as any)?.pricing;
       if (updated) {
         setPricing((prev) => prev.map((p) => (p.id === pricingId ? { ...p, ...updated } as any : p)));
       }
 
-      // Refresh pricing data to reflect changes
       await fetchPricing(selectedAgentId);
-
-      // Notify other parts of the app
       window.dispatchEvent(new CustomEvent('agent-pricing-updated', { detail: { agentId: selectedAgentId } }));
 
       toast({ title: "Success", description: "Pricing updated" });
@@ -255,17 +231,13 @@ export default function AdminAgentPricing() {
     if (!confirm("Remove custom pricing? This plan will revert to the default 300% markup.")) return;
 
     try {
-      const { error } = await supabase
-        .from("agent_pricing")
-        .delete()
-        .eq("id", pricingId);
-
+      const { error } = await supabase.functions.invoke('admin-agent-pricing', {
+        body: { action: 'delete', pricingId }
+      });
       if (error) throw error;
 
       toast({ title: "Success", description: "Custom pricing removed" });
       await fetchPricing(selectedAgentId);
-
-      // Notify other parts of the app
       window.dispatchEvent(new CustomEvent('agent-pricing-updated', { detail: { agentId: selectedAgentId } }));
     } catch (err) {
       console.error("Error deleting pricing:", err);
@@ -387,33 +359,18 @@ export default function AdminAgentPricing() {
             toast({ title: "Duplicates collapsed", description: `${duplicateCount} duplicate plan entries consolidated.` });
           }
 
-          // Delete all existing pricing for this agent, then insert fresh records
-          const { error: delErr } = await supabase
-            .from("agent_pricing")
-            .delete()
-            .eq("agent_id", selectedAgentId);
-
-          if (delErr) {
-            console.error("Delete error:", delErr);
-            throw delErr;
-          }
-
-          // Insert fresh records in batches
-          const insertBatchSize = 500;
-          for (let i = 0; i < uniqueRecords.length; i += insertBatchSize) {
-            const batch = uniqueRecords.slice(i, i + insertBatchSize);
-            const { error: insErr } = await supabase
-              .from("agent_pricing")
-              .insert(batch);
-            if (insErr) {
-              console.error("Insert error:", insErr);
-              throw insErr;
-            }
+          // Replace pricing via admin edge function to avoid RLS issues
+          const { data, error: bulkErr } = await supabase.functions.invoke('admin-agent-pricing', {
+            body: { action: 'bulk_replace', agentId: selectedAgentId, records: uniqueRecords }
+          });
+          if (bulkErr) {
+            console.error('Bulk replace error:', bulkErr);
+            throw bulkErr;
           }
 
           toast({
             title: "Import complete",
-            description: `Imported ${uniqueRecords.length} pricing records. Skipped ${skippedCount}${duplicateCount ? `, Duplicates ${duplicateCount}` : ""}.`,
+            description: `Imported ${(data as any)?.inserted ?? uniqueRecords.length} pricing records. Skipped ${skippedCount}${duplicateCount ? `, Duplicates ${duplicateCount}` : ""}.`,
           });
           await fetchPricing(selectedAgentId);
 

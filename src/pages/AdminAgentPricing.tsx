@@ -284,12 +284,15 @@ export default function AdminAgentPricing() {
           }
 
           if (errors.length > 0) {
+            const firstFiveErrors = errors.slice(0, 5).join("; ");
             toast({
               title: "Validation Errors",
-              description: `${errors.length} errors found. Check console for details.`,
+              description: `${errors.length} errors found. First errors: ${firstFiveErrors}`,
               variant: "destructive",
             });
             console.error("CSV validation errors:", errors);
+            console.error("Sample CSV row:", records[0]);
+            console.error("Expected columns: plan_id, retail_price");
             return;
           }
 

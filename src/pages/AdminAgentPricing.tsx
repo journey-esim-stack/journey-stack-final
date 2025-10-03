@@ -347,14 +347,27 @@ export default function AdminAgentPricing() {
             toast({ title: "Duplicates collapsed", description: `${duplicateCount} duplicate plan entries consolidated.` });
           }
 
-          // Upsert in chunks to stay under payload limits and avoid locking issues
-          const batchSize = 500;
-          for (let i = 0; i < uniqueRecords.length; i += batchSize) {
-            const batch = uniqueRecords.slice(i, i + batchSize);
-            const { error } = await supabase
+          // Delete existing records for these plan_ids for the selected agent to avoid ON CONFLICT errors
+          const planIds = uniqueRecords.map((r) => r.plan_id);
+          const deleteBatchSize = 1000;
+          for (let i = 0; i < planIds.length; i += deleteBatchSize) {
+            const planSlice = planIds.slice(i, i + deleteBatchSize);
+            const { error: delErr } = await supabase
               .from("agent_pricing")
-              .upsert(batch, { onConflict: "agent_id,plan_id", ignoreDuplicates: false });
-            if (error) throw error;
+              .delete()
+              .eq("agent_id", selectedAgentId)
+              .in("plan_id", planSlice);
+            if (delErr) throw delErr;
+          }
+
+          // Insert fresh records in chunks (no upsert needed now)
+          const insertBatchSize = 500;
+          for (let i = 0; i < uniqueRecords.length; i += insertBatchSize) {
+            const batch = uniqueRecords.slice(i, i + insertBatchSize);
+            const { error: insErr } = await supabase
+              .from("agent_pricing")
+              .insert(batch);
+            if (insErr) throw insErr;
           }
 
           toast({

@@ -74,23 +74,33 @@ export const useAgentPlanPrices = (planIds: string[]) => {
     }
 
     try {
-      // Batch-fetch from agent_pricing table
-      const { data: agentPricing, error } = await supabase
-        .from('agent_pricing')
-        .select('plan_id, retail_price')
-        .eq('agent_id', effectiveAgentId)
-        .in('plan_id', idsToFetch);
+      // Batch-fetch from agent_pricing table in CHUNKS to avoid URL length limits
+      const chunkSize = 100; // keep small to prevent long query strings
+      const allResults: Array<{ plan_id: string; retail_price: number }> = [];
 
-      if (error) throw error;
+      for (let i = 0; i < idsToFetch.length; i += chunkSize) {
+        const planSlice = idsToFetch.slice(i, i + chunkSize);
+        const { data, error } = await supabase
+          .from('agent_pricing')
+          .select('plan_id, retail_price')
+          .eq('agent_id', effectiveAgentId)
+          .in('plan_id', planSlice);
+
+        if (error) {
+          console.error('[useAgentPlanPrices] Chunk fetch error', { index: i, size: planSlice.length, error });
+          continue; // proceed with other chunks
+        }
+        if (data) allResults.push(...(data as any));
+      }
 
       const priceMap: PlanPriceMap = {};
-      agentPricing?.forEach(ap => {
+      allResults.forEach((ap) => {
         priceMap[ap.plan_id] = Number(ap.retail_price);
         fetchedPlanIdsRef.current.add(ap.plan_id);
       });
 
-      // CRITICAL FIX: Merge instead of replace to prevent flickering
-      setPrices(prev => ({ ...prev, ...priceMap }));
+      // Merge instead of replace to prevent flickering
+      setPrices((prev) => ({ ...prev, ...priceMap }));
     } catch (error) {
       console.error('Error fetching agent plan prices:', error);
     } finally {

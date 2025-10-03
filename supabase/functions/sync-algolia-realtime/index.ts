@@ -16,14 +16,14 @@ interface AlgoliaRecord {
   data_amount: string;
   data_amount_value: number;
   validity_days: number;
-  wholesale_price: number;
   currency: string;
-  supplier_name: string;
-  supplier_plan_id: string;
   is_active: boolean;
   admin_only: boolean;
   created_at: string;
   updated_at: string;
+  // SECURITY: wholesale_price, supplier_name, supplier_plan_id removed from public index
+  // Only available in admin-only attributes
+  _tags?: string[]; // Will use tags to mark admin-only records
 }
 
 async function transformSupabaseToAlgolia(supabaseRecord: any): Promise<AlgoliaRecord> {
@@ -43,6 +43,8 @@ async function transformSupabaseToAlgolia(supabaseRecord: any): Promise<AlgoliaR
     }
   };
 
+  // SECURITY FIX: Remove wholesale_price, supplier_name, supplier_plan_id from public index
+  // These fields are now stored separately and only accessible to admins
   return {
     objectID: supabaseRecord.id,
     id: supabaseRecord.id,
@@ -53,14 +55,12 @@ async function transformSupabaseToAlgolia(supabaseRecord: any): Promise<AlgoliaR
     data_amount: supabaseRecord.data_amount,
     data_amount_value: extractDataValue(supabaseRecord.data_amount),
     validity_days: supabaseRecord.validity_days,
-    wholesale_price: parseFloat(supabaseRecord.wholesale_price),
     currency: supabaseRecord.currency,
-    supplier_name: supabaseRecord.supplier_name,
-    supplier_plan_id: supabaseRecord.supplier_plan_id,
     is_active: supabaseRecord.is_active,
     admin_only: supabaseRecord.admin_only,
     created_at: supabaseRecord.created_at,
     updated_at: supabaseRecord.updated_at,
+    _tags: supabaseRecord.admin_only ? ['admin_only'] : [],
   };
 }
 

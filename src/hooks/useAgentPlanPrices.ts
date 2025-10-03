@@ -45,12 +45,16 @@ export const useAgentPlanPrices = (planIds: string[]) => {
 
     // Listen for relevant auth changes only (avoid clearing on INITIAL_SESSION/TOKEN_REFRESHED)
     const { data: authSub } = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'USER_UPDATED') {
+      if (event === 'SIGNED_OUT' || event === 'USER_UPDATED') {
         console.log('[useAgentPlanPrices] Auth event:', event, '-> refetching agentId and clearing cache');
         setLoading(true);
         fetchedPlanIdsRef.current.clear();
         setPrices({});
         setInitialLoadComplete(false);
+        fetchAgentId();
+      } else if (event === 'SIGNED_IN') {
+        console.log('[useAgentPlanPrices] Auth event:', event, '-> refetching agentId without clearing cache');
+        // Do not clear cache on SIGNED_IN to avoid UI flicker
         fetchAgentId();
       } else {
         // Ignoring noise events like INITIAL_SESSION/TOKEN_REFRESHED to prevent flicker

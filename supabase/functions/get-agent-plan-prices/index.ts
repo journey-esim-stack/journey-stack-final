@@ -69,7 +69,7 @@ try {
     }
 
     // Fetch prices in chunks to be safe
-    const chunkSize = 1000;
+    const chunkSize = 50;
     const results: Array<{ plan_id: string; retail_price: number }> = [];
 
     for (let i = 0; i < planIds.length; i += chunkSize) {

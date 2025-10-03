@@ -85,17 +85,18 @@ try {
       });
     }
 
-    // Fetch prices in chunks to be safe
+    // Fetch prices in chunks to be safe and prefer latest updates
     const chunkSize = 50;
-    const results: Array<{ plan_id: string; retail_price: number }> = [];
+    const results: Array<{ plan_id: string; retail_price: number; updated_at: string }> = [];
 
     for (let i = 0; i < planIds.length; i += chunkSize) {
       const slice = planIds.slice(i, i + chunkSize);
       const { data, error } = await adminClient
         .from('agent_pricing')
-        .select('plan_id, retail_price')
+        .select('plan_id, retail_price, updated_at')
         .eq('agent_id', agentId)
-        .in('plan_id', slice);
+        .in('plan_id', slice)
+        .order('updated_at', { ascending: false });
       if (error) {
         console.error('agent_pricing fetch error', { index: i, error });
         return new Response(JSON.stringify({ error: 'Failed to fetch pricing' }), { 
@@ -106,9 +107,15 @@ try {
       if (data) results.push(...(data as any));
     }
 
+    // Sort globally by updated_at desc to ensure latest wins across chunks
+    results.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+
+    // Build map taking the first (latest) entry per plan_id
     const map: Record<string, number> = {};
     for (const row of results) {
-      map[row.plan_id] = Number(row.retail_price);
+      if (map[row.plan_id] === undefined) {
+        map[row.plan_id] = Number(row.retail_price);
+      }
     }
 
     return new Response(JSON.stringify({ prices: map }), { 

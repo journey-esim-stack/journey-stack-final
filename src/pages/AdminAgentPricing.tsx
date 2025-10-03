@@ -205,6 +205,9 @@ export default function AdminAgentPricing() {
       // Also refetch to be 100% in sync
       await fetchPricing(selectedAgentId);
 
+      // Notify other parts of the app
+      window.dispatchEvent(new CustomEvent('agent-pricing-updated', { detail: { agentId: selectedAgentId } }));
+
       toast({ title: "Success", description: "Custom pricing saved" });
       setAddDialogOpen(false);
       setSelectedPlan(null);
@@ -236,6 +239,9 @@ export default function AdminAgentPricing() {
       // Refresh pricing data to reflect changes
       await fetchPricing(selectedAgentId);
 
+      // Notify other parts of the app
+      window.dispatchEvent(new CustomEvent('agent-pricing-updated', { detail: { agentId: selectedAgentId } }));
+
       toast({ title: "Success", description: "Pricing updated" });
       setEditDialogOpen(false);
       setSelectedPlan(null);
@@ -258,6 +264,9 @@ export default function AdminAgentPricing() {
 
       toast({ title: "Success", description: "Custom pricing removed" });
       await fetchPricing(selectedAgentId);
+
+      // Notify other parts of the app
+      window.dispatchEvent(new CustomEvent('agent-pricing-updated', { detail: { agentId: selectedAgentId } }));
     } catch (err) {
       console.error("Error deleting pricing:", err);
       toast({ title: "Error", description: "Failed to delete pricing", variant: "destructive" });
@@ -407,6 +416,10 @@ export default function AdminAgentPricing() {
             description: `Imported ${uniqueRecords.length} pricing records. Skipped ${skippedCount}${duplicateCount ? `, Duplicates ${duplicateCount}` : ""}.`,
           });
           await fetchPricing(selectedAgentId);
+
+          // Notify other parts of the app
+          window.dispatchEvent(new CustomEvent('agent-pricing-updated', { detail: { agentId: selectedAgentId } }));
+
           setBulkUploadOpen(false);
         } catch (err: any) {
           console.error("Error importing CSV:", err);

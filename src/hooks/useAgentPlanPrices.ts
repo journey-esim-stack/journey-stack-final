@@ -17,6 +17,7 @@ export const useAgentPlanPrices = (planIds: string[]) => {
   const { previewAgentId } = useAgentPreview();
   const [agentId, setAgentId] = useState<string | null>(null);
   const fetchedPlanIdsRef = useRef<Set<string>>(new Set());
+  const lastAgentIdRef = useRef<string | null>(null);
 
   // Get current agent ID
   const fetchAgentId = useCallback(async () => {
@@ -125,20 +126,36 @@ export const useAgentPlanPrices = (planIds: string[]) => {
     }
   }, [agentId, previewAgentId]);
 
+  const effectiveAgentId = previewAgentId || agentId;
+
+  // Respond to agent change: clear cache and refetch
   useEffect(() => {
-    if (agentId || previewAgentId) {
-      // Only fetch prices for plan IDs we haven't fetched yet
-      const newPlanIds = planIds.filter(id => !fetchedPlanIdsRef.current.has(id));
-      
-      if (newPlanIds.length > 0) {
-        setLoading(true);
-        fetchPrices(newPlanIds);
-      } else if (!initialLoadComplete) {
-        setLoading(false);
-        setInitialLoadComplete(true);
-      }
+    if (!effectiveAgentId) {
+      setLoading(false);
+      setInitialLoadComplete(true);
+      return;
     }
-  }, [planIds, agentId, previewAgentId, fetchPrices, initialLoadComplete]);
+
+    if (lastAgentIdRef.current !== effectiveAgentId) {
+      lastAgentIdRef.current = effectiveAgentId;
+      fetchedPlanIdsRef.current.clear();
+      setPrices({});
+      setInitialLoadComplete(false);
+      setLoading(true);
+      fetchPrices(planIds);
+      return;
+    }
+
+    // Only fetch prices for plan IDs we haven't fetched yet
+    const newPlanIds = planIds.filter(id => !fetchedPlanIdsRef.current.has(id));
+    if (newPlanIds.length > 0) {
+      setLoading(true);
+      fetchPrices(newPlanIds);
+    } else if (!initialLoadComplete) {
+      setLoading(false);
+      setInitialLoadComplete(true);
+    }
+  }, [effectiveAgentId, planIds, fetchPrices, initialLoadComplete]);
 
   const getPrice = useCallback((planId: string): number | undefined => {
     return prices[planId];
@@ -150,6 +167,19 @@ export const useAgentPlanPrices = (planIds: string[]) => {
     setInitialLoadComplete(false);
     fetchPrices(planIds);
   }, [planIds, fetchPrices]);
+
+  // Listen for global agent pricing updates to invalidate cache
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent)?.detail as { agentId?: string } | undefined;
+      const updatedAgentId = detail?.agentId;
+      const currentEffective = previewAgentId || agentId || null;
+      if (!updatedAgentId || updatedAgentId !== currentEffective) return;
+      refetch();
+    };
+    window.addEventListener('agent-pricing-updated', handler as EventListener);
+    return () => window.removeEventListener('agent-pricing-updated', handler as EventListener);
+  }, [refetch, agentId, previewAgentId]);
 
   return { 
     prices, 

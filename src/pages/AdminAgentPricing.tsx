@@ -173,46 +173,69 @@ export default function AdminAgentPricing() {
     if (!selectedAgentId) return;
 
     try {
-      const { error } = await supabase
+      const { data: upserted, error } = await supabase
         .from("agent_pricing")
-        .upsert({
-          agent_id: selectedAgentId,
-          plan_id: planId,
-          retail_price: retailPrice,
-        }, {
-          onConflict: 'agent_id,plan_id'
-        });
+        .upsert(
+          {
+            agent_id: selectedAgentId,
+            plan_id: planId,
+            retail_price: retailPrice,
+          },
+          { onConflict: "agent_id,plan_id" }
+        )
+        .select()
+        .maybeSingle();
 
       if (error) throw error;
 
-      // Refresh pricing data to reflect changes
+      if (upserted) {
+        setPricing((prev) => {
+          const idx = prev.findIndex(
+            (p) => p.agent_id === selectedAgentId && p.plan_id === planId
+          );
+          if (idx >= 0) {
+            const next = [...prev];
+            next[idx] = { ...next[idx], ...upserted } as any;
+            return next;
+          }
+          return [...prev, upserted as any];
+        });
+      }
+
+      // Also refetch to be 100% in sync
       await fetchPricing(selectedAgentId);
-      
+
       toast({ title: "Success", description: "Custom pricing saved" });
       setAddDialogOpen(false);
       setSelectedPlan(null);
     } catch (err: any) {
       console.error("Error adding pricing:", err);
-      toast({ 
-        title: "Error", 
-        description: err.message || "Failed to save pricing", 
-        variant: "destructive" 
+      toast({
+        title: "Error",
+        description: err.message || "Failed to save pricing",
+        variant: "destructive",
       });
     }
   };
 
   const handleUpdatePricing = async (pricingId: string, retailPrice: number) => {
     try {
-      const { error } = await supabase
+      const { data: updated, error } = await supabase
         .from("agent_pricing")
         .update({ retail_price: retailPrice })
-        .eq("id", pricingId);
+        .eq("id", pricingId)
+        .select()
+        .maybeSingle();
 
       if (error) throw error;
 
+      if (updated) {
+        setPricing((prev) => prev.map((p) => (p.id === pricingId ? { ...p, ...updated } as any : p)));
+      }
+
       // Refresh pricing data to reflect changes
       await fetchPricing(selectedAgentId);
-      
+
       toast({ title: "Success", description: "Pricing updated" });
       setEditDialogOpen(false);
       setSelectedPlan(null);
@@ -488,6 +511,7 @@ export default function AdminAgentPricing() {
               onAdd={handleAddPricing}
               open={addDialogOpen}
               onOpenChange={setAddDialogOpen}
+              initialPlanId={selectedPlan?.id}
             />
 
             <BulkUploadDialog
@@ -619,15 +643,21 @@ function AddPricingDialog({
   plans, 
   onAdd, 
   open, 
-  onOpenChange 
+  onOpenChange,
+  initialPlanId
 }: { 
   plans: PlanWithPricing[]; 
   onAdd: (planId: string, price: number) => void;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  initialPlanId?: string;
 }) {
-  const [selectedPlanId, setSelectedPlanId] = useState("");
+  const [selectedPlanId, setSelectedPlanId] = useState(initialPlanId || "");
   const [price, setPrice] = useState("");
+
+  useEffect(() => {
+    if (open && initialPlanId) setSelectedPlanId(initialPlanId);
+  }, [open, initialPlanId]);
 
   const selectedPlan = plans.find(p => p.id === selectedPlanId);
   const minPrice = selectedPlan ? selectedPlan.wholesale_price * 1.05 : 0;

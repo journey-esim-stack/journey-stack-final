@@ -15,6 +15,7 @@ import { AgentPreviewSelector } from "@/components/AgentPreviewSelector";
 import { AlgoliaErrorBoundary } from "@/components/AlgoliaErrorBoundary";
 import { usePriceCalculator } from "@/hooks/usePriceCalculator";
 import { usePlanIdMapping } from "@/hooks/usePlanIdMapping";
+import { useAgentPlanPrices } from "@/hooks/useAgentPlanPrices";
 
 interface EsimPlan {
   objectID: string;
@@ -182,13 +183,20 @@ function CustomPagination() {
 function SearchResults({ calculatePrice, debugGetPriceMeta, isAdmin }: { calculatePrice: (price: number, options?: { supplierPlanId?: string; countryCode?: string; planId?: string }) => number; debugGetPriceMeta?: (price: number, options?: { supplierPlanId?: string; countryCode?: string; planId?: string }) => any; isAdmin?: boolean }) {
   const { hits } = useHits();
   
+  const planIds = useMemo(() => hits.map((h: any) => h.id), [hits]);
+  const { getPrice: getBatchPrice } = useAgentPlanPrices(planIds);
+  
   const transformHits = (hits: any[]) => {
     return hits.map(hit => {
       const basePrice = Number(hit.wholesale_price) || 0;
-      const agentPrice = calculatePrice(basePrice, { supplierPlanId: hit.supplier_plan_id, countryCode: hit.country_code, planId: hit.id });
+      const batchPrice = getBatchPrice(hit.id);
+      const agentPrice = batchPrice !== undefined
+        ? batchPrice
+        : calculatePrice(basePrice, { supplierPlanId: hit.supplier_plan_id, countryCode: hit.country_code, planId: hit.id });
+      
       if (isAdmin && debugGetPriceMeta) {
         const meta = debugGetPriceMeta(basePrice, { supplierPlanId: hit.supplier_plan_id, countryCode: hit.country_code, planId: hit.id });
-        console.log('PricingDebug (AlgoliaPlans)', { title: hit.title, supplier_plan_id: hit.supplier_plan_id, supplier_name: hit.supplier_name, basePrice, agentPrice, meta });
+        console.log('PricingDebug (AlgoliaPlans)', { title: hit.title, supplier_plan_id: hit.supplier_plan_id, supplier_name: hit.supplier_name, basePrice, agentPrice, used: batchPrice !== undefined ? 'agent_pricing' : 'pricing_rules', meta });
       }
       
       return {

@@ -23,6 +23,7 @@ import { useCurrency } from "@/contexts/CurrencyContext";
 import RegionalPlanDropdown from "@/components/RegionalPlanDropdown";
 import { AgentPreviewSelector } from "@/components/AgentPreviewSelector";
 import { useAgentPreview } from "@/contexts/AgentPreviewContext";
+import { useAgentPlanPrices } from "@/hooks/useAgentPlanPrices";
 interface EsimPlan {
   objectID: string;
   id: string;
@@ -187,6 +188,16 @@ export default function AlgoliaPlansSimple() {
   } = usePriceCalculator();
   
   const [isAdmin, setIsAdmin] = useState(false);
+  
+  // Batch agent_pricing for all visible plans
+  const planIds = useMemo(() => allPlans.map(p => p.id), [allPlans]);
+  const { getPrice: getBatchPrice } = useAgentPlanPrices(planIds);
+
+  const getAgentPrice = useCallback((p: EsimPlan) => {
+    const bp = getBatchPrice(p.id);
+    if (bp !== undefined) return bp;
+    return calculatePrice?.(p.wholesale_price || 0, { supplierPlanId: p.supplier_plan_id, countryCode: p.country_code, planId: p.id }) ?? 0;
+  }, [getBatchPrice, calculatePrice]);
 
   // Filter states
   const [selectedCountry, setSelectedCountry] = useState<string>("");
@@ -431,14 +442,14 @@ export default function AlgoliaPlansSimple() {
 
     // Apply price filter (calculate agent price for filtering)
     filtered = filtered.filter(plan => {
-      const priceUSD = calculatePrice?.(plan.wholesale_price || 0, { supplierPlanId: plan.supplier_plan_id, countryCode: plan.country_code, planId: plan.id }) ?? 0;
+      const priceUSD = getAgentPrice(plan);
       return priceUSD >= priceRange[0] && priceUSD <= priceRange[1];
     });
 
     // Apply sorting
     filtered.sort((a, b) => {
-      const aPrice = calculatePrice?.(a.wholesale_price || 0, { supplierPlanId: a.supplier_plan_id, countryCode: a.country_code, planId: a.id }) ?? 0;
-      const bPrice = calculatePrice?.(b.wholesale_price || 0, { supplierPlanId: b.supplier_plan_id, countryCode: b.country_code, planId: b.id }) ?? 0;
+      const aPrice = getAgentPrice(a);
+      const bPrice = getAgentPrice(b);
       switch (sortBy) {
         case 'price-asc':
           return aPrice - bPrice;
@@ -784,7 +795,15 @@ export default function AlgoliaPlansSimple() {
                         <div className="h-8 bg-muted rounded"></div>
                       </div>
                     </CardContent>
-                  </Card>) : plans.length > 0 ? plans.map(plan => <PlanCard key={plan.objectID} plan={plan} calculatePrice={calculatePrice} debugGetPriceMeta={debugGetPriceMeta} isAdmin={isAdmin} />) : <div className="col-span-full flex flex-col items-center justify-center py-12 text-center">
+                  </Card>) : plans.length > 0 ? plans.map(plan => (
+                    <PlanCard
+                      key={plan.objectID}
+                      plan={plan}
+                      calculatePrice={() => getAgentPrice(plan)}
+                      debugGetPriceMeta={debugGetPriceMeta}
+                      isAdmin={isAdmin}
+                    />
+                  )) : <div className="col-span-full flex flex-col items-center justify-center py-12 text-center">
                   <AlertCircle className="h-12 w-12 text-muted-foreground mb-4" />
                   <h3 className="text-lg font-semibold text-foreground mb-2">No Plans Found</h3>
                   <p className="text-muted-foreground max-w-md">

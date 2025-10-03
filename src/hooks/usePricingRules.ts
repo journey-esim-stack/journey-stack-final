@@ -65,15 +65,9 @@ export const usePricingRules = () => {
       }
 
       setRules(allRules);
-      console.log(`✅ Fetched ${allRules.length} pricing rules across ${page} page(s)`);
-      
-      // Warn if we're approaching large numbers
-      if (allRules.length >= 5000) {
-        console.warn('⚠️ Large number of pricing rules loaded. Consider optimizing rule structure.');
-      }
       
     } catch (error) {
-      console.error('❌ Error fetching pricing rules:', error);
+      console.error('Error fetching pricing rules:', error);
       setRules([]);
     } finally {
       setLoading(false);
@@ -83,17 +77,6 @@ export const usePricingRules = () => {
   // Calculate price based on rules hierarchy
   const calculatePrice = useCallback((params: CalculatePriceParams): number => {
     const { wholesalePrice, agentId, countryCode, planId, supplierPlanId } = params;
-    console.log('🔍 PricingRules.calculatePrice', { wholesalePrice, agentId, countryCode, planId, supplierPlanId, rulesCount: rules.length });
-
-    // Sample first 3 rules for debugging
-    if (rules.length > 0) {
-      console.log('📋 Sample rules:', rules.slice(0, 3).map(r => ({ 
-        type: r.rule_type, 
-        target: r.target_id, 
-        agent_filter: r.agent_filter,
-        priority: r.priority 
-      })));
-    }
 
     // Find best matching rule using priority + specificity (plan+agent > plan > agent > country > default)
     const matches = rules.filter(rule => {
@@ -107,9 +90,6 @@ export const usePricingRules = () => {
           // LEGACY: Fallback to target_id matching against supplierPlanId (case-insensitive)
           if (!planMatches && !rule.plan_id && rule.target_id && supplierPlanId) {
             planMatches = rule.target_id.toLowerCase() === supplierPlanId.toLowerCase();
-            if (planMatches) {
-              console.log('🔄 Legacy supplier_plan_id match:', { rule_target_id: rule.target_id, supplierPlanId });
-            }
           }
           
           if (rule.agent_filter) {
@@ -127,12 +107,6 @@ export const usePricingRules = () => {
           return false;
       }
     });
-
-    console.log('✅ Matched rules:', matches.length, matches.map(r => ({ 
-      type: r.rule_type, 
-      target: r.target_id, 
-      agent_filter: r.agent_filter 
-    })));
 
     const specificity = (rule: PricingRule) => {
       const type = rule.rule_type?.toLowerCase();
@@ -160,21 +134,7 @@ export const usePricingRules = () => {
 
     if (!selectedRule) {
       // Fallback to 300% markup if no rules found
-      console.log('⚠️ No pricing rules found, using default 300% markup');
       return wholesalePrice * 4; // 300% markup = 4x price
-    }
-
-    console.log('💰 Applying pricing rule:', {
-      rule_type: selectedRule.rule_type,
-      target_id: selectedRule.target_id,
-      agent_filter: selectedRule.agent_filter,
-      markup_type: selectedRule.markup_type,
-      markup_value: selectedRule.markup_value
-    });
-
-    // TEMP: Diagnostics for specific plan
-    if (planId === '50bfeb60-7219-40b2-b59d-092d8d24caf0') {
-      console.log('🔎 Debug specific plan 50bf... selectedRule', selectedRule);
     }
 
     // Apply the markup based on type
@@ -190,7 +150,7 @@ export const usePricingRules = () => {
     return wholesalePrice * 4;
   }, [rules]);
 
-  // Debug helper to inspect which rule would apply
+  // Debug helper to inspect which rule would apply (for admin use only)
   const getAppliedRule = useCallback((params: CalculatePriceParams) => {
     const { wholesalePrice, agentId, countryCode, planId, supplierPlanId } = params;
 
@@ -268,13 +228,11 @@ export const usePricingRules = () => {
           schema: 'public',
           table: 'pricing_rules',
         },
-        (payload) => {
-          console.log('🔄 Pricing rules updated in real-time:', payload);
+        () => {
           fetchRules(); // Refetch all rules when any change occurs
         }
       )
       .subscribe((status) => {
-        console.log('📡 Pricing rules real-time status:', status);
         setIsConnected(status === 'SUBSCRIBED');
       });
 

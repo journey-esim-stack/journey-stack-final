@@ -194,11 +194,6 @@ function SearchResults({ calculatePrice, debugGetPriceMeta, isAdmin }: { calcula
         ? batchPrice
         : calculatePrice(basePrice, { supplierPlanId: hit.supplier_plan_id, countryCode: hit.country_code, planId: hit.id });
       
-      if (isAdmin && debugGetPriceMeta) {
-        const meta = debugGetPriceMeta(basePrice, { supplierPlanId: hit.supplier_plan_id, countryCode: hit.country_code, planId: hit.id });
-        console.log('PricingDebug (AlgoliaPlans)', { title: hit.title, supplier_plan_id: hit.supplier_plan_id, supplier_name: hit.supplier_name, basePrice, agentPrice, used: batchPrice !== undefined ? 'agent_pricing' : 'pricing_rules', meta });
-      }
-      
       return {
         ...hit,
         agent_price: agentPrice

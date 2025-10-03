@@ -65,15 +65,6 @@ function PlanCard({
     ? debugGetPriceMeta(plan.wholesale_price || 0, { supplierPlanId: plan.supplier_plan_id, countryCode: plan.country_code, planId: plan.id })
     : null;
 
-  console.log('PricingDebug', {
-    plan: plan.title,
-    supplier_plan_id: plan.supplier_plan_id,
-    wholesale_price: plan.wholesale_price,
-    previewAgentId,
-    agentPrice,
-    priceMeta
-  });
-
   // Detect Day Pass plans
   const isDayPass = (plan: EsimPlan) => {
     const t = (plan.title || '').toLowerCase();

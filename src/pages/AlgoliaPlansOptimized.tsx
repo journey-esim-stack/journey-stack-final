@@ -191,20 +191,7 @@ const PlanCard = ({ plan, calculatePrice, debugGetPriceMeta, isAdmin, isPriceLoa
         countryCode: plan.country_code, 
         planId: plan.id 
       });
-      
-      // Get debug meta for console
-      const priceMeta = debugGetPriceMeta?.(plan.wholesale_price || 0, { 
-        supplierPlanId, 
-        countryCode: plan.country_code, 
-        planId: plan.id 
-      });
-      console.log('PricingDebug (Optimized)', { 
-        plan: plan.title, 
-        algolia_id: plan.supplier_plan_id,
-        canonical_id: supplierPlanId,
-        priceUSD, 
-        priceMeta 
-      });
+
       await addToCart({
         id: `${plan.id}-${Date.now()}`,
         planId: plan.id,
@@ -290,10 +277,9 @@ const PlanCard = ({ plan, calculatePrice, debugGetPriceMeta, isAdmin, isPriceLoa
                      return <Skeleton className="h-5 w-24" />;
                    }
                    
-                   // PRIORITY 1: agent_pricing table (CSV uploaded prices)
-                   if (batchPrice !== undefined) {
-                     console.log('✅ Displaying agent_pricing:', { planId: plan.id, batchPrice });
-                     return (
+                    // PRIORITY 1: agent_pricing table (CSV uploaded prices)
+                    if (batchPrice !== undefined) {
+                      return (
                        <>
                          {getCurrencySymbol() + convertPrice(batchPrice).toFixed(2)}
                          {isAdmin && (
@@ -317,13 +303,11 @@ const PlanCard = ({ plan, calculatePrice, debugGetPriceMeta, isAdmin, isPriceLoa
                      ? debugGetPriceMeta(plan.wholesale_price || 0, { 
                          supplierPlanId, 
                          countryCode: plan.country_code, 
-                         planId: plan.id 
-                       })
-                     : null;
-                   
-                   console.log('⚠️ No agent_pricing, using pricing_rules:', { planId: plan.id, priceUSD });
-                   
-                   return (
+                          planId: plan.id 
+                        })
+                      : null;
+                    
+                    return (
                      <>
                        {getCurrencySymbol() + convertPrice(priceUSD || 0).toFixed(2)}
                        {isAdmin && priceMeta?.selectedRule && (
@@ -386,11 +370,6 @@ const SearchResults = ({ calculatePrice, debugGetPriceMeta, isAdmin, pricingLoad
       const canonicalId = getCanonicalId(hit.id);
       const supplierPlanId = canonicalId || hit.supplier_plan_id;
       const batchPrice = getBatchPrice(hit.id);
-      
-      // Debug logging for agent_pricing
-      if (batchPrice !== undefined) {
-        console.log('📊 agent_pricing found:', { planId: hit.id, title: hit.title, batchPrice });
-      }
       
       return {
         ...hit,

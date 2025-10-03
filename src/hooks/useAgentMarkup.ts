@@ -99,7 +99,6 @@ export const useAgentMarkup = () => {
               setMarkup(newMarkup);
               setIsConnected(true);
               setConnectionAttempts(0);
-              console.log('Markup updated in real-time:', newMarkup);
             }
           } catch (error) {
             console.error('Error handling markup update:', error);
@@ -174,8 +173,6 @@ export const useAgentMarkup = () => {
     return new Promise((resolve) => {
       debounceTimeoutRef.current = setTimeout(async () => {
         try {
-          console.log('🔍 fetchMarkup called - request count:', requestCountRef.current);
-          
           const { data: { user } } = await supabase.auth.getUser();
           if (!user) {
             setLoading(false);
@@ -204,7 +201,6 @@ export const useAgentMarkup = () => {
           }
 
           if (!profile) {
-            console.log('No agent profile found - using default markup');
             setMarkup({ markup_type: 'percent', markup_value: 300 });
             setAgentId(null);
           } else {
@@ -212,7 +208,6 @@ export const useAgentMarkup = () => {
               markup_type: profile.markup_type || 'percent',
               markup_value: profile.markup_value ?? 300
             };
-            console.log('Fetched markup from database:', markupData);
             setMarkup(markupData);
             setAgentId(profile.id);
           }
@@ -253,7 +248,6 @@ export const useAgentMarkup = () => {
     const initializeMarkup = async () => {
       if (!mounted || circuitBreakerRef.current) return;
       
-      console.log('🚀 Initializing markup hook');
       await debouncedFetchMarkup(true); // Force initial fetch
       
       // Setup realtime immediately after fetch, don't wait for hasInitialized
@@ -291,7 +285,6 @@ export const useAgentMarkup = () => {
 
     return () => {
       mounted = false;
-      console.log('🧹 Cleaning up markup hook');
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
       }

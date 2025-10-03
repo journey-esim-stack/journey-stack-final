@@ -51,6 +51,13 @@ export type Database = {
             foreignKeyName: "agent_pricing_plan_id_fkey"
             columns: ["plan_id"]
             isOneToOne: false
+            referencedRelation: "agent_safe_esim_plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_pricing_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
             referencedRelation: "esim_plans"
             referencedColumns: ["id"]
           },
@@ -433,6 +440,13 @@ export type Database = {
             foreignKeyName: "orders_plan_id_fkey"
             columns: ["plan_id"]
             isOneToOne: false
+            referencedRelation: "agent_safe_esim_plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
             referencedRelation: "esim_plans"
             referencedColumns: ["id"]
           },
@@ -441,7 +455,6 @@ export type Database = {
       pricing_rules: {
         Row: {
           agent_filter: string | null
-          airtable_record_id: string
           created_at: string
           id: string
           is_active: boolean
@@ -457,7 +470,6 @@ export type Database = {
         }
         Insert: {
           agent_filter?: string | null
-          airtable_record_id: string
           created_at?: string
           id?: string
           is_active?: boolean
@@ -473,7 +485,6 @@ export type Database = {
         }
         Update: {
           agent_filter?: string | null
-          airtable_record_id?: string
           created_at?: string
           id?: string
           is_active?: boolean
@@ -488,6 +499,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_pricing_rules_plan_id"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "agent_safe_esim_plans"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "fk_pricing_rules_plan_id"
             columns: ["plan_id"]
@@ -585,7 +603,54 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      agent_safe_esim_plans: {
+        Row: {
+          admin_only: boolean | null
+          country_code: string | null
+          country_name: string | null
+          created_at: string | null
+          currency: string | null
+          data_amount: string | null
+          description: string | null
+          id: string | null
+          is_active: boolean | null
+          supplier_plan_id: string | null
+          title: string | null
+          updated_at: string | null
+          validity_days: number | null
+        }
+        Insert: {
+          admin_only?: boolean | null
+          country_code?: string | null
+          country_name?: string | null
+          created_at?: string | null
+          currency?: string | null
+          data_amount?: string | null
+          description?: string | null
+          id?: string | null
+          is_active?: boolean | null
+          supplier_plan_id?: string | null
+          title?: string | null
+          updated_at?: string | null
+          validity_days?: number | null
+        }
+        Update: {
+          admin_only?: boolean | null
+          country_code?: string | null
+          country_name?: string | null
+          created_at?: string | null
+          currency?: string | null
+          data_amount?: string | null
+          description?: string | null
+          id?: string | null
+          is_active?: boolean | null
+          supplier_plan_id?: string | null
+          title?: string | null
+          updated_at?: string | null
+          validity_days?: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       audit_sensitive_operation: {

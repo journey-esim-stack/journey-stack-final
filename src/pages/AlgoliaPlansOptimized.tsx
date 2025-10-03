@@ -306,12 +306,12 @@ const PlanCard = ({ plan, calculatePrice, debugGetPriceMeta, isAdmin, isPriceLoa
                      );
                    }
                    
-                   // PRIORITY 2: pricing_rules (Airtable synced rules)
-                   const priceUSD = calculatePrice?.(plan.wholesale_price || 0, { 
-                     supplierPlanId, 
-                     countryCode: plan.country_code, 
-                     planId: plan.id 
-                   });
+                    // PRIORITY 2: pricing_rules (dynamic pricing)
+                    const priceUSD = calculatePrice?.(plan.wholesale_price || 0, { 
+                      supplierPlanId, 
+                      countryCode: plan.country_code, 
+                      planId: plan.id 
+                    });
                    
                    const priceMeta = isAdmin && debugGetPriceMeta 
                      ? debugGetPriceMeta(plan.wholesale_price || 0, { 

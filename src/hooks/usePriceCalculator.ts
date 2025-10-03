@@ -5,7 +5,7 @@ import { useAgentPreview } from '@/contexts/AgentPreviewContext';
 
 /**
  * Centralized price calculator hook
- * Uses pricing_rules system with Airtable integration
+ * Uses dynamic pricing_rules system
  * Note: For CSV-uploaded agent_pricing, use useAgentPlanPrices hook directly
  * Default: 300% markup, overridden by pricing rules
  */

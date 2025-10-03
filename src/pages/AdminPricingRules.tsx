@@ -12,7 +12,6 @@ import { ExportPlanUuidsButton } from '@/components/ExportPlanUuidsButton';
 
 interface PricingRule {
   id: string;
-  airtable_record_id: string;
   rule_type: string;
   target_id: string | null;
   plan_id: string | null;
@@ -106,8 +105,7 @@ export default function AdminPricingRules() {
 
   const filteredRules = rules.filter(rule =>
     rule.rule_type.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    rule.target_id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    rule.airtable_record_id.toLowerCase().includes(searchTerm.toLowerCase())
+    rule.target_id?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const getRuleTypeColor = (type: string) => {
@@ -150,9 +148,9 @@ export default function AdminPricingRules() {
           <div className="flex items-center gap-3">
             <Settings className="h-8 w-8 text-primary" />
             <div>
-              <h1 className="text-3xl font-bold">Airtable Pricing Rules</h1>
+              <h1 className="text-3xl font-bold">Dynamic Pricing Rules</h1>
               <p className="text-muted-foreground">
-                Manage dynamic pricing rules synced from Airtable
+                Manage dynamic pricing rules for your agents
               </p>
             </div>
           </div>
@@ -226,7 +224,7 @@ export default function AdminPricingRules() {
         {/* Search */}
         <div className="flex gap-4">
           <Input
-            placeholder="Search rules by type, target, or Airtable ID..."
+            placeholder="Search rules by type or target..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="max-w-md"
@@ -296,7 +294,7 @@ function RulesTable({
       <Card>
         <CardContent className="p-6">
           <div className="text-center text-muted-foreground">
-            No pricing rules found. Rules will appear here once synced from Airtable.
+            No pricing rules found. Create rules to manage agent pricing dynamically.
           </div>
         </CardContent>
       </Card>

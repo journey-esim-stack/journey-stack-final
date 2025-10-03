@@ -52,16 +52,33 @@ try {
       });
     }
 
-    // Authorization: ensure requester can access this agent
-    const { data: hasAccess, error: accessErr } = await userClient.rpc('validate_agent_wallet_access', { _agent_id: agentId });
-    if (accessErr) {
-      console.error('validate_agent_wallet_access error', accessErr);
-      return new Response(JSON.stringify({ error: 'Access check failed' }), { 
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
+    // Authorization: allow admins or the agent owner
+    let isAdmin = false;
+    try {
+      const { data: userRes } = await userClient.auth.getUser();
+      const userId = userRes?.user?.id;
+      if (userId) {
+        const { data: adminCheck } = await userClient.rpc('has_role', { _user_id: userId, _role: 'admin' });
+        isAdmin = !!adminCheck;
+      }
+    } catch (e) {
+      console.warn('Auth user fetch failed, proceeding with standard access check');
     }
-    if (!hasAccess) {
+
+    let hasAccess = false;
+    if (!isAdmin) {
+      const { data: accessOk, error: accessErr } = await userClient.rpc('validate_agent_wallet_access', { _agent_id: agentId });
+      if (accessErr) {
+        console.error('validate_agent_wallet_access error', accessErr);
+        return new Response(JSON.stringify({ error: 'Access check failed' }), { 
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+      hasAccess = !!accessOk;
+    }
+
+    if (!isAdmin && !hasAccess) {
       return new Response(JSON.stringify({ error: 'Forbidden' }), { 
         status: 403,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }

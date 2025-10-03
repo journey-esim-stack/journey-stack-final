@@ -246,6 +246,10 @@ export default function AdminAgentPricing() {
       transform: (value) => (typeof value === "string" ? value.trim() : value),
       complete: async (results) => {
         try {
+          console.log("CSV parsing complete. Total rows:", results.data.length);
+          console.log("Total plans available for validation:", plans.length);
+          console.log("Sample plan IDs from database:", plans.slice(0, 3).map(p => p.id));
+          
           const records = results.data as any[];
           const validRecords = [];
           const errors = [];

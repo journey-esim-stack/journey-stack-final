@@ -51,13 +51,6 @@ export type Database = {
             foreignKeyName: "agent_pricing_plan_id_fkey"
             columns: ["plan_id"]
             isOneToOne: false
-            referencedRelation: "agent_safe_esim_plans"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "agent_pricing_plan_id_fkey"
-            columns: ["plan_id"]
-            isOneToOne: false
             referencedRelation: "agent_safe_plans"
             referencedColumns: ["id"]
           },
@@ -447,13 +440,6 @@ export type Database = {
             foreignKeyName: "orders_plan_id_fkey"
             columns: ["plan_id"]
             isOneToOne: false
-            referencedRelation: "agent_safe_esim_plans"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "orders_plan_id_fkey"
-            columns: ["plan_id"]
-            isOneToOne: false
             referencedRelation: "agent_safe_plans"
             referencedColumns: ["id"]
           },
@@ -513,13 +499,6 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
-          {
-            foreignKeyName: "fk_pricing_rules_plan_id"
-            columns: ["plan_id"]
-            isOneToOne: false
-            referencedRelation: "agent_safe_esim_plans"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "fk_pricing_rules_plan_id"
             columns: ["plan_id"]
@@ -624,54 +603,6 @@ export type Database = {
       }
     }
     Views: {
-      agent_safe_esim_plans: {
-        Row: {
-          admin_only: boolean | null
-          country_code: string | null
-          country_name: string | null
-          created_at: string | null
-          currency: string | null
-          data_amount: string | null
-          description: string | null
-          id: string | null
-          is_active: boolean | null
-          supplier_plan_id: string | null
-          title: string | null
-          updated_at: string | null
-          validity_days: number | null
-        }
-        Insert: {
-          admin_only?: boolean | null
-          country_code?: string | null
-          country_name?: string | null
-          created_at?: string | null
-          currency?: string | null
-          data_amount?: string | null
-          description?: string | null
-          id?: string | null
-          is_active?: boolean | null
-          supplier_plan_id?: string | null
-          title?: string | null
-          updated_at?: string | null
-          validity_days?: number | null
-        }
-        Update: {
-          admin_only?: boolean | null
-          country_code?: string | null
-          country_name?: string | null
-          created_at?: string | null
-          currency?: string | null
-          data_amount?: string | null
-          description?: string | null
-          id?: string | null
-          is_active?: boolean | null
-          supplier_plan_id?: string | null
-          title?: string | null
-          updated_at?: string | null
-          validity_days?: number | null
-        }
-        Relationships: []
-      }
       agent_safe_orders: {
         Row: {
           activation_code: string | null
@@ -762,13 +693,6 @@ export type Database = {
             columns: ["device_model_id"]
             isOneToOne: false
             referencedRelation: "device_models"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "orders_plan_id_fkey"
-            columns: ["plan_id"]
-            isOneToOne: false
-            referencedRelation: "agent_safe_esim_plans"
             referencedColumns: ["id"]
           },
           {

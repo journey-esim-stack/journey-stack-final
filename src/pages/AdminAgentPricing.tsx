@@ -90,14 +90,31 @@ export default function AdminAgentPricing() {
 
   const fetchPlans = async () => {
     try {
-      const { data, error } = await supabase
-        .from("esim_plans")
-        .select("*")
-        .eq("is_active", true)
-        .order("country_name, title");
+      let allPlans: EsimPlan[] = [];
+      let from = 0;
+      const pageSize = 1000;
+      let hasMore = true;
 
-      if (error) throw error;
-      setPlans(data || []);
+      while (hasMore) {
+        const { data, error } = await supabase
+          .from("esim_plans")
+          .select("*")
+          .eq("is_active", true)
+          .order("country_name, title")
+          .range(from, from + pageSize - 1);
+
+        if (error) throw error;
+        
+        if (data && data.length > 0) {
+          allPlans = [...allPlans, ...data];
+          hasMore = data.length === pageSize;
+          from += pageSize;
+        } else {
+          hasMore = false;
+        }
+      }
+
+      setPlans(allPlans);
     } catch (err) {
       console.error("Error fetching plans:", err);
       toast({ title: "Error", description: "Failed to load plans", variant: "destructive" });

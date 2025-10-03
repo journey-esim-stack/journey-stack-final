@@ -241,7 +241,9 @@ export default function AdminAgentPricing() {
 
     Papa.parse(file, {
       header: true,
-      skipEmptyLines: true,
+      skipEmptyLines: 'greedy',
+      transformHeader: (header) => header.trim().toLowerCase().replace(/\s+/g, "_"),
+      transform: (value) => (typeof value === "string" ? value.trim() : value),
       complete: async (results) => {
         try {
           const records = results.data as any[];
@@ -250,35 +252,52 @@ export default function AdminAgentPricing() {
 
           // Validate CSV data
           for (let i = 0; i < records.length; i++) {
-            const row = records[i];
+            const row = records[i] as Record<string, any>;
             const rowNum = i + 2; // +2 because: 1 for header, 1 for 0-index
 
-            if (!row.plan_id || !row.retail_price) {
+            // Normalize/clean values from potential Excel exports
+            const rawPlanIdInput = String(
+              row.plan_id ?? row["plan_id"] ?? row["plan id"] ?? row["plan-id"] ?? row["Plan ID"] ?? ""
+            ).trim();
+            const uuidMatch = rawPlanIdInput.match(/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/);
+            const planId = uuidMatch ? uuidMatch[0] : rawPlanIdInput.replace(/^#/, "");
+
+            const rawPriceInput = String(
+              row.retail_price ?? row["retail_price"] ?? row["retail price"] ?? row["Retail Price"] ?? ""
+            ).trim();
+            const priceStr = rawPriceInput
+              .replace(/,/g, "")
+              .replace(/^[^\d-]*/, "") // strip currency symbols at start
+              .replace(/\s+/g, "");
+            const price = parseFloat(priceStr);
+
+            if (!planId || !rawPriceInput) {
               errors.push(`Row ${rowNum}: Missing plan_id or retail_price`);
               continue;
             }
 
-            const planExists = plans.find(p => p.id === row.plan_id);
+            const planExists = plans.find((p) => p.id === planId);
             if (!planExists) {
-              errors.push(`Row ${rowNum}: Invalid plan_id "${row.plan_id}"`);
+              errors.push(`Row ${rowNum}: Invalid plan_id "${rawPlanIdInput}"`);
               continue;
             }
 
-            const price = parseFloat(row.retail_price);
             if (isNaN(price) || price <= 0) {
-              errors.push(`Row ${rowNum}: Invalid retail_price "${row.retail_price}"`);
+              errors.push(`Row ${rowNum}: Invalid retail_price "${rawPriceInput}"`);
               continue;
             }
 
-            const minPrice = planExists.wholesale_price * 1.05;
+            const minPrice = Number(planExists.wholesale_price) * 1.05;
             if (price < minPrice) {
-              errors.push(`Row ${rowNum}: Price $${price} below minimum $${minPrice.toFixed(2)}`);
+              errors.push(
+                `Row ${rowNum}: Price $${price.toFixed(2)} below minimum $${minPrice.toFixed(2)}`
+              );
               continue;
             }
 
             validRecords.push({
               agent_id: selectedAgentId,
-              plan_id: row.plan_id,
+              plan_id: planId,
               retail_price: price,
             });
           }

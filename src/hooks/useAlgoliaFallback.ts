@@ -10,9 +10,9 @@ interface FallbackPlan {
   country_code: string;
   data_amount: string;
   validity_days: number;
-  wholesale_price: number;
+  wholesale_price?: number;
   currency: string;
-  supplier_name: string;
+  supplier_name?: string;
   is_active: boolean;
   agent_price: number;
 }
@@ -28,46 +28,40 @@ export const useAlgoliaFallback = () => {
       setIsLoading(true);
       setError(null);
 
-      let supabaseQuery = supabase
-        .from('esim_plans')
-        .select('*')
-        .eq('is_active', true)
-        .eq('admin_only', false);
+      // Fetch visible plans via secure RPC (respects roles and hides sensitive fields)
+      const { data, error: supabaseError } = await supabase.rpc('get_agent_visible_plans');
+      if (supabaseError) throw supabaseError;
 
-      // Apply search query
+      // Apply client-side filters
+      let filtered = (data || []) as any[];
+
       if (query.trim()) {
-        supabaseQuery = supabaseQuery.or(
-          `title.ilike.%${query}%,country_name.ilike.%${query}%,data_amount.ilike.%${query}%`
+        const q = query.toLowerCase();
+        filtered = filtered.filter(p =>
+          (p.title || '').toLowerCase().includes(q) ||
+          (p.country_name || '').toLowerCase().includes(q) ||
+          (p.data_amount || '').toLowerCase().includes(q)
         );
       }
 
-      // Apply country filter
       if (filters.country_name) {
-        supabaseQuery = supabaseQuery.eq('country_name', filters.country_name);
+        filtered = filtered.filter(p => p.country_name === filters.country_name);
       }
 
-      // Apply supplier filter
-      if (filters.supplier_name) {
-        supabaseQuery = supabaseQuery.eq('supplier_name', filters.supplier_name);
-      }
-
-      // Apply validity filter
       if (filters.validity_days) {
-        supabaseQuery = supabaseQuery.eq('validity_days', parseInt(filters.validity_days));
+        filtered = filtered.filter(p => String(p.validity_days) === String(filters.validity_days));
       }
 
-      const { data, error: supabaseError } = await supabaseQuery
-        .order('country_name')
-        .limit(100);
+      // Map to expected shape; sensitive fields are intentionally absent
+      const plansWithPricing = filtered.map(p => ({
+        ...p,
+        wholesale_price: 0,
+        supplier_name: undefined,
+        agent_price: 0
+      } as any));
 
-      if (supabaseError) throw supabaseError;
+      setFallbackPlans(plansWithPricing as any);
 
-      const plansWithPricing = (data || []).map(plan => ({
-        ...plan,
-        agent_price: calculatePrice(plan.wholesale_price, { supplierPlanId: (plan as any).supplier_plan_id, countryCode: (plan as any).country_code, planId: (plan as any).id })
-      }));
-
-      setFallbackPlans(plansWithPricing);
     } catch (err) {
       console.error('Fallback search error:', err);
       setError('Failed to load plans from fallback source');

@@ -90,41 +90,84 @@ export default function Plans() {
       throw new Error("User not authenticated");
     }
 
-    // Get agent profile to fetch agent ID and pricing
-    const { data: agentProfile } = await supabase
-      .from("agent_profiles")
-      .select("id")
-      .eq("user_id", user.id)
-      .single();
+    // Fetch agent markup settings, country activation, and region activation in parallel
+    const [agentProfileResponse, countryActivationResponse, regionActivationResponse] = await Promise.all([
+      supabase
+        .from("agent_profiles")
+        .select("markup_type, markup_value")
+        .eq("user_id", user.id)
+        .single(),
+      supabase
+        .from("system_settings")
+        .select("setting_value")
+        .eq("setting_key", "country_activation")
+        .single(),
+      supabase
+        .from("system_settings")
+        .select("setting_value")
+        .eq("setting_key", "region_activation")
+        .single()
+    ]);
 
-    if (!agentProfile) {
-      throw new Error("Agent profile not found");
+    const agentProfile = agentProfileResponse.data;
+    const countryActivation = countryActivationResponse.data ? 
+      JSON.parse(countryActivationResponse.data.setting_value) : {};
+    const regionActivation = regionActivationResponse.data ? 
+      JSON.parse(regionActivationResponse.data.setting_value) : {};
+
+    // Fetch all plans in batches to overcome 1000 row limit
+    let allPlans: EsimPlan[] = [];
+    let from = 0;
+    const batchSize = 1000;
+    let hasMore = true;
+
+    while (hasMore) {
+      const { data, error } = await supabase
+        .from("esim_plans")
+        .select("*")
+        .eq("is_active", true)
+        .eq("admin_only", false) // Exclude admin-only plans
+        .range(from, from + batchSize - 1)
+        .order("country_name", { ascending: true });
+
+      if (error) {
+        throw error;
+      }
+
+      if (data && data.length > 0) {
+        allPlans = [...allPlans, ...data];
+        
+        if (data.length < batchSize) {
+          hasMore = false;
+        } else {
+          from += batchSize;
+        }
+      } else {
+        hasMore = false;
+      }
     }
 
-    const agentId = agentProfile.id;
-
-    // Fetch visible plans via RPC to respect RLS and agent visibility
-    const { data: rpcPlans, error: rpcError } = await (supabase as any).rpc('get_agent_visible_plans');
-    if (rpcError) {
-      throw rpcError;
-    }
-    const allPlans: any[] = Array.isArray(rpcPlans) ? rpcPlans : [];
-
-
-    // Fetch agent-specific pricing for all plans
-    const planIds = allPlans.map(p => p.id);
-    
-    const { data: agentPricingData, error: pricingError } = await supabase.functions.invoke('get-agent-plan-prices', {
-      body: { agentId, planIds }
+    // Show all active plans
+    let filteredPlans = allPlans.filter(plan => {
+      return plan.is_active;
     });
-
-    const agentPricing: { [key: string]: number } = agentPricingData?.prices || {};
-
-    // Map agent prices to plans
-    const plansWithAgentPrices = allPlans.map(plan => ({
-      ...plan,
-      agent_price: agentPricing[plan.id] || 0
-    }));
+    
+    // Calculate agent prices for each plan using the fetched markup
+    const currentMarkup = agentProfile ? {
+      type: agentProfile.markup_type || 'percent',
+      value: agentProfile.markup_value !== null && agentProfile.markup_value !== undefined 
+        ? Number(agentProfile.markup_value) 
+        : 300
+    } : { type: 'percent', value: 300 };
+    
+    const plansWithAgentPrices = filteredPlans.map(plan => {
+      const agentPrice = plan.agent_price || 0;
+      
+      return {
+        ...plan,
+        agent_price: agentPrice
+      } as EsimPlan & { agent_price: number };
+    });
 
     return plansWithAgentPrices;
   };

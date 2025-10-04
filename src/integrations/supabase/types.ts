@@ -51,7 +51,7 @@ export type Database = {
             foreignKeyName: "agent_pricing_plan_id_fkey"
             columns: ["plan_id"]
             isOneToOne: false
-            referencedRelation: "agent_safe_plans"
+            referencedRelation: "agent_safe_esim_plans"
             referencedColumns: ["id"]
           },
           {
@@ -440,7 +440,7 @@ export type Database = {
             foreignKeyName: "orders_plan_id_fkey"
             columns: ["plan_id"]
             isOneToOne: false
-            referencedRelation: "agent_safe_plans"
+            referencedRelation: "agent_safe_esim_plans"
             referencedColumns: ["id"]
           },
           {
@@ -503,7 +503,7 @@ export type Database = {
             foreignKeyName: "fk_pricing_rules_plan_id"
             columns: ["plan_id"]
             isOneToOne: false
-            referencedRelation: "agent_safe_plans"
+            referencedRelation: "agent_safe_esim_plans"
             referencedColumns: ["id"]
           },
           {
@@ -603,115 +603,7 @@ export type Database = {
       }
     }
     Views: {
-      agent_safe_orders: {
-        Row: {
-          activation_code: string | null
-          agent_id: string | null
-          compatibility_checked: boolean | null
-          compatibility_warning_shown: boolean | null
-          created_at: string | null
-          customer_email: string | null
-          customer_name: string | null
-          customer_phone: string | null
-          device_brand_id: string | null
-          device_model_id: string | null
-          esim_expiry_date: string | null
-          esim_iccid: string | null
-          esim_qr_code: string | null
-          id: string | null
-          manual_code: string | null
-          plan_id: string | null
-          real_status: string | null
-          retail_price: number | null
-          smdp_address: string | null
-          status: Database["public"]["Enums"]["order_status"] | null
-          updated_at: string | null
-        }
-        Insert: {
-          activation_code?: string | null
-          agent_id?: string | null
-          compatibility_checked?: boolean | null
-          compatibility_warning_shown?: boolean | null
-          created_at?: string | null
-          customer_email?: string | null
-          customer_name?: string | null
-          customer_phone?: string | null
-          device_brand_id?: string | null
-          device_model_id?: string | null
-          esim_expiry_date?: string | null
-          esim_iccid?: string | null
-          esim_qr_code?: string | null
-          id?: string | null
-          manual_code?: string | null
-          plan_id?: string | null
-          real_status?: string | null
-          retail_price?: number | null
-          smdp_address?: string | null
-          status?: Database["public"]["Enums"]["order_status"] | null
-          updated_at?: string | null
-        }
-        Update: {
-          activation_code?: string | null
-          agent_id?: string | null
-          compatibility_checked?: boolean | null
-          compatibility_warning_shown?: boolean | null
-          created_at?: string | null
-          customer_email?: string | null
-          customer_name?: string | null
-          customer_phone?: string | null
-          device_brand_id?: string | null
-          device_model_id?: string | null
-          esim_expiry_date?: string | null
-          esim_iccid?: string | null
-          esim_qr_code?: string | null
-          id?: string | null
-          manual_code?: string | null
-          plan_id?: string | null
-          real_status?: string | null
-          retail_price?: number | null
-          smdp_address?: string | null
-          status?: Database["public"]["Enums"]["order_status"] | null
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "orders_agent_id_fkey"
-            columns: ["agent_id"]
-            isOneToOne: false
-            referencedRelation: "agent_profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "orders_device_brand_id_fkey"
-            columns: ["device_brand_id"]
-            isOneToOne: false
-            referencedRelation: "device_brands"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "orders_device_model_id_fkey"
-            columns: ["device_model_id"]
-            isOneToOne: false
-            referencedRelation: "device_models"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "orders_plan_id_fkey"
-            columns: ["plan_id"]
-            isOneToOne: false
-            referencedRelation: "agent_safe_plans"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "orders_plan_id_fkey"
-            columns: ["plan_id"]
-            isOneToOne: false
-            referencedRelation: "esim_plans"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      agent_safe_plans: {
+      agent_safe_esim_plans: {
         Row: {
           admin_only: boolean | null
           country_code: string | null
@@ -722,6 +614,7 @@ export type Database = {
           description: string | null
           id: string | null
           is_active: boolean | null
+          supplier_plan_id: string | null
           title: string | null
           updated_at: string | null
           validity_days: number | null
@@ -736,6 +629,7 @@ export type Database = {
           description?: string | null
           id?: string | null
           is_active?: boolean | null
+          supplier_plan_id?: string | null
           title?: string | null
           updated_at?: string | null
           validity_days?: number | null
@@ -750,6 +644,7 @@ export type Database = {
           description?: string | null
           id?: string | null
           is_active?: boolean | null
+          supplier_plan_id?: string | null
           title?: string | null
           updated_at?: string | null
           validity_days?: number | null

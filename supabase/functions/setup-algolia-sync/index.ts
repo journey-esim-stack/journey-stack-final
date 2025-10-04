@@ -193,7 +193,6 @@ serve(async (req) => {
         }
       };
       
-      // SECURITY FIX: Remove wholesale_price, supplier_name, supplier_plan_id from public index
       return {
         objectID: plan.id,
         id: plan.id,
@@ -204,12 +203,14 @@ serve(async (req) => {
         data_amount: plan.data_amount,
         data_amount_value: extractDataValue(plan.data_amount),
         validity_days: plan.validity_days,
+        wholesale_price: parseFloat(plan.wholesale_price),
         currency: plan.currency,
+        supplier_name: plan.supplier_name,
+        supplier_plan_id: plan.supplier_plan_id,
         is_active: plan.is_active,
         admin_only: plan.admin_only,
         created_at: plan.created_at,
         updated_at: plan.updated_at,
-        _tags: plan.admin_only ? ['admin_only'] : [],
       };
     }) || [];
 

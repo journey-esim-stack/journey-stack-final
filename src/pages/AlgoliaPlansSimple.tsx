@@ -255,24 +255,12 @@ export default function AlgoliaPlansSimple() {
     setError(null);
     try {
       if (FORCE_FALLBACK) {
-        const pageSize = 1000;
-        let from = 0;
-        let to = pageSize - 1;
-        let supaHits: any[] = [];
-        while (true) {
-          const {
-            data,
-            error
-          } = await supabase.from('esim_plans').select('*').eq('is_active', true).eq('admin_only', false).range(from, to);
-          if (error) throw error;
-          if (!data || data.length === 0) break;
-          supaHits.push(...data);
-          if (data.length < pageSize) break;
-          from += pageSize;
-          to += pageSize;
-        }
+        const { data: rpcData, error: rpcError } = await (supabase as any).rpc('get_agent_visible_plans');
+        if (rpcError) throw rpcError;
+        const supaHits = Array.isArray(rpcData) ? rpcData : [];
         setAllPlans(supaHits as unknown as EsimPlan[]);
         setPlans(supaHits as unknown as EsimPlan[]);
+        toast({ title: 'Using fallback', description: `Loaded ${supaHits.length} plans via RPC.` });
         return;
       }
       const client = await getSearchClient();
@@ -316,24 +304,12 @@ export default function AlgoliaPlansSimple() {
       const nbHits = (first as any)?.nbHits ?? allHits.length;
       if (nbHits > allHits.length) {
         try {
-          const pageSize = 1000;
-          let from = 0;
-          let to = pageSize - 1;
-          let supaHits: any[] = [];
-          while (true) {
-            const {
-              data,
-              error
-            } = await supabase.from('esim_plans').select('*').eq('is_active', true).eq('admin_only', false).range(from, to);
-            if (error) throw error;
-            if (!data || data.length === 0) break;
-            supaHits.push(...data);
-            if (data.length < pageSize) break;
-            from += pageSize;
-            to += pageSize;
-          }
+          const { data: rpcData, error: rpcError } = await (supabase as any).rpc('get_agent_visible_plans');
+          if (rpcError) throw rpcError;
+          const supaHits = Array.isArray(rpcData) ? rpcData : [];
           setAllPlans(supaHits as unknown as EsimPlan[]);
           setPlans(supaHits as unknown as EsimPlan[]);
+          toast({ title: 'Using RPC fallback', description: `Loaded ${supaHits.length} plans.` });
           return;
         } catch {}
       }
@@ -344,33 +320,21 @@ export default function AlgoliaPlansSimple() {
 
       // Fallback to Supabase query if Algolia fails
       try {
-        const pageSize = 1000;
-        let from = 0;
-        let to = pageSize - 1;
-        let supaHits: any[] = [];
-        while (true) {
-          const {
-            data,
-            error
-          } = await supabase.from('esim_plans').select('*').eq('is_active', true).eq('admin_only', false).range(from, to);
-          if (error) throw error;
-          if (!data || data.length === 0) break;
-          supaHits.push(...data);
-          if (data.length < pageSize) break;
-          from += pageSize;
-          to += pageSize;
-        }
+        const { data: rpcData, error: rpcError } = await (supabase as any).rpc('get_agent_visible_plans');
+        if (rpcError) throw rpcError;
+        const supaHits = Array.isArray(rpcData) ? rpcData : [];
         setAllPlans(supaHits as unknown as EsimPlan[]);
         setPlans(supaHits as unknown as EsimPlan[]);
         toast({
-          title: 'Algolia unavailable, using fallback',
-          description: `Loaded ${supaHits.length} plans from Supabase.`
+          title: 'Algolia unavailable, using RPC fallback',
+          description: `Loaded ${supaHits.length} plans.`
         });
       } catch (fallbackErr: any) {
+        console.error('RPC fallback error:', fallbackErr);
         setError(err.message || 'Search failed');
         toast({
           title: 'Search Error',
-          description: 'Failed to load plans from Algolia and fallback. Please try again.',
+          description: 'Failed to load plans from Algolia and RPC fallback.',
           variant: 'destructive'
         });
       }

@@ -28,43 +28,42 @@ export const useAlgoliaFallback = () => {
       setIsLoading(true);
       setError(null);
 
-      let supabaseQuery = supabase
-        .from('esim_plans')
-        .select('*')
-        .eq('is_active', true)
-        .eq('admin_only', false);
+      // Use RPC to get agent-visible plans
+      const { data: rpcData, error: rpcError } = await (supabase as any).rpc('get_agent_visible_plans');
+      
+      if (rpcError) throw rpcError;
 
-      // Apply search query
+      let plans = Array.isArray(rpcData) ? rpcData : [];
+
+      // Apply client-side search and filters
       if (query.trim()) {
-        supabaseQuery = supabaseQuery.or(
-          `title.ilike.%${query}%,country_name.ilike.%${query}%,data_amount.ilike.%${query}%`
+        const q = query.toLowerCase();
+        plans = plans.filter(plan =>
+          plan.title?.toLowerCase().includes(q) ||
+          plan.country_name?.toLowerCase().includes(q) ||
+          plan.data_amount?.toLowerCase().includes(q)
         );
       }
 
-      // Apply country filter
       if (filters.country_name) {
-        supabaseQuery = supabaseQuery.eq('country_name', filters.country_name);
+        plans = plans.filter(plan => plan.country_name === filters.country_name);
       }
 
-      // Apply supplier filter
       if (filters.supplier_name) {
-        supabaseQuery = supabaseQuery.eq('supplier_name', filters.supplier_name);
+        plans = plans.filter(plan => plan.supplier_name === filters.supplier_name);
       }
 
-      // Apply validity filter
       if (filters.validity_days) {
-        supabaseQuery = supabaseQuery.eq('validity_days', parseInt(filters.validity_days));
+        plans = plans.filter(plan => plan.validity_days === parseInt(filters.validity_days));
       }
 
-      const { data, error: supabaseError } = await supabaseQuery
-        .order('country_name')
-        .limit(100);
+      // Limit to 100 results
+      plans = plans.slice(0, 100);
 
-      if (supabaseError) throw supabaseError;
-
-      const plansWithPricing = (data || []).map(plan => ({
+      // Apply agent pricing
+      const plansWithPricing = plans.map(plan => ({
         ...plan,
-        agent_price: calculatePrice(plan.wholesale_price, { supplierPlanId: (plan as any).supplier_plan_id, countryCode: (plan as any).country_code, planId: (plan as any).id })
+        agent_price: calculatePrice(plan.wholesale_price, { supplierPlanId: plan.supplier_plan_id, countryCode: plan.country_code, planId: plan.id })
       }));
 
       setFallbackPlans(plansWithPricing);

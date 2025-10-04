@@ -215,7 +215,7 @@ async function checkESimSync(supabase: any) {
     }
 
     // Check Maya API
-    const mayaUrl = Deno.env.get('MAYA_API_URL');
+    const mayaUrl = Deno.env.get('MAYA_API_URL') || 'https://api.maya.net';
     const mayaKey = Deno.env.get('MAYA_API_KEY');
     const mayaSecret = Deno.env.get('MAYA_API_SECRET');
 
@@ -223,14 +223,14 @@ async function checkESimSync(supabase: any) {
     
     if (mayaUrl && mayaKey && mayaSecret) {
       try {
-        const response = await fetch(`${mayaUrl}/v1/esim/queryExistEsim`, {
-          method: 'POST',
+        const auth = btoa(`${mayaKey}:${mayaSecret}`);
+        // Use a simple GET request to check connectivity (similar to get-maya-esim-status)
+        const response = await fetch(`${mayaUrl}/connectivity/v1/product`, {
+          method: 'GET',
           headers: {
-            'Content-Type': 'application/json',
-            'apiKey': mayaKey,
-            'apiSecret': mayaSecret,
-          },
-          body: JSON.stringify({ page: 1, size: 1 }),
+            'Authorization': `Basic ${auth}`,
+            'Accept': 'application/json'
+          }
         });
         
         mayaStatus = {

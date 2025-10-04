@@ -779,9 +779,11 @@ export type Database = {
           description: string
           id: string
           is_active: boolean
+          supplier_plan_id: string
           title: string
           updated_at: string
           validity_days: number
+          wholesale_price: number
         }[]
       }
       has_role: {

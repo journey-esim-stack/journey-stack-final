@@ -115,33 +115,26 @@ export default function Plans() {
     const regionActivation = regionActivationResponse.data ? 
       JSON.parse(regionActivationResponse.data.setting_value) : {};
 
-    // Fetch all plans in batches to overcome 1000 row limit
-    let allPlans: EsimPlan[] = [];
+    // Fetch all plans in batches using RPC to overcome 1000 row limit
+    let allPlans: any[] = [];
     let from = 0;
     const batchSize = 1000;
     let hasMore = true;
 
     while (hasMore) {
-      const { data, error } = await supabase
-        .from("esim_plans")
-        .select("*")
-        .eq("is_active", true)
-        .eq("admin_only", false) // Exclude admin-only plans
-        .range(from, from + batchSize - 1)
-        .order("country_name", { ascending: true });
+      const { data, error } = await (supabase as any)
+        .rpc('get_agent_visible_plans')
+        .range(from, from + batchSize - 1);
 
       if (error) {
         throw error;
       }
 
-      if (data && data.length > 0) {
-        allPlans = [...allPlans, ...data];
-        
-        if (data.length < batchSize) {
-          hasMore = false;
-        } else {
-          from += batchSize;
-        }
+      const batch = Array.isArray(data) ? data : [];
+      if (batch.length > 0) {
+        allPlans.push(...batch);
+        hasMore = batch.length === batchSize;
+        from += batchSize;
       } else {
         hasMore = false;
       }

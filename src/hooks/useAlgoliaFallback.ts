@@ -28,12 +28,30 @@ export const useAlgoliaFallback = () => {
       setIsLoading(true);
       setError(null);
 
-      // Use RPC to get agent-visible plans
-      const { data: rpcData, error: rpcError } = await (supabase as any).rpc('get_agent_visible_plans');
-      
-      if (rpcError) throw rpcError;
+      // Fetch all plans in batches using RPC with pagination
+      let allPlans: any[] = [];
+      let from = 0;
+      const batchSize = 1000;
+      let hasMore = true;
 
-      let plans = Array.isArray(rpcData) ? rpcData : [];
+      while (hasMore) {
+        const { data: rpcData, error: rpcError } = await (supabase as any)
+          .rpc('get_agent_visible_plans')
+          .range(from, from + batchSize - 1);
+        
+        if (rpcError) throw rpcError;
+
+        const batch = Array.isArray(rpcData) ? rpcData : [];
+        if (batch.length > 0) {
+          allPlans.push(...batch);
+          hasMore = batch.length === batchSize;
+          from += batchSize;
+        } else {
+          hasMore = false;
+        }
+      }
+
+      let plans = allPlans;
 
       // Apply client-side search and filters
       if (query.trim()) {
@@ -56,9 +74,6 @@ export const useAlgoliaFallback = () => {
       if (filters.validity_days) {
         plans = plans.filter(plan => plan.validity_days === parseInt(filters.validity_days));
       }
-
-      // Limit to 100 results
-      plans = plans.slice(0, 100);
 
       // Apply agent pricing
       const plansWithPricing = plans.map(plan => ({

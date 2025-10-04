@@ -255,12 +255,31 @@ export default function AlgoliaPlansSimple() {
     setError(null);
     try {
       if (FORCE_FALLBACK) {
-        const { data: rpcData, error: rpcError } = await (supabase as any).rpc('get_agent_visible_plans');
-        if (rpcError) throw rpcError;
-        const supaHits = Array.isArray(rpcData) ? rpcData : [];
-        setAllPlans(supaHits as unknown as EsimPlan[]);
-        setPlans(supaHits as unknown as EsimPlan[]);
-        toast({ title: 'Using fallback', description: `Loaded ${supaHits.length} plans via RPC.` });
+        let allPlans: any[] = [];
+        let from = 0;
+        const batchSize = 1000;
+        let hasMore = true;
+
+        while (hasMore) {
+          const { data: rpcData, error: rpcError } = await (supabase as any)
+            .rpc('get_agent_visible_plans')
+            .range(from, from + batchSize - 1);
+          
+          if (rpcError) throw rpcError;
+
+          const batch = Array.isArray(rpcData) ? rpcData : [];
+          if (batch.length > 0) {
+            allPlans.push(...batch);
+            hasMore = batch.length === batchSize;
+            from += batchSize;
+          } else {
+            hasMore = false;
+          }
+        }
+
+        setAllPlans(allPlans as unknown as EsimPlan[]);
+        setPlans(allPlans as unknown as EsimPlan[]);
+        toast({ title: 'Using fallback', description: `Loaded ${allPlans.length} plans via RPC.` });
         return;
       }
       const client = await getSearchClient();
@@ -304,12 +323,31 @@ export default function AlgoliaPlansSimple() {
       const nbHits = (first as any)?.nbHits ?? allHits.length;
       if (nbHits > allHits.length) {
         try {
-          const { data: rpcData, error: rpcError } = await (supabase as any).rpc('get_agent_visible_plans');
-          if (rpcError) throw rpcError;
-          const supaHits = Array.isArray(rpcData) ? rpcData : [];
-          setAllPlans(supaHits as unknown as EsimPlan[]);
-          setPlans(supaHits as unknown as EsimPlan[]);
-          toast({ title: 'Using RPC fallback', description: `Loaded ${supaHits.length} plans.` });
+          let allPlans: any[] = [];
+          let from = 0;
+          const batchSize = 1000;
+          let hasMore = true;
+
+          while (hasMore) {
+            const { data: rpcData, error: rpcError } = await (supabase as any)
+              .rpc('get_agent_visible_plans')
+              .range(from, from + batchSize - 1);
+            
+            if (rpcError) throw rpcError;
+
+            const batch = Array.isArray(rpcData) ? rpcData : [];
+            if (batch.length > 0) {
+              allPlans.push(...batch);
+              hasMore = batch.length === batchSize;
+              from += batchSize;
+            } else {
+              hasMore = false;
+            }
+          }
+
+          setAllPlans(allPlans as unknown as EsimPlan[]);
+          setPlans(allPlans as unknown as EsimPlan[]);
+          toast({ title: 'Using RPC fallback', description: `Loaded ${allPlans.length} plans.` });
           return;
         } catch {}
       }
@@ -320,14 +358,33 @@ export default function AlgoliaPlansSimple() {
 
       // Fallback to Supabase query if Algolia fails
       try {
-        const { data: rpcData, error: rpcError } = await (supabase as any).rpc('get_agent_visible_plans');
-        if (rpcError) throw rpcError;
-        const supaHits = Array.isArray(rpcData) ? rpcData : [];
-        setAllPlans(supaHits as unknown as EsimPlan[]);
-        setPlans(supaHits as unknown as EsimPlan[]);
+        let allPlans: any[] = [];
+        let from = 0;
+        const batchSize = 1000;
+        let hasMore = true;
+
+        while (hasMore) {
+          const { data: rpcData, error: rpcError } = await (supabase as any)
+            .rpc('get_agent_visible_plans')
+            .range(from, from + batchSize - 1);
+          
+          if (rpcError) throw rpcError;
+
+          const batch = Array.isArray(rpcData) ? rpcData : [];
+          if (batch.length > 0) {
+            allPlans.push(...batch);
+            hasMore = batch.length === batchSize;
+            from += batchSize;
+          } else {
+            hasMore = false;
+          }
+        }
+
+        setAllPlans(allPlans as unknown as EsimPlan[]);
+        setPlans(allPlans as unknown as EsimPlan[]);
         toast({
           title: 'Algolia unavailable, using RPC fallback',
-          description: `Loaded ${supaHits.length} plans.`
+          description: `Loaded ${allPlans.length} plans.`
         });
       } catch (fallbackErr: any) {
         console.error('RPC fallback error:', fallbackErr);

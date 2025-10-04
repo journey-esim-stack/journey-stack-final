@@ -11,15 +11,19 @@ export default function SystemHealth() {
   const { toast } = useToast();
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const { data: healthData, isLoading, refetch } = useQuery({
+  const { data: healthData, isLoading, error: queryError, refetch } = useQuery({
     queryKey: ['system-health'],
     queryFn: async () => {
       const { data, error } = await supabase.functions.invoke('system-health-check');
       
-      if (error) throw error;
+      if (error) {
+        console.error('Health check error:', error);
+        throw error;
+      }
       return data;
     },
     refetchInterval: 60000, // Auto-refresh every minute
+    retry: 1,
   });
 
   const handleRefresh = async () => {
@@ -46,6 +50,8 @@ export default function SystemHealth() {
   };
 
   const getStatusBadge = (status: string) => {
+    if (!status) return <Badge variant="outline">UNKNOWN</Badge>;
+    
     const variants: any = {
       'healthy': 'default',
       'error': 'destructive',
@@ -59,6 +65,30 @@ export default function SystemHealth() {
       </Badge>
     );
   };
+
+  if (queryError) {
+    return (
+      <div className="container mx-auto p-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <XCircle className="h-6 w-6 text-red-500" />
+              Error Loading Health Status
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-muted-foreground mb-4">
+              {queryError instanceof Error ? queryError.message : 'Failed to load system health data'}
+            </p>
+            <Button onClick={() => refetch()}>
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Try Again
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (

@@ -22,7 +22,7 @@ export const useAlgoliaFallback = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [planIds, setPlanIds] = useState<string[]>([]);
-  const { getPrice: getBatchPrice } = useAgentPlanPrices(planIds);
+  const { getPrice: getBatchPrice, prices } = useAgentPlanPrices(planIds);
 
   const searchFallback = async (query: string = '', filters: Record<string, string> = {}) => {
     try {

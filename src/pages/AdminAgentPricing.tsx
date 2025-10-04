@@ -317,13 +317,15 @@ export default function AdminAgentPricing() {
               continue;
             }
 
-            const minPrice = Number(planExists.wholesale_price) * 1.05;
-            if (price < minPrice) {
-              errors.push(
-                `Row ${rowNum}: Price $${price.toFixed(2)} below minimum $${minPrice.toFixed(2)}`
-              );
-              continue;
-            }
+            // Removed strict minimum price check to allow full control via CSV
+            // If needed, enforce business rules server-side instead
+            // const minPrice = Number(planExists.wholesale_price) * 1.05;
+            // if (price < minPrice) {
+            //   errors.push(
+            //     `Row ${rowNum}: Price $${price.toFixed(2)} below minimum $${minPrice.toFixed(2)}`
+            //   );
+            //   continue;
+            // }
 
             validRecords.push({
               agent_id: selectedAgentId,

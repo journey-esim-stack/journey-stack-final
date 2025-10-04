@@ -190,6 +190,27 @@ export const useAgentPlanPrices = (planIds: string[]) => {
     return () => window.removeEventListener('agent-pricing-updated', handler as EventListener);
   }, [refetch, agentId, previewAgentId]);
 
+  // Realtime: refresh prices when agent_pricing changes for this agent (cross-session invalidation)
+  useEffect(() => {
+    if (!effectiveAgentId) return;
+    const channel = supabase
+      .channel(`agent_pricing_changes_${effectiveAgentId}`)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'agent_pricing',
+        filter: `agent_id=eq.${effectiveAgentId}`
+      }, () => {
+        console.log('[useAgentPlanPrices] Realtime pricing change detected -> refetch');
+        refetch();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [effectiveAgentId, refetch]);
+
   return { 
     prices, 
     loading: loading && !initialLoadComplete, 

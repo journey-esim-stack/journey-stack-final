@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useAgentPlanPrices } from './useAgentPlanPrices';
+import { usePriceCalculator } from './usePriceCalculator';
 
 interface FallbackPlan {
   id: string;
@@ -10,83 +10,64 @@ interface FallbackPlan {
   country_code: string;
   data_amount: string;
   validity_days: number;
-  wholesale_price?: number;
+  wholesale_price: number;
   currency: string;
-  supplier_name?: string;
+  supplier_name: string;
   is_active: boolean;
   agent_price: number;
 }
 
 export const useAlgoliaFallback = () => {
   const [fallbackPlans, setFallbackPlans] = useState<FallbackPlan[]>([]);
-  const [rawPlans, setRawPlans] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [planIds, setPlanIds] = useState<string[]>([]);
-  const { prices, getPrice } = useAgentPlanPrices(planIds);
-
-  // Update plans when prices change
-  useEffect(() => {
-    if (rawPlans.length > 0) {
-      const plansWithPricing = rawPlans.map(p => ({
-        ...p,
-        wholesale_price: undefined,
-        supplier_name: undefined,
-        agent_price: getPrice(p.id) || 0
-      }));
-      setFallbackPlans(plansWithPricing);
-    }
-  }, [prices, rawPlans, getPrice]);
+  const { calculatePrice } = usePriceCalculator();
 
   const searchFallback = async (query: string = '', filters: Record<string, string> = {}) => {
     try {
       setIsLoading(true);
       setError(null);
 
-      // Fetch all visible plans via secure RPC with pagination
-      let allData: any[] = [];
-      let from = 0;
-      const pageSize = 1000;
-      
-      while (true) {
-        const { data, error: supabaseError } = await supabase
-          .rpc('get_agent_visible_plans')
-          .range(from, from + pageSize - 1);
-        
-        if (supabaseError) throw supabaseError;
-        if (!data || data.length === 0) break;
-        
-        allData = [...allData, ...data];
-        if (data.length < pageSize) break;
-        
-        from += pageSize;
-      }
+      let supabaseQuery = supabase
+        .from('esim_plans')
+        .select('*')
+        .eq('is_active', true)
+        .eq('admin_only', false);
 
-      // Apply client-side filters
-      let filtered = allData;
-
+      // Apply search query
       if (query.trim()) {
-        const q = query.toLowerCase();
-        filtered = filtered.filter(p =>
-          (p.title || '').toLowerCase().includes(q) ||
-          (p.country_name || '').toLowerCase().includes(q) ||
-          (p.data_amount || '').toLowerCase().includes(q)
+        supabaseQuery = supabaseQuery.or(
+          `title.ilike.%${query}%,country_name.ilike.%${query}%,data_amount.ilike.%${query}%`
         );
       }
 
+      // Apply country filter
       if (filters.country_name) {
-        filtered = filtered.filter(p => p.country_name === filters.country_name);
+        supabaseQuery = supabaseQuery.eq('country_name', filters.country_name);
       }
 
+      // Apply supplier filter
+      if (filters.supplier_name) {
+        supabaseQuery = supabaseQuery.eq('supplier_name', filters.supplier_name);
+      }
+
+      // Apply validity filter
       if (filters.validity_days) {
-        filtered = filtered.filter(p => String(p.validity_days) === String(filters.validity_days));
+        supabaseQuery = supabaseQuery.eq('validity_days', parseInt(filters.validity_days));
       }
 
-      // Store plan IDs for price fetching and raw plans for re-mapping
-      const ids = filtered.map(p => p.id);
-      setPlanIds(ids);
-      setRawPlans(filtered);
+      const { data, error: supabaseError } = await supabaseQuery
+        .order('country_name')
+        .limit(100);
 
+      if (supabaseError) throw supabaseError;
+
+      const plansWithPricing = (data || []).map(plan => ({
+        ...plan,
+        agent_price: calculatePrice(plan.wholesale_price, { supplierPlanId: (plan as any).supplier_plan_id, countryCode: (plan as any).country_code, planId: (plan as any).id })
+      }));
+
+      setFallbackPlans(plansWithPricing);
     } catch (err) {
       console.error('Fallback search error:', err);
       setError('Failed to load plans from fallback source');

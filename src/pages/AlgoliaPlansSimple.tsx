@@ -255,27 +255,24 @@ export default function AlgoliaPlansSimple() {
     setError(null);
     try {
       if (FORCE_FALLBACK) {
-        let allData: any[] = [];
-        let from = 0;
         const pageSize = 1000;
-        
+        let from = 0;
+        let to = pageSize - 1;
+        let supaHits: any[] = [];
         while (true) {
-          const { data, error } = await supabase
-            .rpc('get_agent_visible_plans')
-            .range(from, from + pageSize - 1);
-          
+          const {
+            data,
+            error
+          } = await supabase.from('esim_plans').select('*').eq('is_active', true).eq('admin_only', false).range(from, to);
           if (error) throw error;
           if (!data || data.length === 0) break;
-          
-          allData = [...allData, ...data];
+          supaHits.push(...data);
           if (data.length < pageSize) break;
-          
           from += pageSize;
+          to += pageSize;
         }
-        
-        const sanitized = allData.map((p: any) => ({ ...p, wholesale_price: 0, supplier_plan_id: '' }));
-        setAllPlans(sanitized as unknown as EsimPlan[]);
-        setPlans(sanitized as unknown as EsimPlan[]);
+        setAllPlans(supaHits as unknown as EsimPlan[]);
+        setPlans(supaHits as unknown as EsimPlan[]);
         return;
       }
       const client = await getSearchClient();
@@ -319,27 +316,24 @@ export default function AlgoliaPlansSimple() {
       const nbHits = (first as any)?.nbHits ?? allHits.length;
       if (nbHits > allHits.length) {
         try {
-          let allData: any[] = [];
-          let fetchFrom = 0;
-          const fetchPageSize = 1000;
-          
+          const pageSize = 1000;
+          let from = 0;
+          let to = pageSize - 1;
+          let supaHits: any[] = [];
           while (true) {
-            const { data: rpcData, error: rpcError } = await supabase
-              .rpc('get_agent_visible_plans')
-              .range(fetchFrom, fetchFrom + fetchPageSize - 1);
-            
-            if (rpcError) throw rpcError;
-            if (!rpcData || rpcData.length === 0) break;
-            
-            allData = [...allData, ...rpcData];
-            if (rpcData.length < fetchPageSize) break;
-            
-            fetchFrom += fetchPageSize;
+            const {
+              data,
+              error
+            } = await supabase.from('esim_plans').select('*').eq('is_active', true).eq('admin_only', false).range(from, to);
+            if (error) throw error;
+            if (!data || data.length === 0) break;
+            supaHits.push(...data);
+            if (data.length < pageSize) break;
+            from += pageSize;
+            to += pageSize;
           }
-          
-          const sanitized = allData.map((p: any) => ({ ...p, wholesale_price: 0, supplier_plan_id: '' }));
-          setAllPlans(sanitized as unknown as EsimPlan[]);
-          setPlans(sanitized as unknown as EsimPlan[]);
+          setAllPlans(supaHits as unknown as EsimPlan[]);
+          setPlans(supaHits as unknown as EsimPlan[]);
           return;
         } catch {}
       }
@@ -350,30 +344,27 @@ export default function AlgoliaPlansSimple() {
 
       // Fallback to Supabase query if Algolia fails
       try {
-        let allData: any[] = [];
-        let from = 0;
         const pageSize = 1000;
-        
+        let from = 0;
+        let to = pageSize - 1;
+        let supaHits: any[] = [];
         while (true) {
-          const { data: rpcData, error: rpcError } = await supabase
-            .rpc('get_agent_visible_plans')
-            .range(from, from + pageSize - 1);
-          
-          if (rpcError) throw rpcError;
-          if (!rpcData || rpcData.length === 0) break;
-          
-          allData = [...allData, ...rpcData];
-          if (rpcData.length < pageSize) break;
-          
+          const {
+            data,
+            error
+          } = await supabase.from('esim_plans').select('*').eq('is_active', true).eq('admin_only', false).range(from, to);
+          if (error) throw error;
+          if (!data || data.length === 0) break;
+          supaHits.push(...data);
+          if (data.length < pageSize) break;
           from += pageSize;
+          to += pageSize;
         }
-        
-        const sanitized = allData.map((p: any) => ({ ...p, wholesale_price: 0, supplier_plan_id: '' }));
-        setAllPlans(sanitized as unknown as EsimPlan[]);
-        setPlans(sanitized as unknown as EsimPlan[]);
+        setAllPlans(supaHits as unknown as EsimPlan[]);
+        setPlans(supaHits as unknown as EsimPlan[]);
         toast({
           title: 'Algolia unavailable, using fallback',
-          description: `Loaded ${sanitized.length} plans from Supabase.`
+          description: `Loaded ${supaHits.length} plans from Supabase.`
         });
       } catch (fallbackErr: any) {
         setError(err.message || 'Search failed');

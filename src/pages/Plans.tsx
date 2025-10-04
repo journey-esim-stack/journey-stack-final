@@ -115,32 +115,40 @@ export default function Plans() {
     const regionActivation = regionActivationResponse.data ? 
       JSON.parse(regionActivationResponse.data.setting_value) : {};
 
-    // Fetch all plans using the secure function with pagination to get all results
-    let allPlans: any[] = [];
+    // Fetch all plans in batches to overcome 1000 row limit
+    let allPlans: EsimPlan[] = [];
     let from = 0;
-    const pageSize = 1000;
-    
-    while (true) {
-      const { data, error, count } = await supabase
-        .rpc('get_agent_visible_plans')
-        .range(from, from + pageSize - 1);
+    const batchSize = 1000;
+    let hasMore = true;
+
+    while (hasMore) {
+      const { data, error } = await supabase
+        .from("esim_plans")
+        .select("*")
+        .eq("is_active", true)
+        .eq("admin_only", false) // Exclude admin-only plans
+        .range(from, from + batchSize - 1)
+        .order("country_name", { ascending: true });
 
       if (error) {
         throw error;
       }
 
-      if (!data || data.length === 0) break;
-      
-      allPlans = [...allPlans, ...data];
-      
-      // If we got fewer results than pageSize, we've reached the end
-      if (data.length < pageSize) break;
-      
-      from += pageSize;
+      if (data && data.length > 0) {
+        allPlans = [...allPlans, ...data];
+        
+        if (data.length < batchSize) {
+          hasMore = false;
+        } else {
+          from += batchSize;
+        }
+      } else {
+        hasMore = false;
+      }
     }
 
-    // Show all active plans (already filtered by RPC function)
-    const visiblePlans = allPlans.filter(plan => {
+    // Show all active plans
+    let filteredPlans = allPlans.filter(plan => {
       return plan.is_active;
     });
     
@@ -152,7 +160,7 @@ export default function Plans() {
         : 300
     } : { type: 'percent', value: 300 };
     
-    const plansWithAgentPrices = visiblePlans.map(plan => {
+    const plansWithAgentPrices = filteredPlans.map(plan => {
       const agentPrice = plan.agent_price || 0;
       
       return {

@@ -115,38 +115,14 @@ export default function Plans() {
     const regionActivation = regionActivationResponse.data ? 
       JSON.parse(regionActivationResponse.data.setting_value) : {};
 
-    // Fetch all plans in batches to overcome 1000 row limit
-    let allPlans: EsimPlan[] = [];
-    let from = 0;
-    const batchSize = 1000;
-    let hasMore = true;
+    // Fetch all plans using the secure function that filters out supplier info
+    const { data, error } = await supabase.rpc('get_agent_visible_plans');
 
-    while (hasMore) {
-      // Use agent_safe_plans view to exclude supplier_name and wholesale_price
-      const { data, error } = await supabase
-        .from("agent_safe_plans")
-        .select("*")
-        .eq("is_active", true)
-        .eq("admin_only", false) // Exclude admin-only plans
-        .range(from, from + batchSize - 1)
-        .order("country_name", { ascending: true });
-
-      if (error) {
-        throw error;
-      }
-
-      if (data && data.length > 0) {
-        allPlans = [...allPlans, ...data];
-        
-        if (data.length < batchSize) {
-          hasMore = false;
-        } else {
-          from += batchSize;
-        }
-      } else {
-        hasMore = false;
-      }
+    if (error) {
+      throw error;
     }
+
+    let allPlans: EsimPlan[] = data || [];
 
     // Show all active plans
     let filteredPlans = allPlans.filter(plan => {

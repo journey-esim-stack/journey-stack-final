@@ -767,6 +767,23 @@ export type Database = {
         }
         Returns: undefined
       }
+      get_agent_visible_plans: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          admin_only: boolean
+          country_code: string
+          country_name: string
+          created_at: string
+          currency: string
+          data_amount: string
+          description: string
+          id: string
+          is_active: boolean
+          title: string
+          updated_at: string
+          validity_days: number
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

@@ -22,7 +22,19 @@ export const useAlgoliaFallback = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [planIds, setPlanIds] = useState<string[]>([]);
+  const [rawPlans, setRawPlans] = useState<any[]>([]);
   const { getPrice: getBatchPrice, prices } = useAgentPlanPrices(planIds);
+
+  // Reactively update fallback plans whenever prices change
+  useEffect(() => {
+    if (rawPlans.length > 0) {
+      const plansWithPricing = rawPlans.map(plan => ({
+        ...plan,
+        agent_price: getBatchPrice(plan.id) ?? 0
+      }));
+      setFallbackPlans(plansWithPricing);
+    }
+  }, [prices, rawPlans, getBatchPrice]);
 
   const searchFallback = async (query: string = '', filters: Record<string, string> = {}) => {
     try {
@@ -76,20 +88,11 @@ export const useAlgoliaFallback = () => {
         plans = plans.filter(plan => plan.validity_days === parseInt(filters.validity_days));
       }
 
-      // Set plan IDs to trigger batch pricing fetch
+      // Store raw plans and set plan IDs to trigger batch pricing fetch
+      setRawPlans(plans);
       const ids = plans.map(p => p.id);
       setPlanIds(ids);
       
-      // Wait briefly for pricing to load, then apply
-      setTimeout(() => {
-        const plansWithPricing = plans.map(plan => ({
-          ...plan,
-          agent_price: getBatchPrice(plan.id) ?? 0
-        }));
-        setFallbackPlans(plansWithPricing);
-      }, 100);
-      
-      setFallbackPlans(plans.map(p => ({ ...p, agent_price: 0 })));
     } catch (err) {
       console.error('Fallback search error:', err);
       setError('Failed to load plans from fallback source');

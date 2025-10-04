@@ -615,10 +615,6 @@ export default function AlgoliaPlans() {
                   limit={15}
                 />
 
-                <CustomRefinementList 
-                  attribute="supplier_name"
-                  title="Supplier"
-                />
 
                 <CustomRefinementList 
                   attribute="validity_days"

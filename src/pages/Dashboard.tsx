@@ -19,7 +19,7 @@ interface Order {
   customer_email: string;
   customer_phone: string;
   retail_price: number;
-  wholesale_price: number;
+  wholesale_price?: number;
   status: string;
   created_at: string;
   esim_iccid: string;
@@ -113,7 +113,6 @@ export default function Dashboard() {
           customer_email,
           customer_phone,
           retail_price,
-          wholesale_price,
           status,
           created_at,
           esim_iccid,

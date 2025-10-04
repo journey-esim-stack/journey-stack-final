@@ -22,6 +22,7 @@ import ESimDetail from "./pages/ESimDetail";
 import AdminAgents from "./pages/AdminAgents";
 import AdminInventory from "./pages/AdminInventory";
 import AdminSuppliers from "./pages/AdminSuppliers";
+import SystemHealth from "./pages/SystemHealth";
 import TopupSuccess from "./pages/TopupSuccess";
 import TopupCanceled from "./pages/TopupCanceled";
 import Profile from "./pages/Profile";
@@ -63,6 +64,7 @@ const App = () => (
           <Route path="/admin/suppliers" element={<AgentApprovalGuard><AdminSuppliers /></AgentApprovalGuard>} />
           <Route path="/admin/pricing-rules" element={<AgentApprovalGuard><AdminPricingRules /></AgentApprovalGuard>} />
           <Route path="/admin/agent-pricing" element={<AgentApprovalGuard><AdminAgentPricing /></AgentApprovalGuard>} />
+          <Route path="/admin/system-health" element={<AgentApprovalGuard><SystemHealth /></AgentApprovalGuard>} />
           <Route path="/profile" element={<AgentApprovalGuard><Profile /></AgentApprovalGuard>} />
           <Route path="/wallet/topup-success" element={<AgentApprovalGuard><TopupSuccess /></AgentApprovalGuard>} />
           <Route path="/wallet/topup-canceled" element={<AgentApprovalGuard><TopupCanceled /></AgentApprovalGuard>} />

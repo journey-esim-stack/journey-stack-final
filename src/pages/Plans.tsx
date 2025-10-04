@@ -103,37 +103,13 @@ export default function Plans() {
 
     const agentId = agentProfile.id;
 
-    // Fetch all plans in batches to overcome 1000 row limit
-    let allPlans: any[] = [];
-    let from = 0;
-    const batchSize = 1000;
-    let hasMore = true;
-
-    while (hasMore) {
-      const { data, error } = await supabase
-        .from("esim_plans")
-        .select("*")
-        .eq("is_active", true)
-        .eq("admin_only", false)
-        .range(from, from + batchSize - 1)
-        .order("country_name", { ascending: true });
-
-      if (error) {
-        throw error;
-      }
-
-      if (data && data.length > 0) {
-        allPlans = [...allPlans, ...data];
-        
-        if (data.length < batchSize) {
-          hasMore = false;
-        } else {
-          from += batchSize;
-        }
-      } else {
-        hasMore = false;
-      }
+    // Fetch visible plans via RPC to respect RLS and agent visibility
+    const { data: rpcPlans, error: rpcError } = await (supabase as any).rpc('get_agent_visible_plans');
+    if (rpcError) {
+      throw rpcError;
     }
+    const allPlans: any[] = Array.isArray(rpcPlans) ? rpcPlans : [];
+
 
     // Fetch agent-specific pricing for all plans
     const planIds = allPlans.map(p => p.id);

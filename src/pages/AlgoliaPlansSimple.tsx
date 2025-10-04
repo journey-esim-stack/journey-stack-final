@@ -255,9 +255,25 @@ export default function AlgoliaPlansSimple() {
     setError(null);
     try {
       if (FORCE_FALLBACK) {
-        const { data, error } = await supabase.rpc('get_agent_visible_plans');
-        if (error) throw error;
-        const sanitized = (data || []).map((p: any) => ({ ...p, wholesale_price: 0, supplier_plan_id: '' }));
+        let allData: any[] = [];
+        let from = 0;
+        const pageSize = 1000;
+        
+        while (true) {
+          const { data, error } = await supabase
+            .rpc('get_agent_visible_plans')
+            .range(from, from + pageSize - 1);
+          
+          if (error) throw error;
+          if (!data || data.length === 0) break;
+          
+          allData = [...allData, ...data];
+          if (data.length < pageSize) break;
+          
+          from += pageSize;
+        }
+        
+        const sanitized = allData.map((p: any) => ({ ...p, wholesale_price: 0, supplier_plan_id: '' }));
         setAllPlans(sanitized as unknown as EsimPlan[]);
         setPlans(sanitized as unknown as EsimPlan[]);
         return;
@@ -303,13 +319,25 @@ export default function AlgoliaPlansSimple() {
       const nbHits = (first as any)?.nbHits ?? allHits.length;
       if (nbHits > allHits.length) {
         try {
-          const pageSize = 1000;
-          let from = 0;
-          let to = pageSize - 1;
-          let supaHits: any[] = [];
-          const { data: rpcData, error: rpcError } = await supabase.rpc('get_agent_visible_plans');
-          if (rpcError) throw rpcError;
-          const sanitized = (rpcData || []).map((p: any) => ({ ...p, wholesale_price: 0, supplier_plan_id: '' }));
+          let allData: any[] = [];
+          let fetchFrom = 0;
+          const fetchPageSize = 1000;
+          
+          while (true) {
+            const { data: rpcData, error: rpcError } = await supabase
+              .rpc('get_agent_visible_plans')
+              .range(fetchFrom, fetchFrom + fetchPageSize - 1);
+            
+            if (rpcError) throw rpcError;
+            if (!rpcData || rpcData.length === 0) break;
+            
+            allData = [...allData, ...rpcData];
+            if (rpcData.length < fetchPageSize) break;
+            
+            fetchFrom += fetchPageSize;
+          }
+          
+          const sanitized = allData.map((p: any) => ({ ...p, wholesale_price: 0, supplier_plan_id: '' }));
           setAllPlans(sanitized as unknown as EsimPlan[]);
           setPlans(sanitized as unknown as EsimPlan[]);
           return;
@@ -322,9 +350,25 @@ export default function AlgoliaPlansSimple() {
 
       // Fallback to Supabase query if Algolia fails
       try {
-        const { data: rpcData, error: rpcError } = await supabase.rpc('get_agent_visible_plans');
-        if (rpcError) throw rpcError;
-        const sanitized = (rpcData || []).map((p: any) => ({ ...p, wholesale_price: 0, supplier_plan_id: '' }));
+        let allData: any[] = [];
+        let from = 0;
+        const pageSize = 1000;
+        
+        while (true) {
+          const { data: rpcData, error: rpcError } = await supabase
+            .rpc('get_agent_visible_plans')
+            .range(from, from + pageSize - 1);
+          
+          if (rpcError) throw rpcError;
+          if (!rpcData || rpcData.length === 0) break;
+          
+          allData = [...allData, ...rpcData];
+          if (rpcData.length < pageSize) break;
+          
+          from += pageSize;
+        }
+        
+        const sanitized = allData.map((p: any) => ({ ...p, wholesale_price: 0, supplier_plan_id: '' }));
         setAllPlans(sanitized as unknown as EsimPlan[]);
         setPlans(sanitized as unknown as EsimPlan[]);
         toast({

@@ -28,12 +28,27 @@ export const useAlgoliaFallback = () => {
       setIsLoading(true);
       setError(null);
 
-      // Fetch visible plans via secure RPC (respects roles and hides sensitive fields)
-      const { data, error: supabaseError } = await supabase.rpc('get_agent_visible_plans');
-      if (supabaseError) throw supabaseError;
+      // Fetch all visible plans via secure RPC with pagination
+      let allData: any[] = [];
+      let from = 0;
+      const pageSize = 1000;
+      
+      while (true) {
+        const { data, error: supabaseError } = await supabase
+          .rpc('get_agent_visible_plans')
+          .range(from, from + pageSize - 1);
+        
+        if (supabaseError) throw supabaseError;
+        if (!data || data.length === 0) break;
+        
+        allData = [...allData, ...data];
+        if (data.length < pageSize) break;
+        
+        from += pageSize;
+      }
 
       // Apply client-side filters
-      let filtered = (data || []) as any[];
+      let filtered = allData;
 
       if (query.trim()) {
         const q = query.toLowerCase();

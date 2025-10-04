@@ -38,6 +38,7 @@ interface EsimPlan {
   admin_only: boolean;
   wholesale_price: number;
   supplier_plan_id: string;
+  agentPrice?: number;
 }
 function PlanCard({
   plan,
@@ -57,13 +58,8 @@ function PlanCard({
   const { convertPrice, getCurrencySymbol } = useCurrency();
   const { previewAgentId } = useAgentPreview();
 
-  // Compute agent price from wholesale using markup (USD base)
-  const agentPrice = calculatePrice?.(plan.wholesale_price || 0, { supplierPlanId: plan.supplier_plan_id, countryCode: plan.country_code, planId: plan.id }) ?? 0;
-  
-  // Get debug meta for admins
-  const priceMeta = isAdmin && debugGetPriceMeta 
-    ? debugGetPriceMeta(plan.wholesale_price || 0, { supplierPlanId: plan.supplier_plan_id, countryCode: plan.country_code, planId: plan.id })
-    : null;
+  // Price comes from parent via batch Edge Function
+  const agentPrice = plan.agentPrice ?? 0;
 
   // Detect Day Pass plans
   const isDayPass = (plan: EsimPlan) => {
@@ -117,14 +113,6 @@ function PlanCard({
             <div className="text-xs text-muted-foreground">
               Total Price
             </div>
-            {isAdmin && priceMeta?.selectedRule && (
-              <Badge variant="outline" className="mt-1 text-[10px] bg-purple-50 border-purple-300">
-                <Bug className="h-2.5 w-2.5 mr-1" />
-                {priceMeta.selectedRule.rule_type}:{priceMeta.selectedRule.target_id?.substring(0, 8)}
-                {priceMeta.selectedRule.agent_filter && ' (agent)'}
-                {' '}p{priceMeta.selectedRule.priority}
-              </Badge>
-            )}
           </div>
         </div>
       </CardHeader>
@@ -171,24 +159,14 @@ export default function AlgoliaPlansSimple() {
   const [allPlans, setAllPlans] = useState<EsimPlan[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const {
-    calculatePrice,
-    loading: markupLoading,
-    refreshPricing,
-    debugGetPriceMeta
-  } = usePriceCalculator();
   
   const [isAdmin, setIsAdmin] = useState(false);
   
-  // Batch agent_pricing for all visible plans
+  // Batch pricing for all plans
   const planIds = useMemo(() => allPlans.map(p => p.id), [allPlans]);
-  const { getPrice: getBatchPrice } = useAgentPlanPrices(planIds);
-
-  const getAgentPrice = useCallback((p: EsimPlan) => {
-    const bp = getBatchPrice(p.id);
-    if (bp !== undefined) return bp;
-    return calculatePrice?.(p.wholesale_price || 0, { supplierPlanId: p.supplier_plan_id, countryCode: p.country_code, planId: p.id }) ?? 0;
-  }, [getBatchPrice, calculatePrice]);
+  const { loading: batchPricesLoading, getPrice: getBatchPrice } = useAgentPlanPrices(planIds);
+  
+  const getAgentPrice = useCallback((p: EsimPlan) => getBatchPrice(p.id) ?? 0, [getBatchPrice]);
 
   // Filter states
   const [selectedCountry, setSelectedCountry] = useState<string>("");
@@ -482,7 +460,7 @@ export default function AlgoliaPlansSimple() {
       }
     });
     setPlans(filtered);
-  }, [allPlans, selectedCountry, selectedRegionType, validityFilter, dataFilter, priceRange, sortBy, calculatePrice, searchQuery]);
+  }, [allPlans, selectedCountry, selectedRegionType, validityFilter, dataFilter, priceRange, sortBy, getAgentPrice, searchQuery]);
   const extractDataValue = (dataStr: string): number => {
     const match = dataStr.match(/(\d+(?:\.\d+)?)\s*(GB|MB|TB)/i);
     if (!match) return 0;
@@ -782,7 +760,7 @@ export default function AlgoliaPlansSimple() {
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-semibold">
                 Available Plans ({plans.length})
-                {markupLoading && <span className="text-sm text-muted-foreground ml-2">
+                {batchPricesLoading && <span className="text-sm text-muted-foreground ml-2">
                     (Loading pricing...)
                   </span>}
               </h2>
@@ -810,9 +788,7 @@ export default function AlgoliaPlansSimple() {
                   </Card>) : plans.length > 0 ? plans.map(plan => (
                     <PlanCard
                       key={plan.objectID}
-                      plan={plan}
-                      calculatePrice={() => getAgentPrice(plan)}
-                      debugGetPriceMeta={debugGetPriceMeta}
+                      plan={{...plan, agentPrice: getAgentPrice(plan)}}
                       isAdmin={isAdmin}
                     />
                   )) : <div className="col-span-full flex flex-col items-center justify-center py-12 text-center">

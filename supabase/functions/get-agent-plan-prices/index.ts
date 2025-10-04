@@ -85,9 +85,9 @@ try {
       });
     }
 
-    // Fetch prices in chunks to be safe and prefer latest updates
+    // STEP 1: Fetch CSV pricing (agent_pricing table) in chunks
     const chunkSize = 50;
-    const results: Array<{ plan_id: string; retail_price: number; updated_at: string }> = [];
+    const csvPricing: Array<{ plan_id: string; retail_price: number; updated_at: string }> = [];
 
     for (let i = 0; i < planIds.length; i += chunkSize) {
       const slice = planIds.slice(i, i + chunkSize);
@@ -104,21 +104,106 @@ try {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         });
       }
-      if (data) results.push(...(data as any));
+      if (data) csvPricing.push(...(data as any));
     }
 
-    // Sort globally by updated_at desc to ensure latest wins across chunks
-    results.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+    // Sort by updated_at desc to ensure latest wins
+    csvPricing.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
 
-    // Build map taking the first (latest) entry per plan_id
-    const map: Record<string, number> = {};
-    for (const row of results) {
-      if (map[row.plan_id] === undefined) {
-        map[row.plan_id] = Number(row.retail_price);
+    // Build CSV price map (plan_id -> retail_price)
+    const csvMap: Record<string, number> = {};
+    for (const row of csvPricing) {
+      if (csvMap[row.plan_id] === undefined) {
+        csvMap[row.plan_id] = Number(row.retail_price);
       }
     }
 
-    return new Response(JSON.stringify({ prices: map }), { 
+    // STEP 2: Identify plans missing CSV pricing
+    const missingPlanIds = planIds.filter(pid => csvMap[pid] === undefined);
+    
+    // STEP 3: Calculate prices for missing plans using pricing_rules
+    if (missingPlanIds.length > 0) {
+      // Fetch pricing rules once
+      const { data: rulesData, error: rulesError } = await adminClient
+        .from('pricing_rules')
+        .select('*')
+        .eq('is_active', true)
+        .order('priority', { ascending: false });
+      
+      if (rulesError) {
+        console.error('pricing_rules fetch error', rulesError);
+      }
+      
+      const rules = rulesData || [];
+      
+      // Fetch plan wholesale prices for missing plans
+      const { data: plansData, error: plansError } = await adminClient
+        .from('esim_plans')
+        .select('id, wholesale_price, country_code, supplier_plan_id')
+        .in('id', missingPlanIds);
+      
+      if (plansError) {
+        console.error('esim_plans fetch error', plansError);
+      }
+      
+      const plansMap = new Map((plansData || []).map(p => [p.id, p]));
+      
+      // Calculate price for each missing plan
+      for (const planId of missingPlanIds) {
+        const planData = plansMap.get(planId);
+        if (!planData) continue;
+        
+        const wholesalePrice = Number(planData.wholesale_price) || 0;
+        const countryCode = planData.country_code;
+        const supplierPlanId = planData.supplier_plan_id;
+        
+        // Apply pricing rules logic (matching usePricingRules.ts)
+        let selectedRule = null;
+        let highestPriority = -1;
+        
+        for (const rule of rules) {
+          // Check if rule matches
+          let matches = false;
+          
+          if (rule.rule_type === 'global') {
+            matches = true;
+          } else if (rule.rule_type === 'country' && rule.target_id === countryCode) {
+            matches = true;
+          } else if (rule.rule_type === 'plan' && rule.target_id === planId) {
+            matches = true;
+          } else if (rule.rule_type === 'supplier_plan' && rule.target_id === supplierPlanId) {
+            matches = true;
+          }
+          
+          // Check agent filter if present
+          if (matches && rule.agent_filter) {
+            matches = rule.agent_filter === agentId;
+          }
+          
+          // Select highest priority matching rule
+          if (matches && rule.priority > highestPriority) {
+            highestPriority = rule.priority;
+            selectedRule = rule;
+          }
+        }
+        
+        // Calculate final price
+        let finalPrice = wholesalePrice * 4; // Default 300% markup (4x)
+        
+        if (selectedRule) {
+          if (selectedRule.markup_type === 'percent') {
+            const multiplier = 1 + (Number(selectedRule.markup_value) / 100);
+            finalPrice = wholesalePrice * multiplier;
+          } else if (selectedRule.markup_type === 'fixed') {
+            finalPrice = Number(selectedRule.markup_value);
+          }
+        }
+        
+        csvMap[planId] = finalPrice;
+      }
+    }
+
+    return new Response(JSON.stringify({ prices: csvMap }), { 
       status: 200, 
       headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
     });

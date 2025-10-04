@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { usePriceCalculator } from './usePriceCalculator';
+import { useAgentPlanPrices } from './useAgentPlanPrices';
 
 interface FallbackPlan {
   id: string;
@@ -21,7 +21,8 @@ export const useAlgoliaFallback = () => {
   const [fallbackPlans, setFallbackPlans] = useState<FallbackPlan[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { calculatePrice } = usePriceCalculator();
+  const [planIds, setPlanIds] = useState<string[]>([]);
+  const { getPrice: getBatchPrice } = useAgentPlanPrices(planIds);
 
   const searchFallback = async (query: string = '', filters: Record<string, string> = {}) => {
     try {
@@ -75,13 +76,20 @@ export const useAlgoliaFallback = () => {
         plans = plans.filter(plan => plan.validity_days === parseInt(filters.validity_days));
       }
 
-      // Apply agent pricing
-      const plansWithPricing = plans.map(plan => ({
-        ...plan,
-        agent_price: calculatePrice(plan.wholesale_price, { supplierPlanId: plan.supplier_plan_id, countryCode: plan.country_code, planId: plan.id })
-      }));
-
-      setFallbackPlans(plansWithPricing);
+      // Set plan IDs to trigger batch pricing fetch
+      const ids = plans.map(p => p.id);
+      setPlanIds(ids);
+      
+      // Wait briefly for pricing to load, then apply
+      setTimeout(() => {
+        const plansWithPricing = plans.map(plan => ({
+          ...plan,
+          agent_price: getBatchPrice(plan.id) ?? 0
+        }));
+        setFallbackPlans(plansWithPricing);
+      }, 100);
+      
+      setFallbackPlans(plans.map(p => ({ ...p, agent_price: 0 })));
     } catch (err) {
       console.error('Fallback search error:', err);
       setError('Failed to load plans from fallback source');

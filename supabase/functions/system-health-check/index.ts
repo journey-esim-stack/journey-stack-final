@@ -25,11 +25,19 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Verify admin
+    // Verify admin using the JWT from the Authorization header (already verified by gateway)
     const token = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
-    
-    if (userError || !user) {
+    let userId: string | null = null;
+    try {
+      const payloadPart = token.split('.')[1];
+      const payloadJson = atob(payloadPart.replace(/-/g, '+').replace(/_/g, '/'));
+      const payload = JSON.parse(payloadJson);
+      userId = payload.sub || payload.user_id || null;
+    } catch (_) {
+      // Failed to parse token
+    }
+
+    if (!userId) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -37,7 +45,7 @@ serve(async (req) => {
     }
 
     const { data: hasAdminRole } = await supabase.rpc('has_role', {
-      _user_id: user.id,
+      _user_id: userId,
       _role: 'admin'
     });
 

@@ -122,6 +122,13 @@ export default function SystemHealth() {
               </div>
             )}
           </div>
+          
+          {healthData?.algolia?.details && (
+            <div className="mt-4 p-3 bg-destructive/10 rounded-lg">
+              <p className="text-sm font-medium text-destructive">Error Details:</p>
+              <pre className="text-xs mt-2 overflow-auto">{JSON.stringify(healthData.algolia.details, null, 2)}</pre>
+            </div>
+          )}
         </CardContent>
       </Card>
 

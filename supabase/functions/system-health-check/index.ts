@@ -75,10 +75,21 @@ async function checkAlgolia(supabase: any) {
   try {
     const { data: creds, error } = await supabase.functions.invoke('get-algolia-credentials');
     
-    if (error || !creds?.appId) {
+    if (error) {
+      console.error('Algolia credentials error:', error);
       return {
         status: 'error',
-        message: 'Failed to get Algolia credentials',
+        message: error.message || 'Failed to get Algolia credentials',
+        details: error,
+        responseTime: Date.now() - startTime,
+      };
+    }
+    
+    if (!creds?.appId) {
+      return {
+        status: 'error',
+        message: 'Algolia credentials missing appId',
+        details: creds,
         responseTime: Date.now() - startTime,
       };
     }

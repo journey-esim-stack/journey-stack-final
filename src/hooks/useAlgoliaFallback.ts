@@ -32,7 +32,7 @@ export const useAlgoliaFallback = () => {
       // Fetch all plans in batches using RPC with pagination
       let allPlans: any[] = [];
       let from = 0;
-      const batchSize = 1000;
+      const batchSize = 5000; // Increased from 1000 to support more plans
       let hasMore = true;
 
       while (hasMore) {

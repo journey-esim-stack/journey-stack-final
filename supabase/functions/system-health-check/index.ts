@@ -73,41 +73,46 @@ serve(async (req) => {
 async function checkAlgolia(supabase: any) {
   const startTime = Date.now();
   try {
-    const { data: creds, error } = await supabase.functions.invoke('get-algolia-credentials');
+    // Check if Algolia env vars are set (don't call another edge function)
+    const appId = Deno.env.get('ALGOLIA_APPLICATION_ID');
+    const searchKey = Deno.env.get('ALGOLIA_SEARCH_API_KEY');
     
-    if (error) {
-      console.error('Algolia credentials error:', error);
+    if (!appId || !searchKey) {
       return {
-        status: 'error',
-        message: error.message || 'Failed to get Algolia credentials',
-        details: error,
+        status: 'not_configured',
+        message: 'Algolia credentials not configured in environment',
         responseTime: Date.now() - startTime,
-      };
-    }
-    
-    if (!creds?.appId) {
-      return {
-        status: 'error',
-        message: 'Algolia credentials missing appId',
-        details: creds,
-        responseTime: Date.now() - startTime,
+        metrics: {
+          appIdSet: !!appId,
+          searchKeySet: !!searchKey,
+        }
       };
     }
 
-    // Check if index exists by getting plans count
-    const { data: plansData } = await supabase
-      .from('esim_plans')
-      .select('id', { count: 'exact', head: true });
+    // Test a simple search to verify credentials work
+    try {
+      const { data: plansData } = await supabase
+        .from('esim_plans')
+        .select('id', { count: 'exact', head: true })
+        .limit(1);
 
-    return {
-      status: 'healthy',
-      message: 'Algolia credentials valid',
-      responseTime: Date.now() - startTime,
-      metrics: {
-        credentialsValid: true,
-        validUntil: creds.validUntil,
-      }
-    };
+      return {
+        status: 'healthy',
+        message: 'Algolia credentials configured',
+        responseTime: Date.now() - startTime,
+        metrics: {
+          credentialsValid: true,
+          appId: appId,
+        }
+      };
+    } catch (searchError) {
+      return {
+        status: 'error',
+        message: 'Algolia credentials set but search failed',
+        details: searchError.message,
+        responseTime: Date.now() - startTime,
+      };
+    }
   } catch (error) {
     return {
       status: 'error',

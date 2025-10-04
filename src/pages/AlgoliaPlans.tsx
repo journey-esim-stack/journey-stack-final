@@ -26,10 +26,8 @@ interface EsimPlan {
   country_code: string;
   data_amount: string;
   validity_days: number;
-  wholesale_price: number;
   currency: string;
   is_active: boolean;
-  supplier_name: string;
   admin_only: boolean;
   agent_price?: number;
 }
@@ -235,7 +233,7 @@ function PlanHit({ hit, isAdmin }: { hit: EsimPlan & { _canonical_supplier_id?: 
     const days = isDayPass(hit) ? dayPassDays : hit.validity_days;
     const price = isDayPass(hit) ? hit.agent_price * dayPassDays : hit.agent_price;
 
-    const cartItem = {
+      const cartItem = {
       id: hit.id,
       planId: hit.id,
       title: hit.title,
@@ -245,7 +243,6 @@ function PlanHit({ hit, isAdmin }: { hit: EsimPlan & { _canonical_supplier_id?: 
       validityDays: days,
       agentPrice: price,
       currency: hit.currency,
-      supplier_name: hit.supplier_name,
     };
 
     addToCart(cartItem);
@@ -275,9 +272,6 @@ function PlanHit({ hit, isAdmin }: { hit: EsimPlan & { _canonical_supplier_id?: 
             <CardDescription className="flex items-center gap-2 mt-2 text-muted-foreground">
               <span className="text-lg">{flag}</span>
               <span className="font-medium">{hit.country_name}</span>
-              <Badge variant="outline" className="text-xs">
-                {hit.supplier_name === 'esim_access' ? 'eSIM Access' : 'Maya'}
-              </Badge>
             </CardDescription>
           </div>
           <div className="text-right flex-shrink-0">

@@ -33,8 +33,6 @@ interface EsimPlan {
   currency: string;
   is_active: boolean;
   admin_only?: boolean;
-  wholesale_price: number;
-  supplier_plan_id: string;
 }
 
 // Enhanced Search Box with analytics tracking
@@ -181,16 +179,11 @@ const PlanCard = ({ plan, calculatePrice, debugGetPriceMeta, isAdmin, isPriceLoa
   const handleAddToCart = async () => {
     setIsAdding(true);
     try {
-      const supplierPlanId = plan._canonical_supplier_id || plan.supplier_plan_id;
-      if (isPriceLoading) {
+      if (isPriceLoading || !batchPrice) {
         toast({ title: "Pricing is loading", description: "Please wait a moment and try again." });
         return;
       }
-      const priceUSD = calculatePrice?.(plan.wholesale_price || 0, { 
-        supplierPlanId, 
-        countryCode: plan.country_code, 
-        planId: plan.id 
-      });
+      const priceUSD = batchPrice;
 
       await addToCart({
         id: `${plan.id}-${Date.now()}`,
@@ -269,57 +262,23 @@ const PlanCard = ({ plan, calculatePrice, debugGetPriceMeta, isAdmin, isPriceLoa
             <div className="flex flex-col">
               <span className="text-lg font-bold text-primary">
                 {(() => {
-                   const supplierPlanId = plan._canonical_supplier_id || plan.supplier_plan_id;
-                   // Gate: Wait for all three conditions before showing price
+                   // Gate: Wait for all conditions before showing price
                    const allDataReady = agentResolved && !isPriceLoading;
                    
                    if (!allDataReady) {
                      return <Skeleton className="h-5 w-24" />;
                    }
                    
-                    // PRIORITY 1: agent_pricing table (CSV uploaded prices)
+                    // Use server-side calculated price from agent_pricing or pricing_rules
                     if (batchPrice !== undefined) {
                       return (
                        <>
                          {getCurrencySymbol() + convertPrice(batchPrice).toFixed(2)}
-                         {isAdmin && (
-                           <Badge variant="outline" className="ml-2 text-[10px] bg-green-50 border-green-300">
-                             <Bug className="h-2.5 w-2.5 mr-1" />
-                             agent_pricing
-                           </Badge>
-                         )}
                        </>
                      );
                    }
                    
-                    // PRIORITY 2: pricing_rules (dynamic pricing)
-                    const priceUSD = calculatePrice?.(plan.wholesale_price || 0, { 
-                      supplierPlanId, 
-                      countryCode: plan.country_code, 
-                      planId: plan.id 
-                    });
-                   
-                   const priceMeta = isAdmin && debugGetPriceMeta 
-                     ? debugGetPriceMeta(plan.wholesale_price || 0, { 
-                         supplierPlanId, 
-                         countryCode: plan.country_code, 
-                          planId: plan.id 
-                        })
-                      : null;
-                    
-                    return (
-                     <>
-                       {getCurrencySymbol() + convertPrice(priceUSD || 0).toFixed(2)}
-                       {isAdmin && priceMeta?.selectedRule && (
-                         <Badge variant="outline" className="ml-2 text-[10px] bg-purple-50 border-purple-300">
-                           <Bug className="h-2.5 w-2.5 mr-1" />
-                           {priceMeta.selectedRule.rule_type}:{priceMeta.selectedRule.target_id?.substring(0, 8)}
-                           {priceMeta.selectedRule.agent_filter && ' (agent)'}
-                           {' '}p{priceMeta.selectedRule.priority}
-                         </Badge>
-                       )}
-                     </>
-                   );
+                    return <Skeleton className="h-5 w-24" />;
                 })()}
               </span>
             </div>
@@ -367,17 +326,11 @@ const SearchResults = ({ calculatePrice, debugGetPriceMeta, isAdmin, pricingLoad
 
   const enhancedHits = useMemo(() => {
     return hits.map(hit => {
-      const canonicalId = getCanonicalId(hit.id);
-      const supplierPlanId = canonicalId || hit.supplier_plan_id;
-      const batchPrice = getBatchPrice(hit.id);
-      
       return {
         ...hit,
-        wholesale_price: (hit as any).wholesale_price ?? 0,
-        _canonical_supplier_id: supplierPlanId
       };
     });
-  }, [hits, getCanonicalId, getBatchPrice]);
+  }, [hits]);
 
 
   if (!enhancedHits.length) {

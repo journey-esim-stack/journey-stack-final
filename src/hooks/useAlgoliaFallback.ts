@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { usePriceCalculator } from './usePriceCalculator';
+import { useAgentPlanPrices } from './useAgentPlanPrices';
 
 interface FallbackPlan {
   id: string;
@@ -19,9 +19,24 @@ interface FallbackPlan {
 
 export const useAlgoliaFallback = () => {
   const [fallbackPlans, setFallbackPlans] = useState<FallbackPlan[]>([]);
+  const [rawPlans, setRawPlans] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { calculatePrice } = usePriceCalculator();
+  const [planIds, setPlanIds] = useState<string[]>([]);
+  const { prices, getPrice } = useAgentPlanPrices(planIds);
+
+  // Update plans when prices change
+  useEffect(() => {
+    if (rawPlans.length > 0) {
+      const plansWithPricing = rawPlans.map(p => ({
+        ...p,
+        wholesale_price: undefined,
+        supplier_name: undefined,
+        agent_price: getPrice(p.id) || 0
+      }));
+      setFallbackPlans(plansWithPricing);
+    }
+  }, [prices, rawPlans, getPrice]);
 
   const searchFallback = async (query: string = '', filters: Record<string, string> = {}) => {
     try {
@@ -67,15 +82,10 @@ export const useAlgoliaFallback = () => {
         filtered = filtered.filter(p => String(p.validity_days) === String(filters.validity_days));
       }
 
-      // Map to expected shape; sensitive fields are intentionally absent
-      const plansWithPricing = filtered.map(p => ({
-        ...p,
-        wholesale_price: 0,
-        supplier_name: undefined,
-        agent_price: 0
-      } as any));
-
-      setFallbackPlans(plansWithPricing as any);
+      // Store plan IDs for price fetching and raw plans for re-mapping
+      const ids = filtered.map(p => p.id);
+      setPlanIds(ids);
+      setRawPlans(filtered);
 
     } catch (err) {
       console.error('Fallback search error:', err);

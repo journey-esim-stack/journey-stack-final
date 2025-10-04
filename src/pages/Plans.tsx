@@ -122,8 +122,9 @@ export default function Plans() {
     let hasMore = true;
 
     while (hasMore) {
+      // Use agent_safe_plans view to exclude supplier_name and wholesale_price
       const { data, error } = await supabase
-        .from("esim_plans")
+        .from("agent_safe_plans")
         .select("*")
         .eq("is_active", true)
         .eq("admin_only", false) // Exclude admin-only plans

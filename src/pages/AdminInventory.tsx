@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Download, Search, RefreshCw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import * as XLSX from 'xlsx';
+import { getSupplierDisplayName } from "@/utils/supplierNames";
 
 interface InventoryItem {
   id: string;

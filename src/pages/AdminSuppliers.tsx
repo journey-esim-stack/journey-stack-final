@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Separator } from "@/components/ui/separator";
 import { Loader2, Globe, Settings, CheckCircle, XCircle, Plus, Minus, RefreshCw } from "lucide-react";
 import Layout from "@/components/Layout";
+import { getSupplierDisplayName } from "@/utils/supplierNames";
 
 interface SupplierConfig {
   enabled: boolean;
@@ -355,7 +356,7 @@ export default function AdminSuppliers() {
                       )}
                       <div>
                         <p className="font-medium capitalize">
-                          {supplier.replace('_', ' ')}
+                          {getSupplierDisplayName(supplier)}
                           {isBase && <span className="text-xs ml-2 text-muted-foreground">(Base)</span>}
                         </p>
                         <p className="text-sm text-muted-foreground">

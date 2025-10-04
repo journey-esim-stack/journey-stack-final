@@ -40,6 +40,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import QRCode from "qrcode";
+import { getSupplierDisplayName } from "@/utils/supplierNames";
 
 // QR Code Display Component
 const QRCodeDisplay = ({ qrText, size = 256 }: { qrText: string; size?: number }) => {
@@ -357,7 +358,7 @@ const ESimDetail = () => {
       const isMayaEsim = supplier === 'maya';
       const functionName = isMayaEsim ? 'get-maya-esim-status' : 'get-esim-details';
       
-      console.log('ESimDetail - isMayaEsim:', isMayaEsim, 'supplier_name:', orderData.esim_plans?.supplier_name);
+      console.log('ESimDetail - isMayaEsim:', isMayaEsim, 'supplier:', getSupplierDisplayName(orderData.esim_plans?.supplier_name));
       
       // Fetch real-time details from provider API
       const { data: apiData, error: apiError } = await supabase.functions.invoke(functionName, {

@@ -8,7 +8,21 @@ interface AgentPreviewContextType {
 const AgentPreviewContext = createContext<AgentPreviewContextType | undefined>(undefined);
 
 export const AgentPreviewProvider = ({ children }: { children: ReactNode }) => {
-  const [previewAgentId, setPreviewAgentId] = useState<string | null>(null);
+  const [previewAgentId, _setPreviewAgentId] = useState<string | null>(() => {
+    try {
+      return localStorage.getItem('previewAgentId') || null;
+    } catch {
+      return null;
+    }
+  });
+
+  const setPreviewAgentId = (id: string | null) => {
+    _setPreviewAgentId(id);
+    try {
+      if (id) localStorage.setItem('previewAgentId', id);
+      else localStorage.removeItem('previewAgentId');
+    } catch {}
+  };
 
   return (
     <AgentPreviewContext.Provider value={{ previewAgentId, setPreviewAgentId }}>

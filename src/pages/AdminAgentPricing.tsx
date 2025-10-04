@@ -63,9 +63,14 @@ export default function AdminAgentPricing() {
   }, []);
 
   useEffect(() => {
-    if (selectedAgentId) {
-      fetchPricing(selectedAgentId);
-    }
+    if (!selectedAgentId) return;
+    // Persist admin preview so other pages (e.g., Plans) use this agent for pricing
+    try {
+      localStorage.setItem('previewAgentId', selectedAgentId);
+    } catch {}
+    fetchPricing(selectedAgentId);
+    // Notify pricing hooks to refetch immediately if mounted elsewhere
+    window.dispatchEvent(new CustomEvent('agent-pricing-updated', { detail: { agentId: selectedAgentId } }));
   }, [selectedAgentId]);
 
   const fetchAgents = async () => {

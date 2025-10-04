@@ -18,6 +18,7 @@ export const useAgentPlanPrices = (planIds: string[]) => {
   const [agentId, setAgentId] = useState<string | null>(null);
   const fetchedPlanIdsRef = useRef<Set<string>>(new Set());
   const lastAgentIdRef = useRef<string | null>(null);
+  const hasAttemptedFetchRef = useRef(false);
 
   // Get current agent ID
   const fetchAgentId = useCallback(async () => {
@@ -52,10 +53,12 @@ export const useAgentPlanPrices = (planIds: string[]) => {
         fetchedPlanIdsRef.current.clear();
         setPrices({});
         setInitialLoadComplete(false);
+        hasAttemptedFetchRef.current = false;
         fetchAgentId();
       } else if (event === 'SIGNED_IN') {
         console.log('[useAgentPlanPrices] Auth event:', event, '-> refetching agentId without clearing cache');
         // Do not clear cache on SIGNED_IN to avoid UI flicker
+        hasAttemptedFetchRef.current = false;
         fetchAgentId();
       } else {
         // Ignoring noise events like INITIAL_SESSION/TOKEN_REFRESHED to prevent flicker
@@ -71,9 +74,14 @@ export const useAgentPlanPrices = (planIds: string[]) => {
   const fetchPrices = useCallback(async (idsToFetch: string[]) => {
     if (idsToFetch.length === 0) {
       setLoading(false);
-      setInitialLoadComplete(true);
+      // Only mark complete if we've already attempted a fetch before
+      if (hasAttemptedFetchRef.current) {
+        setInitialLoadComplete(true);
+      }
       return;
     }
+
+    hasAttemptedFetchRef.current = true;
 
     const effectiveAgentId = previewAgentId || agentId;
     if (!effectiveAgentId) {
@@ -141,6 +149,7 @@ export const useAgentPlanPrices = (planIds: string[]) => {
       fetchedPlanIdsRef.current.clear();
       setPrices({});
       setInitialLoadComplete(false);
+      hasAttemptedFetchRef.current = false;
       setLoading(true);
       fetchPrices(planIds);
       return;

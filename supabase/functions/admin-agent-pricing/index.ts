@@ -58,16 +58,32 @@ serve(async (req: Request) => {
 
     if (action === 'list') {
       const { agentId } = payload as Extract<Payload, { action: 'list' }>;
-      const { data, error } = await adminClient
-        .from('agent_pricing')
-        .select('*')
-        .eq('agent_id', agentId)
-        .order('updated_at', { ascending: false });
-      if (error) {
-        console.error('list error', error);
-        return new Response(JSON.stringify({ error: 'Failed to list pricing' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+
+      // PostgREST may cap results (commonly at 1000). Page through all records.
+      const pageSize = 1000;
+      let from = 0;
+      let all: any[] = [];
+      while (true) {
+        const { data, error } = await adminClient
+          .from('agent_pricing')
+          .select('*')
+          .eq('agent_id', agentId)
+          .order('updated_at', { ascending: false })
+          .range(from, from + pageSize - 1);
+        if (error) {
+          console.error('list error', error);
+          return new Response(JSON.stringify({ error: 'Failed to list pricing' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+        if (data && data.length > 0) {
+          all = all.concat(data as any[]);
+          if (data.length < pageSize) break; // last page
+          from += pageSize;
+        } else {
+          break;
+        }
       }
-      return new Response(JSON.stringify({ pricing: data || [] }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+
+      return new Response(JSON.stringify({ pricing: all }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     if (action === 'upsert') {

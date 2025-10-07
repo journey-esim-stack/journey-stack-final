@@ -74,3 +74,6 @@ verify_jwt = true
 
 [functions.system-health-check]
 verify_jwt = true
+
+[functions.ai-plan-assistant]
+verify_jwt = true

@@ -35,6 +35,7 @@ import AlgoliaDashboard from "./pages/AlgoliaDashboard";
 import AlgoliaPlansEntry from "./pages/AlgoliaPlansEntry";
 import AdminPricingRules from "./pages/AdminPricingRules";
 import AdminAgentPricing from "./pages/AdminAgentPricing";
+import AIPlanAssistant from "./pages/AIPlanAssistant";
 
 const App = () => (
   <ErrorBoundary>
@@ -73,6 +74,7 @@ const App = () => (
           <Route path="/algolia-plans-simple" element={<AgentApprovalGuard><AlgoliaPlansSimple /></AgentApprovalGuard>} />
           <Route path="/algolia-plans-advanced" element={<AgentApprovalGuard><AlgoliaPlans /></AgentApprovalGuard>} />
           <Route path="/algolia-dashboard" element={<AgentApprovalGuard><AlgoliaDashboard /></AgentApprovalGuard>} />
+          <Route path="/ai-assistant" element={<AgentApprovalGuard><AIPlanAssistant /></AgentApprovalGuard>} />
           
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />

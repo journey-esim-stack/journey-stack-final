@@ -3,7 +3,7 @@ import { Navigate, Link, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { LogOut, Package, Wallet, ShoppingCart, ShieldCheck, Smartphone, User, BarChart3, Archive, ChevronDown, DollarSign } from "lucide-react";
+import { LogOut, Package, Wallet, ShoppingCart, ShieldCheck, Smartphone, User, BarChart3, Archive, ChevronDown, DollarSign, MessageSquare } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
 import CartSidebar from "@/components/CartSidebar";
@@ -90,6 +90,10 @@ export default function Layout({
     name: "eSIM Plans",
     href: "/algolia-plans",
     icon: Package
+  }, {
+    name: "AI Assistant",
+    href: "/ai-assistant",
+    icon: MessageSquare
   }, {
     name: "Wallet",
     href: "/wallet",

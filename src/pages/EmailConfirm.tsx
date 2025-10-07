@@ -18,31 +18,53 @@ export default function EmailConfirm() {
 
   const handleEmailConfirmation = async () => {
     try {
-      // Get the tokens from URL
-      const access_token = searchParams.get('access_token');
-      const refresh_token = searchParams.get('refresh_token');
+      // First check URL hash for tokens (from email link)
+      const hashParams = new URLSearchParams(window.location.hash.substring(1));
+      const hashAccessToken = hashParams.get('access_token');
+      const hashRefreshToken = hashParams.get('refresh_token');
+      
+      // Also check query params
+      const access_token = searchParams.get('access_token') || hashAccessToken;
+      const refresh_token = searchParams.get('refresh_token') || hashRefreshToken;
+      
+      console.log('Email confirmation - tokens found:', { 
+        hasAccessToken: !!access_token, 
+        hasRefreshToken: !!refresh_token,
+        source: hashAccessToken ? 'hash' : (searchParams.get('access_token') ? 'query' : 'none')
+      });
       
       if (access_token && refresh_token) {
+        console.log('Setting session with tokens...');
+        
         // Set the session
-        const { error: sessionError } = await supabase.auth.setSession({
+        const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
           access_token,
           refresh_token
         });
 
         if (sessionError) {
+          console.error('Session error:', sessionError);
           setStatus('error');
           setMessage('Invalid or expired confirmation link.');
           return;
         }
 
-        // Get the user
+        console.log('Session established:', sessionData.session?.user?.email);
+
+        // Get the user (should be available now)
         const { data: { user } } = await supabase.auth.getUser();
         
         if (!user) {
+          console.error('No user after setting session');
           setStatus('error');
           setMessage('User not found.');
           return;
         }
+
+        console.log('User confirmed:', user.email);
+
+        // Wait a moment for the session to fully propagate
+        await new Promise(resolve => setTimeout(resolve, 500));
 
         // Check agent profile status
         const { data: profile } = await supabase
@@ -50,6 +72,8 @@ export default function EmailConfirm() {
           .select('status')
           .eq('user_id', user.id)
           .single();
+
+        console.log('Agent profile status:', profile?.status);
 
         if (!profile) {
           setStatus('error');
@@ -65,6 +89,7 @@ export default function EmailConfirm() {
           setMessage('Thank you for confirming your email. Your account is pending admin approval.');
         }
       } else {
+        console.log('No tokens in URL, checking existing session...');
         setStatus('confirmed');
         setMessage('Email confirmed successfully. Checking account status...');
         
@@ -85,6 +110,9 @@ export default function EmailConfirm() {
             setStatus('pending');
             setMessage('Your account is pending admin approval.');
           }
+        } else {
+          setStatus('error');
+          setMessage('No active session found. Please sign in.');
         }
       }
     } catch (error) {

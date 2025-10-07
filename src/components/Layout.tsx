@@ -9,7 +9,6 @@ import { useToast } from "@/hooks/use-toast";
 import CartSidebar from "@/components/CartSidebar";
 import CartIcon from "@/components/CartIcon";
 import CurrencySelector from "@/components/CurrencySelector";
-import AIAssistantButton from "@/components/AIAssistantButton";
 import { useCart } from "@/contexts/CartContext";
 import { useAuthState } from "@/hooks/useAuthState";
 interface LayoutProps {
@@ -209,8 +208,5 @@ export default function Layout({
       
       {/* Global Cart Sidebar */}
       <CartSidebar />
-      
-      {/* AI Assistant Floating Button */}
-      <AIAssistantButton />
     </div>;
 }

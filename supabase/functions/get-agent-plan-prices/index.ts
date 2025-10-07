@@ -136,11 +136,38 @@ try {
       
       const rules = rulesData || [];
       
-      // Fetch plan wholesale prices for missing plans
-      const { data: plansData, error: plansError } = await adminClient
-        .from('esim_plans')
-        .select('id, wholesale_price, country_code, supplier_plan_id')
-        .in('id', missingPlanIds);
+      // Fetch plan wholesale prices for missing plans in chunks to avoid URL length limits
+      const PLAN_CHUNK_SIZE = 80;
+      const allPlans: any[] = [];
+      const totalChunks = Math.ceil(missingPlanIds.length / PLAN_CHUNK_SIZE);
+
+      console.log(`Fetching ${missingPlanIds.length} missing plans in ${totalChunks} chunks`);
+
+      for (let i = 0; i < missingPlanIds.length; i += PLAN_CHUNK_SIZE) {
+        const chunk = missingPlanIds.slice(i, i + PLAN_CHUNK_SIZE);
+        const chunkNum = Math.floor(i / PLAN_CHUNK_SIZE) + 1;
+        
+        console.log(`Fetching esim_plans chunk ${chunkNum}/${totalChunks} (${chunk.length} IDs)`);
+        
+        const { data: chunkData, error: chunkError } = await adminClient
+          .from('esim_plans')
+          .select('id, wholesale_price, country_code, supplier_plan_id')
+          .in('id', chunk);
+        
+        if (chunkError) {
+          console.error(`Error fetching esim_plans chunk ${chunkNum}:`, chunkError);
+          return new Response(JSON.stringify({ error: 'Failed to fetch plan data' }), { 
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+        
+        allPlans.push(...(chunkData || []));
+      }
+
+      console.log(`Successfully fetched ${allPlans.length} plans from ${totalChunks} chunks`);
+      const plansData = allPlans;
+      const plansError = null;
       
       if (plansError) {
         console.error('esim_plans fetch error', plansError);

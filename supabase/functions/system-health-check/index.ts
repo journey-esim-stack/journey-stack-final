@@ -59,7 +59,7 @@ serve(async (req) => {
     const healthChecks: any = {
       timestamp: new Date().toISOString(),
       algolia: await checkAlgolia(supabase),
-      pricing: await checkPricing(supabase),
+      pricing: await checkPricing(supabase, authHeader),
       esimSync: await checkESimSync(supabase),
       database: await checkDatabase(supabase),
       edgeFunctions: await checkEdgeFunctions(supabase),
@@ -130,7 +130,7 @@ async function checkAlgolia(supabase: any) {
   }
 }
 
-async function checkPricing(supabase: any) {
+async function checkPricing(supabase: any, authHeader: string) {
   const startTime = Date.now();
   try {
     // Check agent_pricing table
@@ -159,13 +159,14 @@ async function checkPricing(supabase: any) {
     
     if (agents && agents.length > 0) {
       const testStart = Date.now();
-      const { error: fnError } = await supabase.functions.invoke('get-agent-plan-prices', {
-        body: { agentId: agents[0].id, planIds: [] }
+      const { data: fnData, error: fnError } = await supabase.functions.invoke('get-agent-plan-prices', {
+        body: { agentId: agents[0].id, planIds: [] },
+        headers: { Authorization: authHeader }
       });
       
       functionTest = {
         status: fnError ? 'error' : 'healthy',
-        message: fnError ? fnError.message : 'Function responding',
+        message: fnError ? `Error: ${fnError.message}` : 'Function responding',
         responseTime: Date.now() - testStart,
       };
     }

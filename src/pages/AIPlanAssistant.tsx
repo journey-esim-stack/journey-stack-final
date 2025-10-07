@@ -109,7 +109,7 @@ export default function AIPlanAssistant({ onClose }: AIPlanAssistantProps) {
       const decoder = new TextDecoder();
       let textBuffer = '';
       let assistantContent = '';
-      let plansData: PlanData[] | undefined;
+      let plansData: PlanData[] = [];
 
       while (true) {
         const { done, value } = await reader.read();
@@ -131,20 +131,14 @@ export default function AIPlanAssistant({ onClose }: AIPlanAssistantProps) {
 
           try {
             const parsed = JSON.parse(jsonStr);
-            const content = parsed.choices?.[0]?.delta?.content as string | undefined;
             
-            // Check for tool calls with plan data
-            const toolCalls = parsed.choices?.[0]?.delta?.tool_calls;
-            if (toolCalls && toolCalls[0]?.function?.arguments) {
-              try {
-                const args = JSON.parse(toolCalls[0].function.arguments);
-                if (args.plans) {
-                  plansData = args.plans;
-                }
-              } catch (e) {
-                // Ignore parse errors for partial tool call data
-              }
+            // Check for plan data
+            if (parsed.type === 'plans' && parsed.plans) {
+              plansData = parsed.plans;
+              continue;
             }
+
+            const content = parsed.choices?.[0]?.delta?.content as string | undefined;
             
             if (content) {
               assistantContent += content;
@@ -152,10 +146,10 @@ export default function AIPlanAssistant({ onClose }: AIPlanAssistantProps) {
                 const last = prev[prev.length - 1];
                 if (last?.role === 'assistant') {
                   return prev.map((m, i) =>
-                    i === prev.length - 1 ? { ...m, content: assistantContent, plans: plansData } : m
+                    i === prev.length - 1 ? { ...m, content: assistantContent, plans: plansData.length > 0 ? plansData : undefined } : m
                   );
                 }
-                return [...prev, { role: 'assistant', content: assistantContent, plans: plansData }];
+                return [...prev, { role: 'assistant', content: assistantContent, plans: plansData.length > 0 ? plansData : undefined }];
               });
             }
           } catch (e) {

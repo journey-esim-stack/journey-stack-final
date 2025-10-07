@@ -19,7 +19,6 @@ serve(async (req) => {
       throw new Error('LOVABLE_API_KEY is not configured');
     }
 
-    // Get user from auth header
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
@@ -42,17 +41,29 @@ serve(async (req) => {
       });
     }
 
-    // System prompt with eSIM business context
-    const systemPrompt = `You are an AI assistant for Journey Stack, helping travel agents find eSIM plans.
+    // Get agent profile
+    const { data: agentProfile } = await supabase
+      .from('agent_profiles')
+      .select('id, markup_type, markup_value')
+      .eq('user_id', user.id)
+      .single();
+
+    if (!agentProfile) {
+      return new Response(JSON.stringify({ error: 'Agent profile not found' }), {
+        status: 404,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const systemPrompt = `You are an AI assistant for Journey Stack eSIM platform.
 
 When a user asks about plans:
-1. IMMEDIATELY use the search_plans tool
-2. Present top 3-5 matches with clear reasoning
-3. Highlight: coverage, data, validity, price value
-4. Be concise and action-oriented
+1. ALWAYS call the search_plans function immediately
+2. After getting results, explain the top recommendations
+3. Highlight key benefits: coverage, data, validity, price
+4. Be concise and helpful
 
-The tool will return plans that will be displayed as interactive tiles with "Add to Cart" buttons.
-Focus on helping agents make quick, informed decisions for their customers.`;
+The search_plans function will return actual plan data that will be displayed as interactive tiles with "Add to Cart" buttons.`;
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -72,13 +83,13 @@ Focus on helping agents make quick, informed decisions for their customers.`;
             type: 'function',
             function: {
               name: 'search_plans',
-              description: 'Search and return eSIM plans as structured data for display',
+              description: 'Search eSIM plans by country. Returns top matching plans.',
               parameters: {
                 type: 'object',
                 properties: {
                   country: {
                     type: 'string',
-                    description: 'Country name or code',
+                    description: 'Country name or code (e.g., "Japan", "France", "UAE")',
                   },
                   min_data_gb: {
                     type: 'number',
@@ -88,42 +99,149 @@ Focus on helping agents make quick, informed decisions for their customers.`;
                     type: 'number',
                     description: 'Minimum validity days',
                   },
-                  max_results: {
-                    type: 'number',
-                    description: 'Max results (default: 5)',
-                  },
                 },
                 required: ['country'],
               },
             },
           },
         ],
+        tool_choice: 'auto',
       }),
     });
 
     if (!response.ok) {
       if (response.status === 429) {
-        return new Response(JSON.stringify({ error: 'Rate limit exceeded. Please try again later.' }), {
+        return new Response(JSON.stringify({ error: 'Rate limit exceeded' }), {
           status: 429,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
       if (response.status === 402) {
-        return new Response(JSON.stringify({ error: 'AI credits depleted. Please contact support.' }), {
+        return new Response(JSON.stringify({ error: 'AI credits depleted' }), {
           status: 402,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
-      const errorText = await response.text();
-      console.error('AI gateway error:', response.status, errorText);
-      return new Response(JSON.stringify({ error: 'AI service error' }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      throw new Error('AI service error');
     }
 
-    // Stream the response back to client
-    return new Response(response.body, {
+    const reader = response.body?.getReader();
+    if (!reader) throw new Error('No response body');
+
+    const encoder = new TextEncoder();
+    const decoder = new TextDecoder();
+
+    const stream = new ReadableStream({
+      async start(controller) {
+        let buffer = '';
+        let toolCallBuffer = '';
+        let inToolCall = false;
+
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop() || '';
+
+            for (const line of lines) {
+              if (!line.trim() || line.startsWith(':')) continue;
+              if (!line.startsWith('data: ')) continue;
+
+              const data = line.slice(6);
+              if (data === '[DONE]') {
+                controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+                continue;
+              }
+
+              try {
+                const parsed = JSON.parse(data);
+                const toolCalls = parsed.choices?.[0]?.delta?.tool_calls;
+
+                if (toolCalls && toolCalls[0]) {
+                  inToolCall = true;
+                  const args = toolCalls[0].function?.arguments || '';
+                  toolCallBuffer += args;
+
+                  // Try to parse accumulated tool call
+                  try {
+                    const toolArgs = JSON.parse(toolCallBuffer);
+                    console.log('Tool call:', toolArgs);
+
+                    // Search for plans
+                    let query = supabase
+                      .from('esim_plans')
+                      .select('*')
+                      .eq('is_active', true);
+
+                    if (toolArgs.country) {
+                      const country = toolArgs.country.toLowerCase();
+                      query = query.or(`country_name.ilike.%${country}%,country_code.ilike.%${country}%`);
+                    }
+
+                    if (toolArgs.min_data_gb) {
+                      query = query.gte('data_amount', `${toolArgs.min_data_gb}GB`);
+                    }
+
+                    if (toolArgs.min_validity_days) {
+                      query = query.gte('validity_days', toolArgs.min_validity_days);
+                    }
+
+                    const { data: plans } = await query.limit(5);
+
+                    if (plans && plans.length > 0) {
+                      // Calculate agent prices
+                      const markup = agentProfile.markup_type === 'percent' 
+                        ? (agentProfile.markup_value || 300) / 100
+                        : agentProfile.markup_value || 0;
+
+                      const plansWithPrices = plans.map(plan => ({
+                        id: plan.id,
+                        title: plan.title,
+                        country_name: plan.country_name,
+                        country_code: plan.country_code,
+                        data_amount: plan.data_amount,
+                        validity_days: plan.validity_days,
+                        agent_price: agentProfile.markup_type === 'percent'
+                          ? Number(plan.wholesale_price) * (1 + markup)
+                          : Number(plan.wholesale_price) + markup,
+                        currency: plan.currency,
+                      }));
+
+                      // Send plans as a special SSE event
+                      const plansEvent = {
+                        type: 'plans',
+                        plans: plansWithPrices,
+                      };
+                      controller.enqueue(encoder.encode(`data: ${JSON.stringify(plansEvent)}\n\n`));
+                    }
+
+                    toolCallBuffer = '';
+                    inToolCall = false;
+                  } catch (e) {
+                    // Still accumulating tool call JSON
+                  }
+                } else if (!inToolCall) {
+                  // Regular content chunk
+                  controller.enqueue(encoder.encode(`data: ${data}\n\n`));
+                }
+              } catch (e) {
+                console.error('Parse error:', e);
+              }
+            }
+          }
+
+          controller.close();
+        } catch (error) {
+          console.error('Stream error:', error);
+          controller.error(error);
+        }
+      },
+    });
+
+    return new Response(stream, {
       headers: {
         ...corsHeaders,
         'Content-Type': 'text/event-stream',

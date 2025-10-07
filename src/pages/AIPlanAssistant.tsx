@@ -1,29 +1,50 @@
 import { useState, useRef, useEffect } from 'react';
-import Layout from '@/components/Layout';
-import { Card } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Send, Bot, User, Loader2 } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Send, Bot, User, Loader2, Globe, Clock, Wifi, ShoppingCart, Sparkles } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { useCart } from '@/contexts/CartContext';
+import { useCurrency } from '@/contexts/CurrencyContext';
+import { getCountryFlag } from '@/utils/countryFlags';
 
 interface Message {
   role: 'user' | 'assistant';
   content: string;
+  plans?: PlanData[];
 }
 
-export default function AIPlanAssistant() {
+interface PlanData {
+  id: string;
+  title: string;
+  country_name: string;
+  country_code: string;
+  data_amount: string;
+  validity_days: number;
+  agent_price: number;
+  currency: string;
+}
+
+interface AIPlanAssistantProps {
+  onClose?: () => void;
+}
+
+export default function AIPlanAssistant({ onClose }: AIPlanAssistantProps) {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: 'assistant',
-      content: "Hi! I'm your AI assistant for finding eSIM plans. Tell me about your customer's travel needs - where they're going, how long, and how much data they need - and I'll help you find the perfect plan!",
+      content: "Hi! 👋 I'm your AI-powered eSIM assistant. Tell me about your customer's travel needs - destination, duration, and data requirements - and I'll find the perfect plan instantly!",
     },
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+  const { addToCart } = useCart();
+  const { convertPrice, getCurrencySymbol, selectedCurrency } = useCurrency();
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -88,6 +109,7 @@ export default function AIPlanAssistant() {
       const decoder = new TextDecoder();
       let textBuffer = '';
       let assistantContent = '';
+      let plansData: PlanData[] | undefined;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -111,16 +133,29 @@ export default function AIPlanAssistant() {
             const parsed = JSON.parse(jsonStr);
             const content = parsed.choices?.[0]?.delta?.content as string | undefined;
             
+            // Check for tool calls with plan data
+            const toolCalls = parsed.choices?.[0]?.delta?.tool_calls;
+            if (toolCalls && toolCalls[0]?.function?.arguments) {
+              try {
+                const args = JSON.parse(toolCalls[0].function.arguments);
+                if (args.plans) {
+                  plansData = args.plans;
+                }
+              } catch (e) {
+                // Ignore parse errors for partial tool call data
+              }
+            }
+            
             if (content) {
               assistantContent += content;
               setMessages((prev) => {
                 const last = prev[prev.length - 1];
                 if (last?.role === 'assistant') {
                   return prev.map((m, i) =>
-                    i === prev.length - 1 ? { ...m, content: assistantContent } : m
+                    i === prev.length - 1 ? { ...m, content: assistantContent, plans: plansData } : m
                   );
                 }
-                return [...prev, { role: 'assistant', content: assistantContent }];
+                return [...prev, { role: 'assistant', content: assistantContent, plans: plansData }];
               });
             }
           } catch (e) {
@@ -158,82 +193,175 @@ export default function AIPlanAssistant() {
     }
   };
 
-  return (
-    <Layout>
-      <div className="max-w-4xl mx-auto">
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-foreground mb-2">AI Plan Assistant</h1>
-          <p className="text-muted-foreground">
-            Get intelligent recommendations for your customers' eSIM needs
-          </p>
-        </div>
+  const handleAddToCart = (plan: PlanData) => {
+    const price = convertPrice(Number(plan.agent_price));
+    
+    addToCart({
+      id: plan.id,
+      planId: plan.id,
+      title: plan.title,
+      countryName: plan.country_name,
+      countryCode: plan.country_code,
+      dataAmount: plan.data_amount,
+      validityDays: plan.validity_days,
+      agentPrice: price,
+      currency: selectedCurrency,
+    });
 
-        <Card className="h-[600px] flex flex-col">
-          <ScrollArea className="flex-1 p-6" ref={scrollRef}>
-            <div className="space-y-6">
-              {messages.map((message, index) => (
-                <div
-                  key={index}
-                  className={`flex gap-3 ${
-                    message.role === 'user' ? 'justify-end' : 'justify-start'
-                  }`}
-                >
-                  {message.role === 'assistant' && (
-                    <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center shrink-0">
-                      <Bot className="w-5 h-5 text-primary-foreground" />
-                    </div>
-                  )}
-                  <div
-                    className={`rounded-lg px-4 py-3 max-w-[80%] ${
-                      message.role === 'user'
-                        ? 'bg-primary text-primary-foreground'
-                        : 'bg-muted text-foreground'
-                    }`}
-                  >
-                    <p className="whitespace-pre-wrap text-sm leading-relaxed">
-                      {message.content}
-                    </p>
-                  </div>
-                  {message.role === 'user' && (
-                    <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center shrink-0">
-                      <User className="w-5 h-5 text-accent-foreground" />
-                    </div>
-                  )}
-                </div>
-              ))}
-              {isLoading && messages[messages.length - 1]?.role !== 'assistant' && (
-                <div className="flex gap-3 justify-start">
-                  <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center shrink-0">
+    toast({
+      title: "Added to Cart",
+      description: `${plan.title} added successfully`,
+    });
+  };
+
+  return (
+    <div className="flex flex-col h-full bg-gradient-to-br from-background to-muted/20">
+      {/* Header */}
+      <div className="p-6 border-b bg-card/50 backdrop-blur-sm">
+        <div className="flex items-center gap-3 mb-2">
+          <div className="p-2 rounded-lg bg-gradient-to-br from-primary to-primary/80">
+            <Sparkles className="w-5 h-5 text-primary-foreground" />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold text-foreground">AI Plan Assistant</h2>
+            <p className="text-sm text-muted-foreground">
+              Get instant eSIM recommendations powered by AI
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Messages */}
+      <ScrollArea className="flex-1 p-6" ref={scrollRef}>
+        <div className="space-y-6 max-w-4xl mx-auto">
+          {messages.map((message, index) => (
+            <div key={index}>
+              <div
+                className={`flex gap-3 ${
+                  message.role === 'user' ? 'justify-end' : 'justify-start'
+                }`}
+              >
+                {message.role === 'assistant' && (
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shrink-0 shadow-lg">
                     <Bot className="w-5 h-5 text-primary-foreground" />
                   </div>
-                  <div className="bg-muted rounded-lg px-4 py-3">
-                    <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                )}
+                <div
+                  className={`rounded-2xl px-5 py-3 max-w-[75%] shadow-sm ${
+                    message.role === 'user'
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-card border'
+                  }`}
+                >
+                  <p className="whitespace-pre-wrap text-sm leading-relaxed">
+                    {message.content}
+                  </p>
+                </div>
+                {message.role === 'user' && (
+                  <div className="w-10 h-10 rounded-xl bg-accent flex items-center justify-center shrink-0 shadow-sm">
+                    <User className="w-5 h-5 text-accent-foreground" />
                   </div>
+                )}
+              </div>
+
+              {/* Plan tiles */}
+              {message.plans && message.plans.length > 0 && (
+                <div className="mt-4 ml-[52px] grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {message.plans.map((plan) => (
+                    <Card key={plan.id} className="overflow-hidden hover:shadow-lg transition-all duration-200 hover:-translate-y-1 border-2">
+                      <CardContent className="p-4">
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex items-center gap-2">
+                            <span className="text-3xl">{getCountryFlag(plan.country_code)}</span>
+                            <div>
+                              <h3 className="font-semibold text-sm line-clamp-1">{plan.title}</h3>
+                              <p className="text-xs text-muted-foreground">{plan.country_name}</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3 mb-4">
+                          <div className="flex items-center gap-2">
+                            <Wifi className="w-4 h-4 text-primary" />
+                            <div>
+                              <p className="text-xs text-muted-foreground">Data</p>
+                              <p className="text-sm font-semibold">{plan.data_amount}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Clock className="w-4 h-4 text-primary" />
+                            <div>
+                              <p className="text-xs text-muted-foreground">Validity</p>
+                              <p className="text-sm font-semibold">{plan.validity_days} days</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between pt-3 border-t">
+                          <div>
+                            <p className="text-xs text-muted-foreground">Your Price</p>
+                            <p className="text-xl font-bold text-primary">
+                              {getCurrencySymbol()}{convertPrice(plan.agent_price).toFixed(2)}
+                            </p>
+                          </div>
+                          <Button
+                            size="sm"
+                            onClick={() => handleAddToCart(plan)}
+                            className="gap-2 shadow-md hover:shadow-lg transition-all"
+                          >
+                            <ShoppingCart className="w-4 h-4" />
+                            Add to Cart
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
                 </div>
               )}
             </div>
-          </ScrollArea>
-
-          <div className="p-4 border-t">
-            <div className="flex gap-2">
-              <Input
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={handleKeyPress}
-                placeholder="Ask about eSIM plans for your customer..."
-                disabled={isLoading}
-                className="flex-1"
-              />
-              <Button onClick={handleSend} disabled={isLoading || !input.trim()}>
-                <Send className="w-4 h-4" />
-              </Button>
+          ))}
+          {isLoading && messages[messages.length - 1]?.role !== 'assistant' && (
+            <div className="flex gap-3 justify-start">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shrink-0 shadow-lg">
+                <Bot className="w-5 h-5 text-primary-foreground" />
+              </div>
+              <div className="bg-card border rounded-2xl px-5 py-3 shadow-sm">
+                <div className="flex items-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                  <span className="text-sm text-muted-foreground">Searching plans...</span>
+                </div>
+              </div>
             </div>
-            <p className="text-xs text-muted-foreground mt-2">
-              💡 Free AI usage until Oct 13! Powered by Google Gemini
-            </p>
+          )}
+        </div>
+      </ScrollArea>
+
+      {/* Input */}
+      <div className="p-6 border-t bg-card/50 backdrop-blur-sm">
+        <div className="max-w-4xl mx-auto">
+          <div className="flex gap-3">
+            <Input
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyPress}
+              placeholder="e.g., I need a plan for Japan, 2 weeks, 5GB data..."
+              disabled={isLoading}
+              className="flex-1 rounded-xl border-2 focus:border-primary transition-colors"
+            />
+            <Button 
+              onClick={handleSend} 
+              disabled={isLoading || !input.trim()}
+              className="rounded-xl px-6 shadow-md hover:shadow-lg transition-all"
+            >
+              <Send className="w-4 h-4" />
+            </Button>
           </div>
-        </Card>
+          <div className="flex items-center gap-2 mt-3 text-xs text-muted-foreground">
+            <Sparkles className="w-3 h-3" />
+            <span>Free AI usage until Oct 13 • Powered by Google Gemini</span>
+          </div>
+        </div>
       </div>
-    </Layout>
+    </div>
   );
 }

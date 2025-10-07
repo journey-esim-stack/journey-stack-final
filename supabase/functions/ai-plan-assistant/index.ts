@@ -43,24 +43,16 @@ serve(async (req) => {
     }
 
     // System prompt with eSIM business context
-    const systemPrompt = `You are an AI assistant for Journey Stack, an eSIM platform for travel businesses.
+    const systemPrompt = `You are an AI assistant for Journey Stack, helping travel agents find eSIM plans.
 
-Your role is to help agents find the best eSIM plans for their customers based on:
-- Travel destination(s)
-- Trip duration
-- Data requirements
-- Budget constraints
-- Coverage needs (single country vs regional)
+When a user asks about plans:
+1. IMMEDIATELY use the search_plans tool
+2. Present top 3-5 matches with clear reasoning
+3. Highlight: coverage, data, validity, price value
+4. Be concise and action-oriented
 
-You have access to tools to search the plan database. When recommending plans:
-1. Ask clarifying questions if needed (destination, duration, data needs)
-2. Use the search tool to find matching plans
-3. Present options in order of best value
-4. Explain key differences (coverage, validity, data amount)
-5. Mention when regional plans offer better value than single-country plans
-6. Keep responses concise and helpful
-
-Always show prices in the agent's currency. Focus on helping agents make informed decisions for their customers.`;
+The tool will return plans that will be displayed as interactive tiles with "Add to Cart" buttons.
+Focus on helping agents make quick, informed decisions for their customers.`;
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -80,41 +72,32 @@ Always show prices in the agent's currency. Focus on helping agents make informe
             type: 'function',
             function: {
               name: 'search_plans',
-              description: 'Search eSIM plans by country, data amount, validity days, or price range. Returns matching plans with details.',
+              description: 'Search and return eSIM plans as structured data for display',
               parameters: {
                 type: 'object',
                 properties: {
                   country: {
                     type: 'string',
-                    description: 'Country name or code (e.g., "France", "FR", "United States")',
+                    description: 'Country name or code',
                   },
                   min_data_gb: {
                     type: 'number',
-                    description: 'Minimum data amount in GB',
-                  },
-                  max_data_gb: {
-                    type: 'number',
-                    description: 'Maximum data amount in GB',
+                    description: 'Minimum data in GB',
                   },
                   min_validity_days: {
                     type: 'number',
-                    description: 'Minimum validity period in days',
+                    description: 'Minimum validity days',
                   },
-                  max_price_usd: {
+                  max_results: {
                     type: 'number',
-                    description: 'Maximum wholesale price in USD',
-                  },
-                  limit: {
-                    type: 'number',
-                    description: 'Maximum number of results to return (default 10)',
+                    description: 'Max results (default: 5)',
                   },
                 },
-                additionalProperties: false,
+                required: ['country'],
               },
             },
           },
         ],
-        tool_choice: 'auto',
       }),
     });
 

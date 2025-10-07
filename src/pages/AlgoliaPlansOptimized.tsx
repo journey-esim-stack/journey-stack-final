@@ -179,8 +179,12 @@ const PlanCard = ({ plan, calculatePrice, debugGetPriceMeta, isAdmin, isPriceLoa
   const handleAddToCart = async () => {
     setIsAdding(true);
     try {
-      if (isPriceLoading || !batchPrice) {
-        toast({ title: "Pricing is loading", description: "Please wait a moment and try again." });
+      if (isPriceLoading || !batchPrice || batchPrice <= 0) {
+        toast({ 
+          title: "Invalid pricing", 
+          description: "Price must be greater than $0. Please refresh and try again.",
+          variant: "destructive"
+        });
         return;
       }
       const priceUSD = batchPrice;
@@ -322,7 +326,7 @@ const SearchResults = ({ calculatePrice, debugGetPriceMeta, isAdmin, pricingLoad
 
   const planIds = useMemo(() => hits.map(hit => hit.id), [hits]);
   const { getCanonicalId, loading: mappingLoading } = usePlanIdMapping(planIds);
-  const { getPrice: getBatchPrice, loading: batchPriceLoading } = useAgentPlanPrices(planIds);
+  const { getPrice: getBatchPrice, loading: batchPriceLoading, isReady } = useAgentPlanPrices(planIds);
 
   const enhancedHits = useMemo(() => {
     return hits.map(hit => {
@@ -332,6 +336,17 @@ const SearchResults = ({ calculatePrice, debugGetPriceMeta, isAdmin, pricingLoad
     });
   }, [hits]);
 
+
+  // Layer 1: Show loading state until prices are ready
+  if (!isReady) {
+    return (
+      <div className="text-center py-12">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+        <h3 className="text-lg font-semibold mb-2">Your plans are getting ready...</h3>
+        <p className="text-muted-foreground text-sm">We're loading personalized pricing for you</p>
+      </div>
+    );
+  }
 
   if (!enhancedHits.length) {
     return (

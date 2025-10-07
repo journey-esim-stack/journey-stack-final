@@ -211,9 +211,13 @@ export const useAgentPlanPrices = (planIds: string[]) => {
     };
   }, [effectiveAgentId, refetch]);
 
+  // isReady means: we have an agent ID AND we've completed initial load
+  const isReady = !!effectiveAgentId && initialLoadComplete;
+
   return { 
     prices, 
-    loading: loading && !initialLoadComplete, 
+    loading: loading && !initialLoadComplete,
+    isReady,
     getPrice, 
     refetch 
   };

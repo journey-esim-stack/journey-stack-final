@@ -16,9 +16,7 @@ interface AlgoliaRecord {
   data_amount: string;
   data_amount_value: number;
   validity_days: number;
-  wholesale_price: number;
   currency: string;
-  supplier_name: string;
   is_active: boolean;
   admin_only: boolean;
   created_at: string;
@@ -42,6 +40,7 @@ async function transformSupabaseToAlgolia(supabaseRecord: any): Promise<AlgoliaR
     }
   };
 
+  // Filter out sensitive fields before indexing
   return {
     objectID: supabaseRecord.id,
     id: supabaseRecord.id,
@@ -52,11 +51,9 @@ async function transformSupabaseToAlgolia(supabaseRecord: any): Promise<AlgoliaR
     data_amount: supabaseRecord.data_amount,
     data_amount_value: extractDataValue(supabaseRecord.data_amount),
     validity_days: supabaseRecord.validity_days,
-    wholesale_price: parseFloat(supabaseRecord.wholesale_price),
     currency: supabaseRecord.currency,
-    supplier_name: supabaseRecord.supplier_name,
     is_active: supabaseRecord.is_active,
-    admin_only: supabaseRecord.admin_only,
+    admin_only: supabaseRecord.admin_only || false,
     created_at: supabaseRecord.created_at,
     updated_at: supabaseRecord.updated_at,
   };

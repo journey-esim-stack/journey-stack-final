@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Search, MapPin, Calendar, Database, TrendingUp, Filter, SortAsc, SortDesc, Zap } from 'lucide-react';
+import { Search, MapPin, Calendar, Database, TrendingUp, Filter, SortAsc, SortDesc, Zap, RefreshCw, Bug } from 'lucide-react';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,13 +9,17 @@ import { useToast } from '@/hooks/use-toast';
 import { useCart } from '@/contexts/CartContext';
 import { useCurrency } from '@/contexts/CurrencyContext';
 import { supabase } from '@/integrations/supabase/client';
-import { useAgentMarkup } from '@/hooks/useAgentMarkup';
+import { usePriceCalculator } from '@/hooks/usePriceCalculator';
 import { getSearchClient, ESIM_PLANS_INDEX } from '@/lib/algolia';
 import { getCountryFlag } from '@/utils/countryFlags';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { Skeleton } from "@/components/ui/skeleton";
 import { InstantSearch, SearchBox, RefinementList, Stats, Configure, useHits, useStats, useSearchBox, useRefinementList, Pagination, usePagination, useInstantSearch } from 'react-instantsearch';
 import { AlgoliaErrorBoundary } from '@/components/AlgoliaErrorBoundary';
+import { AgentPreviewSelector } from '@/components/AgentPreviewSelector';
+import { usePlanIdMapping } from '@/hooks/usePlanIdMapping';
+import { useAgentPlanPrices } from '@/hooks/useAgentPlanPrices';
+import { CountryAwareSearch } from '@/components/CountryAwareSearch';
 
 interface EsimPlan {
   objectID: string;
@@ -28,7 +32,7 @@ interface EsimPlan {
   validity_days: number;
   currency: string;
   is_active: boolean;
-  wholesale_price: number;
+  admin_only?: boolean;
 }
 
 // Enhanced Search Box with analytics tracking
@@ -121,16 +125,70 @@ const EnhancedRefinementList = ({ attribute, title, icon }: { attribute: string;
 };
 
 // Enhanced Plan Card with better UX
-const PlanCard = ({ plan, calculatePrice }: { plan: EsimPlan, calculatePrice: (price: number) => number }) => {
+const PlanCard = ({ plan, calculatePrice, debugGetPriceMeta, isAdmin, isPriceLoading, batchPrice, agentResolved }: { plan: EsimPlan & { _canonical_supplier_id?: string }, calculatePrice: (price: number, options?: { supplierPlanId?: string; countryCode?: string; planId?: string; }) => number, debugGetPriceMeta?: (price: number, options?: { supplierPlanId?: string; countryCode?: string; planId?: string; }) => any, isAdmin?: boolean, isPriceLoading?: boolean, batchPrice?: number, agentResolved?: boolean }) => {
   const { addToCart } = useCart();
   const { convertPrice, selectedCurrency, getCurrencySymbol } = useCurrency();
   const [isAdding, setIsAdding] = useState(false);
+  const [isResyncing, setIsResyncing] = useState(false);
   const { toast } = useToast();
+
+  const handleResyncToAlgolia = async () => {
+    setIsResyncing(true);
+    try {
+      // Fetch the fresh plan data from Supabase
+      const { data: freshPlan, error: fetchError } = await supabase
+        .from('esim_plans')
+        .select('*')
+        .eq('id', plan.id)
+        .single();
+
+      if (fetchError || !freshPlan) {
+        throw new Error('Failed to fetch plan from database');
+      }
+
+      // Call the sync function to update Algolia
+      const { data, error } = await supabase.functions.invoke('sync-algolia-realtime', {
+        body: {
+          operation: 'UPDATE',
+          recordId: plan.id,
+          record: freshPlan,
+        },
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Synced to Algolia",
+        description: `${plan.title} has been resynced successfully.`,
+      });
+
+      // Refresh the page after a short delay to show updated data
+      setTimeout(() => window.location.reload(), 1000);
+    } catch (error) {
+      console.error('Resync error:', error);
+      toast({
+        title: "Resync failed",
+        description: error instanceof Error ? error.message : "Failed to resync plan to Algolia.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsResyncing(false);
+    }
+  };
 
   const handleAddToCart = async () => {
     setIsAdding(true);
     try {
-      const priceUSD = calculatePrice?.(plan.wholesale_price || 0) ?? 0;
+      if (isPriceLoading || !batchPrice || batchPrice <= 0) {
+        toast({ 
+          title: "Invalid pricing", 
+          description: "Price must be greater than $0. Please refresh and try again.",
+          variant: "destructive"
+        });
+        return;
+      }
+      const priceUSD = batchPrice;
+
       await addToCart({
         id: `${plan.id}-${Date.now()}`,
         planId: plan.id,
@@ -204,13 +262,30 @@ const PlanCard = ({ plan, calculatePrice }: { plan: EsimPlan, calculatePrice: (p
         </div>
 
         <div className="mt-4 space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-lg font-bold text-primary">
-              {(() => {
-                const priceUSD = calculatePrice?.(plan.wholesale_price || 0) ?? 0;
-                return getCurrencySymbol() + convertPrice(priceUSD).toFixed(2);
-              })()}
-            </span>
+           <div className="flex items-center justify-between">
+            <div className="flex flex-col">
+              <span className="text-lg font-bold text-primary">
+                {(() => {
+                   // Gate: Wait for all conditions before showing price
+                   const allDataReady = agentResolved && !isPriceLoading;
+                   
+                   if (!allDataReady) {
+                     return <Skeleton className="h-5 w-24" />;
+                   }
+                   
+                    // Use server-side calculated price from agent_pricing or pricing_rules
+                    if (batchPrice !== undefined) {
+                      return (
+                       <>
+                         {getCurrencySymbol() + convertPrice(batchPrice).toFixed(2)}
+                       </>
+                     );
+                   }
+                   
+                    return <Skeleton className="h-5 w-24" />;
+                })()}
+              </span>
+            </div>
             {isDayPass && (
               <Badge variant="outline" className="text-xs">
                 Day Pass
@@ -218,14 +293,27 @@ const PlanCard = ({ plan, calculatePrice }: { plan: EsimPlan, calculatePrice: (p
             )}
           </div>
 
-          <Button
-            onClick={handleAddToCart}
-            disabled={isAdding}
-            className="w-full"
-            size="sm"
-          >
-            {isAdding ? "Adding..." : "Add to Cart"}
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              onClick={handleAddToCart}
+              disabled={isAdding || isPriceLoading}
+              className="flex-1"
+              size="sm"
+            >
+              {isPriceLoading ? "Loading price..." : (isAdding ? "Adding..." : "Add to Cart")}
+            </Button>
+            {isAdmin && (
+              <Button
+                onClick={handleResyncToAlgolia}
+                disabled={isResyncing}
+                variant="outline"
+                size="sm"
+                title="Resync this plan to Algolia"
+              >
+                <RefreshCw className={`h-4 w-4 ${isResyncing ? 'animate-spin' : ''}`} />
+              </Button>
+            )}
+          </div>
         </div>
       </CardContent>
     </Card>
@@ -233,15 +321,32 @@ const PlanCard = ({ plan, calculatePrice }: { plan: EsimPlan, calculatePrice: (p
 };
 
 // Enhanced Search Results with performance optimizations
-const SearchResults = ({ calculatePrice }: { calculatePrice: (price: number) => number }) => {
+const SearchResults = ({ calculatePrice, debugGetPriceMeta, isAdmin, pricingLoading, agentResolved }: { calculatePrice: (price: number, options?: { supplierPlanId?: string; countryCode?: string; planId?: string; }) => number, debugGetPriceMeta?: (price: number, options?: { supplierPlanId?: string; countryCode?: string; planId?: string; }) => any, isAdmin?: boolean, pricingLoading?: boolean, agentResolved?: boolean }) => {
   const { hits } = useHits<EsimPlan>();
 
+  const planIds = useMemo(() => hits.map(hit => hit.id), [hits]);
+  const { getCanonicalId, loading: mappingLoading } = usePlanIdMapping(planIds);
+  const { getPrice: getBatchPrice, loading: batchPriceLoading, isReady } = useAgentPlanPrices(planIds);
+
   const enhancedHits = useMemo(() => {
-    return hits.map(hit => ({
-      ...hit,
-      wholesale_price: (hit as any).wholesale_price ?? 0
-    }));
+    return hits.map(hit => {
+      return {
+        ...hit,
+      };
+    });
   }, [hits]);
+
+
+  // Layer 1: Show loading state until prices are ready
+  if (!isReady) {
+    return (
+      <div className="text-center py-12">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+        <h3 className="text-lg font-semibold mb-2">Your plans are getting ready...</h3>
+        <p className="text-muted-foreground text-sm">We're loading personalized pricing for you</p>
+      </div>
+    );
+  }
 
   if (!enhancedHits.length) {
     return (
@@ -256,7 +361,16 @@ const SearchResults = ({ calculatePrice }: { calculatePrice: (price: number) => 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
       {enhancedHits.map((plan) => (
-        <PlanCard key={plan.objectID} plan={plan as any} calculatePrice={calculatePrice} />
+        <PlanCard 
+          key={plan.id} 
+          plan={plan as any} 
+          calculatePrice={calculatePrice} 
+          debugGetPriceMeta={debugGetPriceMeta} 
+          isAdmin={isAdmin} 
+          isPriceLoading={pricingLoading || !agentResolved}
+          batchPrice={getBatchPrice(plan.id)}
+          agentResolved={agentResolved}
+        />
       ))}
     </div>
   );
@@ -329,7 +443,9 @@ export default function AlgoliaPlansOptimized() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
-  const { calculatePrice } = useAgentMarkup();
+  const { calculatePrice, refreshPricing, debugGetPriceMeta, loading: pricingLoading, agentResolved } = usePriceCalculator();
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [isBulkResyncing, setIsBulkResyncing] = useState(false);
 
   // Initialize Algolia client
   useEffect(() => {
@@ -354,6 +470,79 @@ export default function AlgoliaPlansOptimized() {
 
     initializeAlgolia();
   }, [toast]);
+
+  // Bulk index repair function
+  const handleBulkRepairIndex = async () => {
+    setIsBulkResyncing(true);
+    try {
+      // Get all plan IDs currently visible on the page from Algolia
+      const algoliaIndex = searchClient.initIndex(ESIM_PLANS_INDEX);
+      const { hits } = await algoliaIndex.search('', { hitsPerPage: 1000 });
+      const visiblePlanIds = hits.map((hit: any) => hit.id);
+
+      // Fetch those plans from Supabase to check for discrepancies
+      const { data: dbPlans, error: fetchError } = await supabase
+        .from('esim_plans')
+        .select('*')
+        .eq('is_active', true)
+        .in('id', visiblePlanIds);
+
+      if (fetchError) throw fetchError;
+
+      let repairedCount = 0;
+      const maxRepairs = 50; // Throttle to avoid overwhelming the system
+
+      for (const plan of dbPlans || []) {
+        if (repairedCount >= maxRepairs) break;
+        
+        // Invoke sync for each plan
+        const { error: syncError } = await supabase.functions.invoke('sync-algolia-realtime', {
+          body: {
+            operation: 'UPDATE',
+            recordId: plan.id,
+            record: plan,
+          },
+        });
+
+        if (!syncError) repairedCount++;
+      }
+
+      toast({
+        title: "Index repair complete",
+        description: `Resynced ${repairedCount} plans to Algolia.`,
+      });
+
+      // Refresh after repair
+      setTimeout(() => window.location.reload(), 1500);
+    } catch (error) {
+      console.error('Bulk repair error:', error);
+      toast({
+        title: "Bulk repair failed",
+        description: error instanceof Error ? error.message : "Failed to repair search index.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsBulkResyncing(false);
+    }
+  };
+
+  // Check if user is admin
+  useEffect(() => {
+    const checkAdmin = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: roleData } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .eq('role', 'admin')
+        .maybeSingle();
+
+      setIsAdmin(!!roleData);
+    };
+    checkAdmin();
+  }, []);
 
   // Real-time sync monitoring
   useEffect(() => {
@@ -411,13 +600,28 @@ export default function AlgoliaPlansOptimized() {
   return (
     <AlgoliaErrorBoundary>
       <InstantSearch searchClient={searchClient} indexName={ESIM_PLANS_INDEX}>
-        <Configure hitsPerPage={20} maxValuesPerFacet={100} />
+        <Configure 
+          hitsPerPage={20} 
+          maxValuesPerFacet={100}
+          filters="is_active:true AND admin_only:false"
+          ignorePlurals={true}
+          removeStopWords={true}
+          queryLanguages={['en']}
+        />
+        
+        {/* Country-aware search component that auto-applies country filters */}
+        <CountryAwareSearch />
         
         <div className="container mx-auto p-6 space-y-6">
           {/* Header */}
           <div className="text-center space-y-2">
             <h1 className="text-3xl font-bold">Premium eSIM Plans</h1>
             <p className="text-muted-foreground">Advanced search powered by Algolia</p>
+          </div>
+
+          {/* Admin Preview Selector */}
+          <div className="max-w-2xl mx-auto">
+            <AgentPreviewSelector />
           </div>
 
           {/* Search */}
@@ -445,10 +649,31 @@ export default function AlgoliaPlansOptimized() {
               {/* Stats and Controls */}
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <EnhancedStats />
+                <div className="flex gap-2">
+                  {isAdmin && (
+                    <Button
+                      onClick={handleBulkRepairIndex}
+                      disabled={isBulkResyncing}
+                      variant="outline"
+                      size="sm"
+                    >
+                      <RefreshCw className={`h-4 w-4 mr-2 ${isBulkResyncing ? 'animate-spin' : ''}`} />
+                      {isBulkResyncing ? 'Repairing...' : 'Repair Search Index'}
+                    </Button>
+                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={refreshPricing}
+                  >
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Refresh Pricing
+                  </Button>
+                </div>
               </div>
 
-{/* Results */}
-              <SearchResults calculatePrice={calculatePrice} />
+              {/* Results */}
+              <SearchResults calculatePrice={calculatePrice} debugGetPriceMeta={debugGetPriceMeta} isAdmin={isAdmin} pricingLoading={pricingLoading} agentResolved={agentResolved} />
 
               {/* Pagination */}
               <EnhancedPagination />

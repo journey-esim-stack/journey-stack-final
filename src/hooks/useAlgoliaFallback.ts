@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useAgentMarkup } from './useAgentMarkup';
+import { useAgentPlanPrices } from './useAgentPlanPrices';
 
 interface FallbackPlan {
   id: string;
@@ -21,53 +21,78 @@ export const useAlgoliaFallback = () => {
   const [fallbackPlans, setFallbackPlans] = useState<FallbackPlan[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { calculatePrice } = useAgentMarkup();
+  const [planIds, setPlanIds] = useState<string[]>([]);
+  const [rawPlans, setRawPlans] = useState<any[]>([]);
+  const { getPrice: getBatchPrice, prices } = useAgentPlanPrices(planIds);
+
+  // Reactively update fallback plans whenever prices change
+  useEffect(() => {
+    if (rawPlans.length > 0) {
+      const plansWithPricing = rawPlans.map(plan => ({
+        ...plan,
+        agent_price: getBatchPrice(plan.id) ?? 0
+      }));
+      setFallbackPlans(plansWithPricing);
+    }
+  }, [prices, rawPlans, getBatchPrice]);
 
   const searchFallback = async (query: string = '', filters: Record<string, string> = {}) => {
     try {
       setIsLoading(true);
       setError(null);
 
-      let supabaseQuery = supabase
-        .from('esim_plans')
-        .select('*')
-        .eq('is_active', true)
-        .eq('admin_only', false);
+      // Fetch all plans in batches using RPC with pagination
+      let allPlans: any[] = [];
+      let from = 0;
+      const batchSize = 5000; // Increased from 1000 to support more plans
+      let hasMore = true;
 
-      // Apply search query
+      while (hasMore) {
+        const { data: rpcData, error: rpcError } = await (supabase as any)
+          .rpc('get_agent_visible_plans')
+          .range(from, from + batchSize - 1);
+        
+        if (rpcError) throw rpcError;
+
+        const batch = Array.isArray(rpcData) ? rpcData : [];
+        if (batch.length > 0) {
+          allPlans.push(...batch);
+          hasMore = batch.length === batchSize;
+          from += batchSize;
+        } else {
+          hasMore = false;
+        }
+      }
+
+      let plans = allPlans;
+
+      // Apply client-side search and filters
       if (query.trim()) {
-        supabaseQuery = supabaseQuery.or(
-          `title.ilike.%${query}%,country_name.ilike.%${query}%,data_amount.ilike.%${query}%`
+        const q = query.toLowerCase();
+        plans = plans.filter(plan =>
+          plan.title?.toLowerCase().includes(q) ||
+          plan.country_name?.toLowerCase().includes(q) ||
+          plan.data_amount?.toLowerCase().includes(q)
         );
       }
 
-      // Apply country filter
       if (filters.country_name) {
-        supabaseQuery = supabaseQuery.eq('country_name', filters.country_name);
+        plans = plans.filter(plan => plan.country_name === filters.country_name);
       }
 
-      // Apply supplier filter
       if (filters.supplier_name) {
-        supabaseQuery = supabaseQuery.eq('supplier_name', filters.supplier_name);
+        plans = plans.filter(plan => plan.supplier_name === filters.supplier_name);
       }
 
-      // Apply validity filter
       if (filters.validity_days) {
-        supabaseQuery = supabaseQuery.eq('validity_days', parseInt(filters.validity_days));
+        plans = plans.filter(plan => plan.validity_days === parseInt(filters.validity_days));
       }
 
-      const { data, error: supabaseError } = await supabaseQuery
-        .order('country_name')
-        .limit(100);
-
-      if (supabaseError) throw supabaseError;
-
-      const plansWithPricing = (data || []).map(plan => ({
-        ...plan,
-        agent_price: calculatePrice(plan.wholesale_price)
-      }));
-
-      setFallbackPlans(plansWithPricing);
+      // Store raw plans and set plan IDs to trigger batch pricing fetch
+      setRawPlans(plans);
+      const ids = plans.map(p => p.id);
+      setPlanIds(ids);
+      
     } catch (err) {
       console.error('Fallback search error:', err);
       setError('Failed to load plans from fallback source');

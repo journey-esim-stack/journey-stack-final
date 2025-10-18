@@ -51,6 +51,13 @@ export type Database = {
             foreignKeyName: "agent_pricing_plan_id_fkey"
             columns: ["plan_id"]
             isOneToOne: false
+            referencedRelation: "agent_safe_plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_pricing_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
             referencedRelation: "esim_plans"
             referencedColumns: ["id"]
           },
@@ -433,6 +440,76 @@ export type Database = {
             foreignKeyName: "orders_plan_id_fkey"
             columns: ["plan_id"]
             isOneToOne: false
+            referencedRelation: "agent_safe_plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "esim_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pricing_rules: {
+        Row: {
+          agent_filter: string | null
+          created_at: string
+          id: string
+          is_active: boolean
+          markup_type: string
+          markup_value: number
+          max_order_amount: number | null
+          min_order_amount: number | null
+          plan_id: string | null
+          priority: number
+          rule_type: string
+          target_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          agent_filter?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          markup_type?: string
+          markup_value?: number
+          max_order_amount?: number | null
+          min_order_amount?: number | null
+          plan_id?: string | null
+          priority?: number
+          rule_type: string
+          target_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          agent_filter?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          markup_type?: string
+          markup_value?: number
+          max_order_amount?: number | null
+          min_order_amount?: number | null
+          plan_id?: string | null
+          priority?: number
+          rule_type?: string
+          target_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_pricing_rules_plan_id"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "agent_safe_plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_pricing_rules_plan_id"
+            columns: ["plan_id"]
+            isOneToOne: false
             referencedRelation: "esim_plans"
             referencedColumns: ["id"]
           },
@@ -526,7 +603,159 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      agent_safe_orders: {
+        Row: {
+          activation_code: string | null
+          agent_id: string | null
+          compatibility_checked: boolean | null
+          compatibility_warning_shown: boolean | null
+          created_at: string | null
+          customer_email: string | null
+          customer_name: string | null
+          customer_phone: string | null
+          device_brand_id: string | null
+          device_model_id: string | null
+          esim_expiry_date: string | null
+          esim_iccid: string | null
+          esim_qr_code: string | null
+          id: string | null
+          manual_code: string | null
+          plan_id: string | null
+          real_status: string | null
+          retail_price: number | null
+          smdp_address: string | null
+          status: Database["public"]["Enums"]["order_status"] | null
+          updated_at: string | null
+        }
+        Insert: {
+          activation_code?: string | null
+          agent_id?: string | null
+          compatibility_checked?: boolean | null
+          compatibility_warning_shown?: boolean | null
+          created_at?: string | null
+          customer_email?: string | null
+          customer_name?: string | null
+          customer_phone?: string | null
+          device_brand_id?: string | null
+          device_model_id?: string | null
+          esim_expiry_date?: string | null
+          esim_iccid?: string | null
+          esim_qr_code?: string | null
+          id?: string | null
+          manual_code?: string | null
+          plan_id?: string | null
+          real_status?: string | null
+          retail_price?: number | null
+          smdp_address?: string | null
+          status?: Database["public"]["Enums"]["order_status"] | null
+          updated_at?: string | null
+        }
+        Update: {
+          activation_code?: string | null
+          agent_id?: string | null
+          compatibility_checked?: boolean | null
+          compatibility_warning_shown?: boolean | null
+          created_at?: string | null
+          customer_email?: string | null
+          customer_name?: string | null
+          customer_phone?: string | null
+          device_brand_id?: string | null
+          device_model_id?: string | null
+          esim_expiry_date?: string | null
+          esim_iccid?: string | null
+          esim_qr_code?: string | null
+          id?: string | null
+          manual_code?: string | null
+          plan_id?: string | null
+          real_status?: string | null
+          retail_price?: number | null
+          smdp_address?: string | null
+          status?: Database["public"]["Enums"]["order_status"] | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orders_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agent_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_device_brand_id_fkey"
+            columns: ["device_brand_id"]
+            isOneToOne: false
+            referencedRelation: "device_brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_device_model_id_fkey"
+            columns: ["device_model_id"]
+            isOneToOne: false
+            referencedRelation: "device_models"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "agent_safe_plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "esim_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agent_safe_plans: {
+        Row: {
+          admin_only: boolean | null
+          country_code: string | null
+          country_name: string | null
+          created_at: string | null
+          currency: string | null
+          data_amount: string | null
+          description: string | null
+          id: string | null
+          is_active: boolean | null
+          title: string | null
+          updated_at: string | null
+          validity_days: number | null
+        }
+        Insert: {
+          admin_only?: boolean | null
+          country_code?: string | null
+          country_name?: string | null
+          created_at?: string | null
+          currency?: string | null
+          data_amount?: string | null
+          description?: string | null
+          id?: string | null
+          is_active?: boolean | null
+          title?: string | null
+          updated_at?: string | null
+          validity_days?: number | null
+        }
+        Update: {
+          admin_only?: boolean | null
+          country_code?: string | null
+          country_name?: string | null
+          created_at?: string | null
+          currency?: string | null
+          data_amount?: string | null
+          description?: string | null
+          id?: string | null
+          is_active?: boolean | null
+          title?: string | null
+          updated_at?: string | null
+          validity_days?: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       audit_sensitive_operation: {
@@ -537,6 +766,42 @@ export type Database = {
           _table_name: string
         }
         Returns: undefined
+      }
+      get_agent_safe_plans: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          admin_only: boolean
+          country_code: string
+          country_name: string
+          created_at: string
+          currency: string
+          data_amount: string
+          description: string
+          id: string
+          is_active: boolean
+          title: string
+          updated_at: string
+          validity_days: number
+        }[]
+      }
+      get_agent_visible_plans: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          admin_only: boolean
+          country_code: string
+          country_name: string
+          created_at: string
+          currency: string
+          data_amount: string
+          description: string
+          id: string
+          is_active: boolean
+          supplier_plan_id: string
+          title: string
+          updated_at: string
+          validity_days: number
+          wholesale_price: number
+        }[]
       }
       has_role: {
         Args: {

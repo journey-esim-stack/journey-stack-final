@@ -20,8 +20,6 @@ interface AgentProfileRow {
   email?: string;
   status: Database["public"]["Enums"]["agent_status"];
   wallet_balance: number;
-  markup_type: "percent" | "flat" | "fixed";
-  markup_value: number;
   created_at: string;
   business_license?: string;
   lifetime_revenue?: number;
@@ -84,7 +82,6 @@ export default function AdminAgents() {
           return {
             ...agent,
             email: emailMap.get(agent.user_id) || 'Unknown',
-            markup_type: (agent.markup_type === "fixed" ? "flat" : agent.markup_type) as "percent" | "flat",
             lifetime_revenue: lifetimeRevenue
           } as AgentProfileRow;
         })
@@ -119,18 +116,12 @@ export default function AdminAgents() {
       // Optimistic update - update UI immediately
       setAgents(prev => prev.map(a => a.id === agent.id ? agent : a));
       
-      const updateData: any = { 
-        markup_type: agent.markup_type, 
-        markup_value: agent.markup_value 
+      const updateData: any = {
+        company_name: agent.company_name,
+        contact_person: agent.contact_person,
+        phone: agent.phone,
+        country: agent.country
       };
-      
-      // If this is for admin editing profile fields
-      if (agent.company_name || agent.contact_person || agent.phone || agent.country) {
-        updateData.company_name = agent.company_name;
-        updateData.contact_person = agent.contact_person;
-        updateData.phone = agent.phone;
-        updateData.country = agent.country;
-      }
       
       const { error } = await supabase
         .from("agent_profiles")
@@ -141,27 +132,8 @@ export default function AdminAgents() {
       
       toast({ 
         title: "Saved", 
-        description: `Updated ${agent.company_name}${
-          updateData.markup_type && updateData.markup_value 
-            ? ` - Markup: ${updateData.markup_value}${updateData.markup_type === 'percent' ? '%' : ' USD'}`
-            : ''
-        }` 
+        description: `Updated ${agent.company_name}` 
       });
-      
-      // Call audit function for markup changes
-      if (updateData.markup_type && updateData.markup_value) {
-        await supabase.rpc('audit_sensitive_operation', {
-          _table_name: 'agent_profiles',
-          _operation: 'markup_update',
-          _record_id: agent.id,
-          _details: {
-            old_markup_type: agent.markup_type,
-            old_markup_value: agent.markup_value,
-            new_markup_type: updateData.markup_type,
-            new_markup_value: updateData.markup_value
-          }
-        });
-      }
       
     } catch (err) {
       console.error("Save error:", err);
@@ -211,7 +183,7 @@ export default function AdminAgents() {
         <header className="flex justify-between items-start">
           <div>
             <h1 className="text-3xl font-bold">Agent Management</h1>
-            <p className="text-muted-foreground">Manage agent approvals, markups, and track performance</p>
+            <p className="text-muted-foreground">Manage agent approvals and track performance. Pricing is controlled via Agent Pricing Manager.</p>
           </div>
           <div className="text-right text-sm text-muted-foreground">
             <div>Total Agents: {agents.length}</div>
@@ -258,6 +230,19 @@ export default function AdminAgents() {
                       <p className="text-sm text-muted-foreground">{agent.contact_person}</p>
                       <p className="text-xs text-muted-foreground">{agent.email}</p>
                       <p className="text-xs text-muted-foreground">{agent.phone} • {agent.country}</p>
+                      <p className="text-xs text-muted-foreground font-mono">
+                        ID: 
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(agent.id);
+                            toast({ title: "Copied!", description: "Agent ID copied to clipboard" });
+                          }}
+                          className="ml-1 hover:text-primary transition-colors"
+                          title="Click to copy"
+                        >
+                          {agent.id}
+                        </button>
+                      </p>
                     </div>
                     <Badge variant={getStatusBadgeVariant(agent.status)}>
                       {agent.status}
@@ -333,30 +318,13 @@ export default function AdminAgents() {
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-2">
-                        <div>
-                          <Label>Markup Type</Label>
-                          <Select value={agent.markup_type} onValueChange={(v: "percent" | "flat") => setAgents(prev => prev.map(a => a.id === agent.id ? { ...a, markup_type: v } : a))}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select type" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="percent">Percent</SelectItem>
-                              <SelectItem value="flat">Flat (Fixed amount)</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div>
-                          <Label>Markup Value</Label>
-                          <Input type="number" step="0.01" value={agent.markup_value}
-                            onChange={(e) => setAgents(prev => prev.map(a => a.id === agent.id ? { ...a, markup_value: Number(e.target.value) } : a))}
-                          />
-                        </div>
-                      </div>
-
                       <Button onClick={() => saveAgent(agent)} size="sm">
-                        Save Changes
+                        Save Profile
                       </Button>
+                      
+                      <div className="text-xs text-muted-foreground text-center pt-2 border-t">
+                        Custom pricing available in Agent Pricing Manager. Default: 300% markup.
+                      </div>
                     </div>
                   )}
                 </CardContent>

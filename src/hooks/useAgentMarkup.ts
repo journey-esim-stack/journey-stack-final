@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { usePricingRules } from './usePricingRules';
+import { useAgentPreview } from '@/contexts/AgentPreviewContext';
 
 interface AgentMarkup {
   markup_type: string;
@@ -13,6 +15,7 @@ export const useAgentMarkup = () => {
   const [isConnected, setIsConnected] = useState(true);
   const [connectionAttempts, setConnectionAttempts] = useState(0);
   const [hasInitialized, setHasInitialized] = useState(false);
+  const [agentId, setAgentId] = useState<string | null>(null);
   
   const channelRef = useRef<any>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -21,8 +24,31 @@ export const useAgentMarkup = () => {
   const circuitBreakerRef = useRef(false);
   const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const calculatePrice = (wholesalePrice: number, markupData?: AgentMarkup) => {
-    const currentMarkup = markupData || markup;
+  const { calculatePrice: calculatePriceWithRules } = usePricingRules();
+  const { previewAgentId } = useAgentPreview();
+
+  const calculatePrice = useCallback((
+    wholesalePrice: number, 
+    options?: { 
+      supplierPlanId?: string;
+      countryCode?: string;
+    }
+  ) => {
+    // Use preview agent ID if available (for admin testing), otherwise use actual agent ID
+    const effectiveAgentId = previewAgentId || agentId;
+
+    // If supplier_plan_id is provided, use the pricing rules system
+    if (options?.supplierPlanId && effectiveAgentId) {
+      return calculatePriceWithRules({
+        wholesalePrice,
+        agentId: effectiveAgentId,
+        supplierPlanId: options.supplierPlanId,
+        countryCode: options.countryCode
+      });
+    }
+
+    // Fallback to legacy markup calculation
+    const currentMarkup = markup;
     
     // Default to 300% markup if no markup is set
     if (!currentMarkup) {
@@ -40,7 +66,7 @@ export const useAgentMarkup = () => {
     
     // Fallback to default 300% markup
     return wholesalePrice * 4;
-  };
+  }, [markup, agentId, previewAgentId, calculatePriceWithRules]);
 
   const setupRealtimeChannel = useCallback(async () => {
     if (channelRef.current) {
@@ -73,7 +99,6 @@ export const useAgentMarkup = () => {
               setMarkup(newMarkup);
               setIsConnected(true);
               setConnectionAttempts(0);
-              console.log('Markup updated in real-time:', newMarkup);
             }
           } catch (error) {
             console.error('Error handling markup update:', error);
@@ -148,8 +173,6 @@ export const useAgentMarkup = () => {
     return new Promise((resolve) => {
       debounceTimeoutRef.current = setTimeout(async () => {
         try {
-          console.log('🔍 fetchMarkup called - request count:', requestCountRef.current);
-          
           const { data: { user } } = await supabase.auth.getUser();
           if (!user) {
             setLoading(false);
@@ -169,7 +192,7 @@ export const useAgentMarkup = () => {
 
           const { data: profile, error } = await supabase
             .from('agent_profiles')
-            .select('markup_type, markup_value')
+            .select('id, markup_type, markup_value')
             .eq('user_id', user.id)
             .maybeSingle();
 
@@ -178,15 +201,15 @@ export const useAgentMarkup = () => {
           }
 
           if (!profile) {
-            console.log('No agent profile found - using default markup');
             setMarkup({ markup_type: 'percent', markup_value: 300 });
+            setAgentId(null);
           } else {
             const markupData = {
               markup_type: profile.markup_type || 'percent',
               markup_value: profile.markup_value ?? 300
             };
-            console.log('Fetched markup from database:', markupData);
             setMarkup(markupData);
+            setAgentId(profile.id);
           }
           setHasInitialized(true);
           
@@ -225,7 +248,6 @@ export const useAgentMarkup = () => {
     const initializeMarkup = async () => {
       if (!mounted || circuitBreakerRef.current) return;
       
-      console.log('🚀 Initializing markup hook');
       await debouncedFetchMarkup(true); // Force initial fetch
       
       // Setup realtime immediately after fetch, don't wait for hasInitialized
@@ -263,7 +285,6 @@ export const useAgentMarkup = () => {
 
     return () => {
       mounted = false;
-      console.log('🧹 Cleaning up markup hook');
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
       }

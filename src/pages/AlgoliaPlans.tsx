@@ -1,17 +1,21 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { InstantSearch, Configure, useSearchBox, useHits, useRefinementList, useStats, usePagination } from 'react-instantsearch';
 import { getSearchClient, ESIM_PLANS_INDEX } from "@/lib/algolia";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Globe, Clock, Database, Wifi, ShoppingCart, Check, Search as SearchIcon, AlertCircle, RefreshCw, Loader2 } from "lucide-react";
+import { Globe, Clock, Database, Wifi, ShoppingCart, Check, Search as SearchIcon, AlertCircle, RefreshCw, Loader2, Bug } from "lucide-react";
 import Layout from "@/components/Layout";
 import { getCountryFlag } from "@/utils/countryFlags";
 import { useCart } from "@/contexts/CartContext";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import { supabase } from "@/integrations/supabase/client";
+import { AgentPreviewSelector } from "@/components/AgentPreviewSelector";
 import { AlgoliaErrorBoundary } from "@/components/AlgoliaErrorBoundary";
+import { usePriceCalculator } from "@/hooks/usePriceCalculator";
+import { usePlanIdMapping } from "@/hooks/usePlanIdMapping";
+import { useAgentPlanPrices } from "@/hooks/useAgentPlanPrices";
 
 interface EsimPlan {
   objectID: string;
@@ -22,10 +26,8 @@ interface EsimPlan {
   country_code: string;
   data_amount: string;
   validity_days: number;
-  wholesale_price: number;
   currency: string;
   is_active: boolean;
-  supplier_name: string;
   admin_only: boolean;
   agent_price?: number;
 }
@@ -176,19 +178,19 @@ function CustomPagination() {
   );
 }
 
-function SearchResults({ agentMarkup }: { agentMarkup: { type: string; value: number } }) {
+function SearchResults({ calculatePrice, debugGetPriceMeta, isAdmin }: { calculatePrice: (price: number, options?: { supplierPlanId?: string; countryCode?: string; planId?: string }) => number; debugGetPriceMeta?: (price: number, options?: { supplierPlanId?: string; countryCode?: string; planId?: string }) => any; isAdmin?: boolean }) {
   const { hits } = useHits();
+  
+  const planIds = useMemo(() => hits.map((h: any) => h.id), [hits]);
+  const { getPrice: getBatchPrice } = useAgentPlanPrices(planIds);
   
   const transformHits = (hits: any[]) => {
     return hits.map(hit => {
       const basePrice = Number(hit.wholesale_price) || 0;
-      let agentPrice = basePrice;
-      
-      if (agentMarkup.type === 'percent') {
-        agentPrice = basePrice * (1 + agentMarkup.value / 100);
-      } else {
-        agentPrice = basePrice + agentMarkup.value;
-      }
+      const batchPrice = getBatchPrice(hit.id);
+      const agentPrice = batchPrice !== undefined
+        ? batchPrice
+        : calculatePrice(basePrice, { supplierPlanId: hit.supplier_plan_id, countryCode: hit.country_code, planId: hit.id });
       
       return {
         ...hit,
@@ -196,7 +198,6 @@ function SearchResults({ agentMarkup }: { agentMarkup: { type: string; value: nu
       };
     });
   };
-
   const transformedHits = transformHits(hits);
 
   if (transformedHits.length === 0) {
@@ -212,7 +213,7 @@ function SearchResults({ agentMarkup }: { agentMarkup: { type: string; value: nu
   );
 }
 
-function PlanHit({ hit }: { hit: EsimPlan }) {
+function PlanHit({ hit, isAdmin }: { hit: EsimPlan & { _canonical_supplier_id?: string }; isAdmin?: boolean }) {
   const [addedToCart, setAddedToCart] = useState(false);
   const [dayPassDays, setDayPassDays] = useState(Math.max(hit.validity_days || 1, 1));
   const { toast } = useToast();
@@ -232,7 +233,7 @@ function PlanHit({ hit }: { hit: EsimPlan }) {
     const days = isDayPass(hit) ? dayPassDays : hit.validity_days;
     const price = isDayPass(hit) ? hit.agent_price * dayPassDays : hit.agent_price;
 
-    const cartItem = {
+      const cartItem = {
       id: hit.id,
       planId: hit.id,
       title: hit.title,
@@ -242,7 +243,6 @@ function PlanHit({ hit }: { hit: EsimPlan }) {
       validityDays: days,
       agentPrice: price,
       currency: hit.currency,
-      supplier_name: hit.supplier_name,
     };
 
     addToCart(cartItem);
@@ -272,14 +272,19 @@ function PlanHit({ hit }: { hit: EsimPlan }) {
             <CardDescription className="flex items-center gap-2 mt-2 text-muted-foreground">
               <span className="text-lg">{flag}</span>
               <span className="font-medium">{hit.country_name}</span>
-              <Badge variant="outline" className="text-xs">
-                {hit.supplier_name === 'esim_access' ? 'eSIM Access' : 'Maya'}
-              </Badge>
             </CardDescription>
           </div>
           <div className="text-right flex-shrink-0">
-            <div className="text-2xl font-bold text-primary">
-              {getCurrencySymbol()}{convertedPrice.toFixed(2)}
+            <div className="flex flex-col items-end gap-1">
+              <div className="text-2xl font-bold text-primary">
+                {getCurrencySymbol()}{convertedPrice.toFixed(2)}
+              </div>
+              {isAdmin && hit._canonical_supplier_id && (
+                <Badge variant="outline" className="text-[9px] bg-purple-50 border-purple-200">
+                  <Bug className="h-2 w-2 mr-1" />
+                  {hit._canonical_supplier_id.substring(0, 10)}
+                </Badge>
+              )}
             </div>
             <div className="text-xs text-muted-foreground">
               Total Price
@@ -345,14 +350,14 @@ function PlanHit({ hit }: { hit: EsimPlan }) {
 }
 
 export default function AlgoliaPlans() {
-  const [userId, setUserId] = useState<string | null>(null);
-  const [agentMarkup, setAgentMarkup] = useState({ type: 'percent', value: 300 });
   const [searchClient, setSearchClient] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [algoliaError, setAlgoliaError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
   const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const { toast } = useToast();
+  const { calculatePrice, refreshPricing, debugGetPriceMeta } = usePriceCalculator();
 
   // Error boundary for Algolia failures
   const handleAlgoliaError = useCallback((error: Error) => {
@@ -414,37 +419,29 @@ export default function AlgoliaPlans() {
   }, [toast]);
 
   useEffect(() => {
+    const checkAdmin = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: roleData } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .eq('role', 'admin')
+        .maybeSingle();
+
+      setIsAdmin(!!roleData);
+    };
+    checkAdmin();
+  }, []);
+
+  useEffect(() => {
     const initializeAlgolia = async () => {
       await retryWithBackoff(async () => {
         // Get user data first
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) {
           throw new Error('User not authenticated');
-        }
-        
-        setUserId(user.id);
-        
-        // Fetch agent markup with caching
-        const cachedMarkup = localStorage.getItem(`agent_markup_${user.id}`);
-        if (cachedMarkup) {
-          setAgentMarkup(JSON.parse(cachedMarkup));
-        }
-
-        const { data: agentProfile } = await supabase
-          .from("agent_profiles")
-          .select("markup_type, markup_value")
-          .eq("user_id", user.id)
-          .single();
-
-        if (agentProfile) {
-          const markup = {
-            type: agentProfile.markup_type || 'percent',
-            value: agentProfile.markup_value !== null && agentProfile.markup_value !== undefined 
-              ? Number(agentProfile.markup_value) 
-              : 300
-          };
-          setAgentMarkup(markup);
-          localStorage.setItem(`agent_markup_${user.id}`, JSON.stringify(markup));
         }
 
         // Get dynamic Algolia client
@@ -584,6 +581,11 @@ export default function AlgoliaPlans() {
                 </Button>
               </div>
             </div>
+
+            {/* Admin Preview Selector */}
+            <div className="max-w-4xl mx-auto">
+              <AgentPreviewSelector />
+            </div>
           </div>
 
           <InstantSearch 
@@ -629,10 +631,18 @@ export default function AlgoliaPlans() {
               <div className="lg:col-span-3 space-y-6">
                 <div className="flex items-center justify-between">
                   <CustomStats />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={refreshPricing}
+                  >
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Refresh Pricing
+                  </Button>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                  <SearchResults agentMarkup={agentMarkup} />
+                  <SearchResults calculatePrice={calculatePrice} debugGetPriceMeta={debugGetPriceMeta} isAdmin={isAdmin} />
                 </div>
 
                 <CustomPagination />

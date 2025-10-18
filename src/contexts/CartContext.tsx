@@ -37,6 +37,12 @@ const CartContext = createContext<{
 const cartReducer = (state: CartState, action: CartAction): CartState => {
   switch (action.type) {
     case 'ADD_ITEM': {
+      // Validate price before adding
+      if (!action.payload.agentPrice || action.payload.agentPrice <= 0) {
+        console.error('❌ Attempted to add item with invalid price:', action.payload);
+        return state; // Don't modify state
+      }
+      
       const existingItem = state.items.find(item => item.planId === action.payload.planId);
       
       if (existingItem) {

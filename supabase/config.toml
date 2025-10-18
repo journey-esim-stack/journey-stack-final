@@ -65,3 +65,15 @@ verify_jwt = true
 
 [functions.sync-algolia-realtime]
 verify_jwt = true
+
+[functions.export-plan-uuids]
+verify_jwt = true
+
+[functions.get-agent-plan-prices]
+verify_jwt = true
+
+[functions.system-health-check]
+verify_jwt = true
+
+[functions.sync-esim-status]
+verify_jwt = true

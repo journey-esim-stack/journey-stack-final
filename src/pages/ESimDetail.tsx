@@ -40,6 +40,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import QRCode from "qrcode";
+import { getSupplierDisplayName } from "@/utils/supplierNames";
 
 // QR Code Display Component
 const QRCodeDisplay = ({ qrText, size = 256 }: { qrText: string; size?: number }) => {
@@ -357,7 +358,7 @@ const ESimDetail = () => {
       const isMayaEsim = supplier === 'maya';
       const functionName = isMayaEsim ? 'get-maya-esim-status' : 'get-esim-details';
       
-      console.log('ESimDetail - isMayaEsim:', isMayaEsim, 'supplier_name:', orderData.esim_plans?.supplier_name);
+      console.log('ESimDetail - isMayaEsim:', isMayaEsim, 'supplier:', getSupplierDisplayName(orderData.esim_plans?.supplier_name));
       
       // Fetch real-time details from provider API
       const { data: apiData, error: apiError } = await supabase.functions.invoke(functionName, {
@@ -374,29 +375,46 @@ const ESimDetail = () => {
           console.error("Error fetching eSIM details:", apiError);
         }
         
-        // Robust fallback: use stored real_status with centralized Maya parser
-        const mayaStatus = MayaStatusParser.getProcessedStatus(orderData.real_status, orderData.esim_plans?.supplier_name);
-        const currentStatusText = mayaStatus.displayStatus;
-        const isActive = mayaStatus.isActive;
-        const networkConnected = mayaStatus.isConnected;
+        // Fallback: compute from stored data for both suppliers
+        const supplier = String(orderData.esim_plans?.supplier_name || '').toLowerCase();
+        const isMayaFallback = supplier === 'maya';
+
+        let currentStatusText = 'Unknown';
+        let isActive = false;
+        let networkConnected = false;
+
+        if (isMayaFallback) {
+          const mayaStatus = MayaStatusParser.getProcessedStatus(orderData.real_status, 'maya');
+          currentStatusText = mayaStatus.displayStatus;
+          isActive = mayaStatus.isActive;
+          networkConnected = mayaStatus.isConnected;
+        } else {
+          const statusStr = String(orderData.real_status || '').toUpperCase();
+          currentStatusText = statusStr || 'Unknown';
+          isActive = ['IN_USE', 'USED_UP', 'ACTIVE'].includes(currentStatusText);
+          networkConnected = statusStr === 'IN_USE';
+        }
         
-        // For Maya eSIMs: Only set expiry date if network is connected
-        const shouldHaveExpiryDate = isMayaEsim ? networkConnected : isActive;
+        // Expiry calculation
+        const shouldHaveExpiryDate = isMayaFallback ? networkConnected : isActive;
         const expiryDate = shouldHaveExpiryDate 
-          ? (orderData.esim_expiry_date || new Date(Date.now() + (orderData.esim_plans?.validity_days || 30) * 24 * 60 * 60 * 1000).toISOString())
+          ? (
+              orderData.esim_expiry_date 
+              || (isMayaFallback ? null : new Date(new Date(orderData.created_at).getTime() + (orderData.esim_plans?.validity_days || 7) * 24 * 60 * 60 * 1000).toISOString())
+            )
           : null;
 
         const basicDetails: ESIMDetails = {
           iccid: iccid || "",
           status: currentStatusText,
           data_usage: {
-            used: 0,
+            used: isMayaFallback ? 0 : (['USED_UP'].includes(currentStatusText) ? parseFloat(orderData.esim_plans?.data_amount?.replace(/[^\d.]/g, '') || '0') : 0),
             total: parseFloat(orderData.esim_plans?.data_amount?.replace(/[^\d.]/g, '') || "3"),
             unit: "GB"
           },
           network: {
             connected: networkConnected,
-            operator: isMayaEsim ? (networkConnected ? "Connected to Network" : "Not Connected") : (networkConnected ? "Connected" : "Not Connected"),
+            operator: isMayaFallback ? (networkConnected ? "Connected to Network" : "Not Connected") : (networkConnected ? "Connected" : "Not Connected"),
             country: orderData.esim_plans?.country_name || "Unknown",
             signal_strength: networkConnected ? 85 : 0
           },
@@ -408,39 +426,9 @@ const ESimDetail = () => {
             plan_id: orderData.esim_plans?.id || ""
           },
           activation: {
-            qr_code: (() => {
-              if (isMayaEsim) {
-                try {
-                  const parsed = typeof orderData.real_status === 'string' && orderData.real_status.trim().startsWith('{') ? JSON.parse(orderData.real_status) : orderData.real_status;
-                  return parsed?.activation_code || orderData.esim_qr_code || "";
-                } catch {
-                  return orderData.esim_qr_code || "";
-                }
-              }
-              return orderData.esim_qr_code || "";
-            })(),
-            manual_code: (() => {
-              if (isMayaEsim) {
-                try {
-                  const parsed = typeof orderData.real_status === 'string' && orderData.real_status.trim().startsWith('{') ? JSON.parse(orderData.real_status) : orderData.real_status;
-                  return parsed?.manual_code || (orderData as any).manual_code || orderData.activation_code || "";
-                } catch {
-                  return (orderData as any).manual_code || orderData.activation_code || "";
-                }
-              }
-              return (orderData as any).manual_code || orderData.activation_code || "";
-            })(),
-            sm_dp_address: (() => {
-              if (isMayaEsim) {
-                try {
-                  const parsed = typeof orderData.real_status === 'string' && orderData.real_status.trim().startsWith('{') ? JSON.parse(orderData.real_status) : orderData.real_status;
-                  return parsed?.smdp_address || "consumer.e-sim.global";
-                } catch {
-                  return "consumer.e-sim.global";
-                }
-              }
-              return (orderData as any).smdp_address || "consumer.e-sim.global";
-            })()
+            qr_code: orderData.esim_qr_code || "",
+            manual_code: (orderData as any).manual_code || orderData.activation_code || "",
+            sm_dp_address: (orderData as any).smdp_address || "consumer.e-sim.global"
           },
           sessions: []
         };
@@ -482,18 +470,23 @@ const ESimDetail = () => {
         // Determine if active based on status
         const isActive = isMayaEsim
           ? (apiData.esim?.network_status === 'ENABLED' && apiData.esim?.state !== 'RELEASED')
-          : currentStatus === 'IN_USE';
+          : ['IN_USE', 'USED_UP', 'ACTIVE'].includes(String(currentStatus).toUpperCase());
         
         // For Maya, 'Connected' requires network_status === 'ENABLED' and state not RELEASED
         const networkConnected = isMayaEsim
           ? (apiData.esim?.network_status === 'ENABLED' && apiData.esim?.state !== 'RELEASED')
           : (isActive || apiData.obj?.network?.connected || false);
         
-        // For Maya eSIMs: Only set expiry date if network is ENABLED (connected)
+        // Calculate expiry date
         const shouldHaveExpiryDate = isMayaEsim ? networkConnected : isActive;
-        const expiryDate = shouldHaveExpiryDate 
-          ? (orderData.esim_expiry_date || apiData.obj?.plan?.expiresAt)
-          : null;
+        let expiryDate = null;
+        
+        if (shouldHaveExpiryDate) {
+          // Priority: DB stored date > API provided date > Calculate from creation + validity
+          expiryDate = orderData.esim_expiry_date 
+            || apiData.obj?.plan?.expiresAt 
+            || new Date(new Date(orderData.created_at).getTime() + (orderData.esim_plans?.validity_days || 7) * 24 * 60 * 60 * 1000).toISOString();
+        }
 
         console.log('ESimDetail - Final status for transform:', currentStatus);
 
@@ -549,8 +542,36 @@ const ESimDetail = () => {
     }
   };
 
-  const handleManualRefresh = () => {
-    fetchESIMDetails(true);
+  const handleManualRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      // First sync the status from the provider API
+      const { data: syncData, error: syncError } = await supabase.functions.invoke('sync-esim-status', {
+        body: { iccid }
+      });
+
+      if (syncError) {
+        console.error('Sync error:', syncError);
+        toast({ 
+          title: "Sync Warning", 
+          description: "Failed to sync with provider. Showing cached data.", 
+          variant: "default" 
+        });
+      } else {
+        console.log('Sync successful:', syncData);
+      }
+
+      // Then fetch the updated details
+      await fetchESIMDetails(true);
+    } catch (error) {
+      console.error('Manual refresh error:', error);
+      toast({ 
+        title: "Error", 
+        description: "Failed to refresh eSIM data", 
+        variant: "destructive" 
+      });
+      setIsRefreshing(false);
+    }
   };
 
   const copyToClipboard = (text: string) => {
@@ -1021,31 +1042,48 @@ Instructions:
                     </div>
                   </div>
 
-                  {/* Expiration (show only when connected and has expiry date) */}
-                  {esimDetails.network.connected && esimDetails.plan.expires_at && (
-                    <div className="text-center">
-                      <p className="text-sm text-muted-foreground mb-2">Expiration</p>
-                      <div className="text-sm">
-                        {format(new Date(esimDetails.plan.expires_at), "yyyy-MM-dd")}
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {format(new Date(esimDetails.plan.expires_at), "HH:mm:ss")}
-                      </div>
-                    </div>
-                  )}
-                  
-                  {/* Not Connected Status for Maya eSIMs */}
-                  {!esimDetails.network.connected && orderInfo?.esim_plans?.supplier_name?.toLowerCase() === 'maya' && (
-                    <div className="text-center">
-                      <p className="text-sm text-muted-foreground mb-2">Status</p>
-                      <div className="text-sm text-orange-600 font-medium">
-                        Awaiting Network Connection
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        No expiry until connected
-                      </div>
-                    </div>
-                  )}
+                  {/* Expiration - Show for active/used eSIMs */}
+                  {(() => {
+                    const isActiveStatus = ['IN_USE', 'USED_UP', 'ACTIVE', 'ENABLED'].includes(esimDetails.status);
+                    const isMayaEsim = orderInfo?.esim_plans?.supplier_name?.toLowerCase() === 'maya';
+                    
+                    // For Maya: only show if connected
+                    // For others: show if status is active/used
+                    const shouldShowExpiry = isMayaEsim 
+                      ? (esimDetails.network.connected && esimDetails.plan.expires_at)
+                      : (isActiveStatus && esimDetails.plan.expires_at);
+                    
+                    if (shouldShowExpiry) {
+                      return (
+                        <div className="text-center">
+                          <p className="text-sm text-muted-foreground mb-2">Expiration</p>
+                          <div className="text-sm">
+                            {format(new Date(esimDetails.plan.expires_at), "yyyy-MM-dd")}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {format(new Date(esimDetails.plan.expires_at), "HH:mm:ss")}
+                          </div>
+                        </div>
+                      );
+                    }
+                    
+                    // Show "Awaiting Connection" for Maya eSIMs not connected
+                    if (isMayaEsim && !esimDetails.network.connected) {
+                      return (
+                        <div className="text-center">
+                          <p className="text-sm text-muted-foreground mb-2">Status</p>
+                          <div className="text-sm text-orange-600 font-medium">
+                            Awaiting Network Connection
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            No expiry until connected
+                          </div>
+                        </div>
+                      );
+                    }
+                    
+                    return null;
+                  })()}
                 </div>
 
                 {/* Top-up Button Row */}

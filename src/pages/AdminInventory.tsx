@@ -46,6 +46,7 @@ export default function AdminInventory() {
   const [agentFilter, setAgentFilter] = useState<string>("all");
   const [agents, setAgents] = useState<Array<{id: string, company_name: string}>>([]);
   const [networkStatusMap, setNetworkStatusMap] = useState<Map<string, boolean>>(new Map());
+  const [esimStatusMap, setEsimStatusMap] = useState<Map<string, string>>(new Map());
   const { toast } = useToast();
 
   useEffect(() => {
@@ -205,7 +206,27 @@ export default function AdminInventory() {
   };
 
   const fetchNetworkStatuses = async () => {
-    const statusMap = new Map<string, boolean>();
+    const networkMap = new Map<string, boolean>();
+    const statusTextMap = new Map<string, string>();
+
+    // Helper to format eSIM Access raw statuses similar to the eSIM detail page
+    const formatEsimAccessStatus = (raw?: string) => {
+      const s = String(raw || '').toUpperCase();
+      switch (s) {
+        case 'IN_USE':
+          return 'Active';
+        case 'USED_UP':
+          return 'Used Up';
+        case 'USED_EXPIRED':
+          return 'Expired';
+        case 'CANCEL':
+          return 'Ready';
+        case 'NOT_ACTIVE':
+          return 'Not Active';
+        default:
+          return s || 'Unknown';
+      }
+    };
     
     // Get unique ICCIDs that have actual values
     const iccidsToCheck = [...new Set(
@@ -214,56 +235,64 @@ export default function AdminInventory() {
         .map(item => item.esim_iccid)
     )];
 
-    console.log(`Checking network status for ${iccidsToCheck.length} unique ICCIDs`);
+    console.log(`Checking live status for ${iccidsToCheck.length} unique ICCIDs`);
 
-    // Process in batches to avoid overwhelming the API
     const batchSize = 10;
     for (let i = 0; i < iccidsToCheck.length; i += batchSize) {
       const batch = iccidsToCheck.slice(i, i + batchSize);
-      
+
       await Promise.all(
         batch.map(async (iccid) => {
           try {
-            // Find the plan to determine supplier
-            const item = inventory.find(item => item.esim_iccid === iccid);
+            const item = inventory.find(it => it.esim_iccid === iccid);
             const supplierName = (item as any)?.supplier_name || 'esim_access';
-            
+
             if (supplierName === 'maya') {
-              // Check Maya eSIM status
+              // Live Maya status
               const { data: mayaResponse } = await supabase.functions.invoke('get-maya-esim-status', {
                 body: { iccid }
               });
-              
+
               if (mayaResponse?.success && mayaResponse.status) {
-                const { network_status, state } = mayaResponse.status;
-                const isConnected = network_status === 'ENABLED' && state !== 'RELEASED';
-                statusMap.set(iccid, isConnected);
+                const payload = mayaResponse.status;
+                const processed = MayaStatusParser.getProcessedStatus(
+                  typeof payload === 'object' ? JSON.stringify(payload) : payload,
+                  'maya'
+                );
+                statusTextMap.set(iccid, processed.displayStatus);
+                networkMap.set(iccid, processed.isConnected === true);
               }
             } else {
-              // Check eSIM Access status
+              // Live eSIM Access details
               const { data: detailsResponse } = await supabase.functions.invoke('get-esim-details', {
                 body: { iccid }
               });
-              
-              if (detailsResponse?.success && detailsResponse?.obj?.network) {
-                const isConnected = detailsResponse.obj.network.connected === true;
-                statusMap.set(iccid, isConnected);
+
+              const esim = detailsResponse?.obj?.esimList?.[0];
+              if (detailsResponse?.success && esim) {
+                const rawStatus = esim.esimStatus as string | undefined;
+                const display = formatEsimAccessStatus(rawStatus);
+                statusTextMap.set(iccid, display);
+
+                // Align with management page: consider IN_USE as connected
+                const isConnected = String(rawStatus || '').toUpperCase() === 'IN_USE';
+                networkMap.set(iccid, isConnected);
               }
             }
           } catch (error) {
-            console.error(`Error checking status for ${iccid}:`, error);
+            console.error(`Error checking live status for ${iccid}:`, error);
           }
         })
       );
-      
-      // Add a small delay between batches
+
       if (i + batchSize < iccidsToCheck.length) {
         await new Promise(resolve => setTimeout(resolve, 100));
       }
     }
 
-    setNetworkStatusMap(statusMap);
-    console.log(`Network status checked for ${statusMap.size} eSIMs`);
+    setNetworkStatusMap(networkMap);
+    setEsimStatusMap(statusTextMap);
+    console.log(`Live status updated for ${statusTextMap.size} eSIMs; network for ${networkMap.size}`);
   };
 
   const filterInventory = () => {
@@ -340,19 +369,18 @@ export default function AdminInventory() {
     if (['IN_USE', 'ENABLED', 'ACTIVE'].includes(upperStatus)) {
       return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300';
     }
-    if (['USED_UP'].includes(upperStatus)) {
+    if (['USED_UP', 'USED UP'].includes(upperStatus)) {
       return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300';
     }
-    if (['NOT_ACTIVE', 'DISABLED', 'RELEASED'].includes(upperStatus)) {
+    if (['NOT_ACTIVE', 'NOT ACTIVE', 'DISABLED', 'RELEASED'].includes(upperStatus)) {
       return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300';
     }
-    if (['SUSPENDED', 'FAILED'].includes(upperStatus)) {
+    if (['SUSPENDED', 'FAILED', 'EXPIRED', 'USED_EXPIRED', 'USED EXPIRED'].includes(upperStatus)) {
       return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300';
     }
     
     return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300';
   };
-
   return (
     <Layout>
       <div className="space-y-6">
@@ -537,15 +565,15 @@ export default function AdminInventory() {
                           <div className="text-sm text-muted-foreground">-</div>
                         </td>
                         <td className="p-3">
-                          <Badge className={getStatusColor(item.esim_status || 'Unknown')}>
-                            {item.esim_status || 'Unknown'}
+                          <Badge className={getStatusColor(esimStatusMap.get(item.esim_iccid) || item.esim_status || 'Unknown')}>
+                            {esimStatusMap.get(item.esim_iccid) || item.esim_status || 'Unknown'}
                           </Badge>
                         </td>
                         <td className="p-3">
                           <div className="flex items-center gap-2">
-                            <div className={`w-2 h-2 rounded-full ${item.network_connected ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`}></div>
+                            <div className={`w-2 h-2 rounded-full ${ (networkStatusMap.get(item.esim_iccid) ?? item.network_connected) ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`}></div>
                             <span className="text-sm">
-                              {item.network_connected ? 'Connected' : 'Not Connected'}
+                              {(networkStatusMap.get(item.esim_iccid) ?? item.network_connected) ? 'Connected' : 'Not Connected'}
                             </span>
                           </div>
                         </td>

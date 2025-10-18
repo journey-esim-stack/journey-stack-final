@@ -32,9 +32,6 @@ interface InventoryItem {
   activation_code?: string;
   supplier_order_id?: string;
   supplier_name?: string;
-  real_status?: string;
-  esim_status?: string;
-  network_connected?: boolean;
 }
 
 export default function AdminInventory() {
@@ -45,8 +42,6 @@ export default function AdminInventory() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [agentFilter, setAgentFilter] = useState<string>("all");
   const [agents, setAgents] = useState<Array<{id: string, company_name: string}>>([]);
-  const [networkStatusMap, setNetworkStatusMap] = useState<Map<string, boolean>>(new Map());
-  const [esimStatusMap, setEsimStatusMap] = useState<Map<string, string>>(new Map());
   const { toast } = useToast();
 
   useEffect(() => {
@@ -84,12 +79,6 @@ export default function AdminInventory() {
       supabase.removeChannel(channel);
     };
   }, []);
-
-  useEffect(() => {
-    if (inventory.length > 0) {
-      fetchNetworkStatuses();
-    }
-  }, [inventory]);
 
   useEffect(() => {
     filterInventory();
@@ -146,49 +135,28 @@ export default function AdminInventory() {
 
       console.log("Direct query orders fetched:", orders?.length || 0);
 
-      // Transform the data with proper status parsing
-      const inventoryData: InventoryItem[] = (orders || []).map((order: any) => {
-        const supplier = String(order.esim_plans?.supplier_name || '').toLowerCase();
-        const isMaya = supplier === 'maya';
-        
-        let esimStatus = 'Unknown';
-        let networkConnected = false;
-        
-        if (isMaya) {
-          const mayaStatus = MayaStatusParser.getProcessedStatus(order.real_status, 'maya');
-          esimStatus = mayaStatus.displayStatus;
-          networkConnected = mayaStatus.isConnected;
-        } else {
-          const statusStr = String(order.real_status || '').toUpperCase();
-          esimStatus = statusStr || 'Unknown';
-          networkConnected = statusStr === 'IN_USE';
-        }
-        
-        return {
-          id: order.id,
-          agent_id: order.agent_id,
-          agent_name: order.agent_profiles?.contact_person || 'Unknown',
-          company_name: order.agent_profiles?.company_name || 'Unknown Company',
-          esim_iccid: order.esim_iccid || 'Pending',
-          plan_id: order.plan_id,
-          plan_title: order.esim_plans?.title || 'Unknown Plan',
-          country_name: order.esim_plans?.country_name || 'Unknown',
-          data_amount: order.esim_plans?.data_amount || 'Unknown',
-          retail_price: order.retail_price,
-          wholesale_price: order.wholesale_price,
-          status: order.status,
-          created_at: order.created_at,
-          updated_at: order.updated_at,
-          customer_name: order.customer_name,
-          customer_email: order.customer_email,
-          activation_code: order.activation_code,
-          supplier_order_id: order.supplier_order_id,
-          supplier_name: order.esim_plans?.supplier_name || 'esim_access',
-          real_status: order.real_status,
-          esim_status: esimStatus,
-          network_connected: networkConnected
-        };
-      });
+      // Transform the data
+      const inventoryData: InventoryItem[] = (orders || []).map((order: any) => ({
+        id: order.id,
+        agent_id: order.agent_id,
+        agent_name: order.agent_profiles?.contact_person || 'Unknown',
+        company_name: order.agent_profiles?.company_name || 'Unknown Company',
+        esim_iccid: order.esim_iccid || 'Pending',
+        plan_id: order.plan_id,
+        plan_title: order.esim_plans?.title || 'Unknown Plan',
+        country_name: order.esim_plans?.country_name || 'Unknown',
+        data_amount: order.esim_plans?.data_amount || 'Unknown',
+        retail_price: order.retail_price,
+        wholesale_price: order.wholesale_price,
+        status: order.status,
+        created_at: order.created_at,
+        updated_at: order.updated_at,
+        customer_name: order.customer_name,
+        customer_email: order.customer_email,
+        activation_code: order.activation_code,
+        supplier_order_id: order.supplier_order_id,
+        supplier_name: order.esim_plans?.supplier_name || 'esim_access',
+      }));
 
       console.log("Direct query inventory data:", inventoryData.length);
       setInventory(inventoryData);
@@ -205,95 +173,6 @@ export default function AdminInventory() {
     }
   };
 
-  const fetchNetworkStatuses = async () => {
-    const networkMap = new Map<string, boolean>();
-    const statusTextMap = new Map<string, string>();
-
-    // Helper to format eSIM Access raw statuses similar to the eSIM detail page
-    const formatEsimAccessStatus = (raw?: string) => {
-      const s = String(raw || '').toUpperCase();
-      switch (s) {
-        case 'IN_USE':
-          return 'Active';
-        case 'USED_UP':
-          return 'Used Up';
-        case 'USED_EXPIRED':
-          return 'Expired';
-        case 'CANCEL':
-          return 'Ready';
-        case 'NOT_ACTIVE':
-          return 'Not Active';
-        default:
-          return s || 'Unknown';
-      }
-    };
-    
-    // Get unique ICCIDs that have actual values
-    const iccidsToCheck = [...new Set(
-      inventory
-        .filter(item => item.esim_iccid && item.esim_iccid !== 'Pending')
-        .map(item => item.esim_iccid)
-    )];
-
-    console.log(`Checking live status for ${iccidsToCheck.length} unique ICCIDs`);
-
-    const batchSize = 10;
-    for (let i = 0; i < iccidsToCheck.length; i += batchSize) {
-      const batch = iccidsToCheck.slice(i, i + batchSize);
-
-      await Promise.all(
-        batch.map(async (iccid) => {
-          try {
-            const item = inventory.find(it => it.esim_iccid === iccid);
-            const supplierName = (item as any)?.supplier_name || 'esim_access';
-
-            if (supplierName === 'maya') {
-              // Live Maya status
-              const { data: mayaResponse } = await supabase.functions.invoke('get-maya-esim-status', {
-                body: { iccid }
-              });
-
-              if (mayaResponse?.success && mayaResponse.status) {
-                const payload = mayaResponse.status;
-                const processed = MayaStatusParser.getProcessedStatus(
-                  typeof payload === 'object' ? JSON.stringify(payload) : payload,
-                  'maya'
-                );
-                statusTextMap.set(iccid, processed.displayStatus);
-                networkMap.set(iccid, processed.isConnected === true);
-              }
-            } else {
-              // Live eSIM Access details
-              const { data: detailsResponse } = await supabase.functions.invoke('get-esim-details', {
-                body: { iccid }
-              });
-
-              const esim = detailsResponse?.obj?.esimList?.[0];
-              if (detailsResponse?.success && esim) {
-                const rawStatus = esim.esimStatus as string | undefined;
-                const display = formatEsimAccessStatus(rawStatus);
-                statusTextMap.set(iccid, display);
-
-                // Align with management page: consider IN_USE as connected
-                const isConnected = String(rawStatus || '').toUpperCase() === 'IN_USE';
-                networkMap.set(iccid, isConnected);
-              }
-            }
-          } catch (error) {
-            console.error(`Error checking live status for ${iccid}:`, error);
-          }
-        })
-      );
-
-      if (i + batchSize < iccidsToCheck.length) {
-        await new Promise(resolve => setTimeout(resolve, 100));
-      }
-    }
-
-    setNetworkStatusMap(networkMap);
-    setEsimStatusMap(statusTextMap);
-    console.log(`Live status updated for ${statusTextMap.size} eSIMs; network for ${networkMap.size}`);
-  };
 
   const filterInventory = () => {
     let filtered = inventory;
@@ -363,23 +242,18 @@ export default function AdminInventory() {
   };
 
   const getStatusColor = (status: string) => {
-    const upperStatus = status.toUpperCase();
-    
-    // eSIM Status colors
-    if (['IN_USE', 'ENABLED', 'ACTIVE'].includes(upperStatus)) {
-      return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300';
+    switch (status.toLowerCase()) {
+      case 'completed':
+        return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300';
+      case 'processing':
+        return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300';
+      case 'pending':
+        return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300';
+      case 'failed':
+        return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300';
+      default:
+        return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300';
     }
-    if (['USED_UP', 'USED UP'].includes(upperStatus)) {
-      return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300';
-    }
-    if (['NOT_ACTIVE', 'NOT ACTIVE', 'DISABLED', 'RELEASED'].includes(upperStatus)) {
-      return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300';
-    }
-    if (['SUSPENDED', 'FAILED', 'EXPIRED', 'USED_EXPIRED', 'USED EXPIRED'].includes(upperStatus)) {
-      return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300';
-    }
-    
-    return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300';
   };
   return (
     <Layout>
@@ -470,13 +344,9 @@ export default function AdminInventory() {
           <Card>
             <CardContent className="p-6">
               <div className="text-2xl font-bold">
-                {inventory.filter(item => 
-                  item.esim_iccid && 
-                  item.esim_iccid !== 'Pending' && 
-                  networkStatusMap.get(item.esim_iccid) === true
-                ).length}
+                {inventory.filter(item => item.status === 'completed').length}
               </div>
-              <p className="text-sm text-muted-foreground">Active eSIMs</p>
+              <p className="text-sm text-muted-foreground">Completed eSIMs</p>
             </CardContent>
           </Card>
           <Card>
@@ -519,8 +389,6 @@ export default function AdminInventory() {
                       <th className="text-left p-3">Country</th>
                       <th className="text-left p-3">Data Plan</th>
                       <th className="text-left p-3">Device</th>
-                      <th className="text-left p-3">Status</th>
-                      <th className="text-left p-3">Network Status</th>
                       <th className="text-left p-3">Actions</th>
                     </tr>
                   </thead>
@@ -563,19 +431,6 @@ export default function AdminInventory() {
                         </td>
                         <td className="p-3">
                           <div className="text-sm text-muted-foreground">-</div>
-                        </td>
-                        <td className="p-3">
-                          <Badge className={getStatusColor(esimStatusMap.get(item.esim_iccid) || item.esim_status || 'Unknown')}>
-                            {esimStatusMap.get(item.esim_iccid) || item.esim_status || 'Unknown'}
-                          </Badge>
-                        </td>
-                        <td className="p-3">
-                          <div className="flex items-center gap-2">
-                            <div className={`w-2 h-2 rounded-full ${ (networkStatusMap.get(item.esim_iccid) ?? item.network_connected) ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`}></div>
-                            <span className="text-sm">
-                              {(networkStatusMap.get(item.esim_iccid) ?? item.network_connected) ? 'Connected' : 'Not Connected'}
-                            </span>
-                          </div>
                         </td>
                         <td className="p-3">
                           <Button

@@ -10,6 +10,7 @@ import { Download, Search, RefreshCw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import * as XLSX from 'xlsx';
 import { getSupplierDisplayName } from "@/utils/supplierNames";
+import { MayaStatusParser } from "@/utils/mayaStatus";
 
 interface InventoryItem {
   id: string;

@@ -375,29 +375,46 @@ const ESimDetail = () => {
           console.error("Error fetching eSIM details:", apiError);
         }
         
-        // Robust fallback: use stored real_status with centralized Maya parser
-        const mayaStatus = MayaStatusParser.getProcessedStatus(orderData.real_status, orderData.esim_plans?.supplier_name);
-        const currentStatusText = mayaStatus.displayStatus;
-        const isActive = mayaStatus.isActive;
-        const networkConnected = mayaStatus.isConnected;
+        // Fallback: compute from stored data for both suppliers
+        const supplier = String(orderData.esim_plans?.supplier_name || '').toLowerCase();
+        const isMayaFallback = supplier === 'maya';
+
+        let currentStatusText = 'Unknown';
+        let isActive = false;
+        let networkConnected = false;
+
+        if (isMayaFallback) {
+          const mayaStatus = MayaStatusParser.getProcessedStatus(orderData.real_status, 'maya');
+          currentStatusText = mayaStatus.displayStatus;
+          isActive = mayaStatus.isActive;
+          networkConnected = mayaStatus.isConnected;
+        } else {
+          const statusStr = String(orderData.real_status || '').toUpperCase();
+          currentStatusText = statusStr || 'Unknown';
+          isActive = ['IN_USE', 'USED_UP', 'ACTIVE'].includes(currentStatusText);
+          networkConnected = statusStr === 'IN_USE';
+        }
         
-        // For Maya eSIMs: Only set expiry date if network is connected
-        const shouldHaveExpiryDate = isMayaEsim ? networkConnected : isActive;
+        // Expiry calculation
+        const shouldHaveExpiryDate = isMayaFallback ? networkConnected : isActive;
         const expiryDate = shouldHaveExpiryDate 
-          ? (orderData.esim_expiry_date || new Date(Date.now() + (orderData.esim_plans?.validity_days || 30) * 24 * 60 * 60 * 1000).toISOString())
+          ? (
+              orderData.esim_expiry_date 
+              || (isMayaFallback ? null : new Date(new Date(orderData.created_at).getTime() + (orderData.esim_plans?.validity_days || 7) * 24 * 60 * 60 * 1000).toISOString())
+            )
           : null;
 
         const basicDetails: ESIMDetails = {
           iccid: iccid || "",
           status: currentStatusText,
           data_usage: {
-            used: 0,
+            used: isMayaFallback ? 0 : (['USED_UP'].includes(currentStatusText) ? parseFloat(orderData.esim_plans?.data_amount?.replace(/[^\d.]/g, '') || '0') : 0),
             total: parseFloat(orderData.esim_plans?.data_amount?.replace(/[^\d.]/g, '') || "3"),
             unit: "GB"
           },
           network: {
             connected: networkConnected,
-            operator: isMayaEsim ? (networkConnected ? "Connected to Network" : "Not Connected") : (networkConnected ? "Connected" : "Not Connected"),
+            operator: isMayaFallback ? (networkConnected ? "Connected to Network" : "Not Connected") : (networkConnected ? "Connected" : "Not Connected"),
             country: orderData.esim_plans?.country_name || "Unknown",
             signal_strength: networkConnected ? 85 : 0
           },
@@ -409,39 +426,9 @@ const ESimDetail = () => {
             plan_id: orderData.esim_plans?.id || ""
           },
           activation: {
-            qr_code: (() => {
-              if (isMayaEsim) {
-                try {
-                  const parsed = typeof orderData.real_status === 'string' && orderData.real_status.trim().startsWith('{') ? JSON.parse(orderData.real_status) : orderData.real_status;
-                  return parsed?.activation_code || orderData.esim_qr_code || "";
-                } catch {
-                  return orderData.esim_qr_code || "";
-                }
-              }
-              return orderData.esim_qr_code || "";
-            })(),
-            manual_code: (() => {
-              if (isMayaEsim) {
-                try {
-                  const parsed = typeof orderData.real_status === 'string' && orderData.real_status.trim().startsWith('{') ? JSON.parse(orderData.real_status) : orderData.real_status;
-                  return parsed?.manual_code || (orderData as any).manual_code || orderData.activation_code || "";
-                } catch {
-                  return (orderData as any).manual_code || orderData.activation_code || "";
-                }
-              }
-              return (orderData as any).manual_code || orderData.activation_code || "";
-            })(),
-            sm_dp_address: (() => {
-              if (isMayaEsim) {
-                try {
-                  const parsed = typeof orderData.real_status === 'string' && orderData.real_status.trim().startsWith('{') ? JSON.parse(orderData.real_status) : orderData.real_status;
-                  return parsed?.smdp_address || "consumer.e-sim.global";
-                } catch {
-                  return "consumer.e-sim.global";
-                }
-              }
-              return (orderData as any).smdp_address || "consumer.e-sim.global";
-            })()
+            qr_code: orderData.esim_qr_code || "",
+            manual_code: (orderData as any).manual_code || orderData.activation_code || "",
+            sm_dp_address: (orderData as any).smdp_address || "consumer.e-sim.global"
           },
           sessions: []
         };

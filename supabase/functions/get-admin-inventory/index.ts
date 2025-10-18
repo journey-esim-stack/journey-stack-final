@@ -37,28 +37,68 @@ serve(async (req) => {
 
     console.log("Orders fetched:", orders?.length || 0);
 
-    // Transform the data
-    const inventoryData = (orders || []).map((order: any) => ({
-      id: order.id,
-      agent_id: order.agent_id,
-      agent_name: order.agent_profiles?.contact_person || 'Unknown',
-      company_name: order.agent_profiles?.company_name || 'Unknown Company',
-      esim_iccid: order.esim_iccid || 'Pending',
-      plan_id: order.plan_id,
-      plan_title: order.esim_plans?.title || 'Unknown Plan',
-      country_name: order.esim_plans?.country_name || 'Unknown',
-      data_amount: order.esim_plans?.data_amount || 'Unknown',
-      retail_price: order.retail_price,
-      wholesale_price: order.wholesale_price,
-      status: order.status,
-      created_at: order.created_at,
-      updated_at: order.updated_at,
-      customer_name: order.customer_name,
-      customer_email: order.customer_email,
-      activation_code: order.activation_code,
-      supplier_order_id: order.supplier_order_id,
-      supplier_name: order.esim_plans?.supplier_name || 'esim_access'
-    }));
+    // Transform the data with status parsing
+    const inventoryData = (orders || []).map((order: any) => {
+      const supplier = String(order.esim_plans?.supplier_name || '').toLowerCase();
+      const isMaya = supplier === 'maya';
+      
+      // Parse status based on supplier
+      let esimStatus = 'Unknown';
+      let networkConnected = false;
+      
+      if (isMaya) {
+        // Parse Maya status
+        let parsedStatus: any = {};
+        try {
+          if (typeof order.real_status === 'string' && order.real_status.trim().startsWith('{')) {
+            parsedStatus = JSON.parse(order.real_status);
+          }
+        } catch (e) {
+          console.error('Failed to parse Maya status:', e);
+        }
+        
+        const state = parsedStatus.state;
+        const networkStatus = parsedStatus.network_status;
+        
+        if (state === 'RELEASED' && networkStatus === 'ENABLED') {
+          esimStatus = 'NOT_ACTIVE';
+          networkConnected = false;
+        } else {
+          esimStatus = networkStatus || 'Unknown';
+          networkConnected = networkStatus === 'ENABLED' && state !== 'RELEASED';
+        }
+      } else {
+        // Parse eSIM Access status
+        const statusStr = String(order.real_status || '').toUpperCase();
+        esimStatus = statusStr || 'Unknown';
+        networkConnected = statusStr === 'IN_USE';
+      }
+      
+      return {
+        id: order.id,
+        agent_id: order.agent_id,
+        agent_name: order.agent_profiles?.contact_person || 'Unknown',
+        company_name: order.agent_profiles?.company_name || 'Unknown Company',
+        esim_iccid: order.esim_iccid || 'Pending',
+        plan_id: order.plan_id,
+        plan_title: order.esim_plans?.title || 'Unknown Plan',
+        country_name: order.esim_plans?.country_name || 'Unknown',
+        data_amount: order.esim_plans?.data_amount || 'Unknown',
+        retail_price: order.retail_price,
+        wholesale_price: order.wholesale_price,
+        status: order.status,
+        created_at: order.created_at,
+        updated_at: order.updated_at,
+        customer_name: order.customer_name,
+        customer_email: order.customer_email,
+        activation_code: order.activation_code,
+        supplier_order_id: order.supplier_order_id,
+        supplier_name: order.esim_plans?.supplier_name || 'esim_access',
+        real_status: order.real_status,
+        esim_status: esimStatus,
+        network_connected: networkConnected
+      };
+    });
 
     console.log("Inventory data transformed:", inventoryData.length);
 

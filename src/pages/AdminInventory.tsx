@@ -32,6 +32,9 @@ interface InventoryItem {
   activation_code?: string;
   supplier_order_id?: string;
   supplier_name?: string;
+  real_status?: string;
+  esim_status?: string;
+  network_connected?: boolean;
 }
 
 export default function AdminInventory() {
@@ -142,28 +145,49 @@ export default function AdminInventory() {
 
       console.log("Direct query orders fetched:", orders?.length || 0);
 
-      // Transform the data
-      const inventoryData: InventoryItem[] = (orders || []).map((order: any) => ({
-        id: order.id,
-        agent_id: order.agent_id,
-        agent_name: order.agent_profiles?.contact_person || 'Unknown',
-        company_name: order.agent_profiles?.company_name || 'Unknown Company',
-        esim_iccid: order.esim_iccid || 'Pending',
-        plan_id: order.plan_id,
-        plan_title: order.esim_plans?.title || 'Unknown Plan',
-        country_name: order.esim_plans?.country_name || 'Unknown',
-        data_amount: order.esim_plans?.data_amount || 'Unknown',
-        retail_price: order.retail_price,
-        wholesale_price: order.wholesale_price,
-        status: order.status,
-        created_at: order.created_at,
-        updated_at: order.updated_at,
-        customer_name: order.customer_name,
-        customer_email: order.customer_email,
-        activation_code: order.activation_code,
-        supplier_order_id: order.supplier_order_id,
-        supplier_name: order.esim_plans?.supplier_name || 'esim_access'
-      }));
+      // Transform the data with proper status parsing
+      const inventoryData: InventoryItem[] = (orders || []).map((order: any) => {
+        const supplier = String(order.esim_plans?.supplier_name || '').toLowerCase();
+        const isMaya = supplier === 'maya';
+        
+        let esimStatus = 'Unknown';
+        let networkConnected = false;
+        
+        if (isMaya) {
+          const mayaStatus = MayaStatusParser.getProcessedStatus(order.real_status, 'maya');
+          esimStatus = mayaStatus.displayStatus;
+          networkConnected = mayaStatus.isConnected;
+        } else {
+          const statusStr = String(order.real_status || '').toUpperCase();
+          esimStatus = statusStr || 'Unknown';
+          networkConnected = statusStr === 'IN_USE';
+        }
+        
+        return {
+          id: order.id,
+          agent_id: order.agent_id,
+          agent_name: order.agent_profiles?.contact_person || 'Unknown',
+          company_name: order.agent_profiles?.company_name || 'Unknown Company',
+          esim_iccid: order.esim_iccid || 'Pending',
+          plan_id: order.plan_id,
+          plan_title: order.esim_plans?.title || 'Unknown Plan',
+          country_name: order.esim_plans?.country_name || 'Unknown',
+          data_amount: order.esim_plans?.data_amount || 'Unknown',
+          retail_price: order.retail_price,
+          wholesale_price: order.wholesale_price,
+          status: order.status,
+          created_at: order.created_at,
+          updated_at: order.updated_at,
+          customer_name: order.customer_name,
+          customer_email: order.customer_email,
+          activation_code: order.activation_code,
+          supplier_order_id: order.supplier_order_id,
+          supplier_name: order.esim_plans?.supplier_name || 'esim_access',
+          real_status: order.real_status,
+          esim_status: esimStatus,
+          network_connected: networkConnected
+        };
+      });
 
       console.log("Direct query inventory data:", inventoryData.length);
       setInventory(inventoryData);
@@ -310,18 +334,23 @@ export default function AdminInventory() {
   };
 
   const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300';
-      case 'pending':
-        return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300';
-      case 'processing':
-        return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300';
-      case 'failed':
-        return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300';
-      default:
-        return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300';
+    const upperStatus = status.toUpperCase();
+    
+    // eSIM Status colors
+    if (['IN_USE', 'ENABLED', 'ACTIVE'].includes(upperStatus)) {
+      return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300';
     }
+    if (['USED_UP'].includes(upperStatus)) {
+      return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300';
+    }
+    if (['NOT_ACTIVE', 'DISABLED', 'RELEASED'].includes(upperStatus)) {
+      return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300';
+    }
+    if (['SUSPENDED', 'FAILED'].includes(upperStatus)) {
+      return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300';
+    }
+    
+    return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300';
   };
 
   return (
@@ -457,60 +486,77 @@ export default function AdminInventory() {
                 <table className="w-full">
                   <thead>
                     <tr className="border-b">
-                      <th className="text-left p-3">Agent</th>
                       <th className="text-left p-3">ICCID</th>
-                      <th className="text-left p-3">Plan</th>
-                      <th className="text-left p-3">Customer</th>
+                      <th className="text-left p-3">Date Assigned</th>
+                      <th className="text-left p-3">Country</th>
+                      <th className="text-left p-3">Data Plan</th>
+                      <th className="text-left p-3">Device</th>
                       <th className="text-left p-3">Status</th>
-                      <th className="text-left p-3">Prices</th>
-                      <th className="text-left p-3">Created</th>
+                      <th className="text-left p-3">Network Status</th>
+                      <th className="text-left p-3">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredInventory.map((item) => (
                       <tr key={item.id} className="border-b hover:bg-muted/50">
                         <td className="p-3">
-                          <div>
-                            <div className="font-medium">{item.company_name}</div>
-                            <div className="text-sm text-muted-foreground">{item.agent_name}</div>
-                          </div>
-                        </td>
-                        <td className="p-3">
-                          <div className="font-mono text-sm">
+                          <div className="font-mono text-sm text-primary">
                             {item.esim_iccid}
                           </div>
                         </td>
                         <td className="p-3">
-                          <div>
-                            <div className="font-medium">{item.plan_title}</div>
-                            <div className="text-sm text-muted-foreground">
-                              {item.country_name} • {item.data_amount}
-                            </div>
+                          <div className="text-sm">
+                            {new Date(item.created_at).toLocaleDateString('en-US', { 
+                              month: 'short', 
+                              day: 'numeric', 
+                              year: 'numeric' 
+                            })}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {new Date(item.created_at).toLocaleTimeString('en-US', { 
+                              hour: '2-digit', 
+                              minute: '2-digit' 
+                            })}
+                          </div>
+                        </td>
+                        <td className="p-3">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xl">🌍</span>
+                            <span className="text-sm font-medium">
+                              {item.country_name === 'Regional' ? 'Regional' : item.country_name}
+                            </span>
                           </div>
                         </td>
                         <td className="p-3">
                           <div>
-                            <div className="font-medium">{item.customer_name}</div>
-                            <div className="text-sm text-muted-foreground">{item.customer_email}</div>
+                            <div className="font-medium text-sm">{item.plan_title}</div>
+                            <div className="text-xs text-muted-foreground">{item.data_amount}</div>
                           </div>
                         </td>
                         <td className="p-3">
-                          <Badge className={getStatusColor(item.status)}>
-                            {item.status}
+                          <div className="text-sm text-muted-foreground">-</div>
+                        </td>
+                        <td className="p-3">
+                          <Badge className={getStatusColor(item.esim_status || 'Unknown')}>
+                            {item.esim_status || 'Unknown'}
                           </Badge>
                         </td>
                         <td className="p-3">
-                          <div className="text-sm">
-                            <div>Retail: ${item.retail_price}</div>
-                            <div className="text-muted-foreground">
-                              Wholesale: ${item.wholesale_price}
-                            </div>
+                          <div className="flex items-center gap-2">
+                            <div className={`w-2 h-2 rounded-full ${item.network_connected ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`}></div>
+                            <span className="text-sm">
+                              {item.network_connected ? 'Connected' : 'Not Connected'}
+                            </span>
                           </div>
                         </td>
                         <td className="p-3">
-                          <div className="text-sm text-muted-foreground">
-                            {new Date(item.created_at).toLocaleDateString()}
-                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => window.location.href = `/esim/${item.esim_iccid}`}
+                          >
+                            👁️ View eSIM
+                          </Button>
                         </td>
                       </tr>
                     ))}

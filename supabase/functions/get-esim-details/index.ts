@@ -52,7 +52,22 @@ serve(async (req) => {
       }),
     });
 
-    const raw = await response.json();
+    const rawText = await response.text();
+    console.log('Provider API raw response:', rawText);
+    
+    let raw;
+    try {
+      raw = JSON.parse(rawText);
+    } catch (parseError) {
+      console.error('Failed to parse provider response:', parseError, 'Raw text:', rawText);
+      return new Response(JSON.stringify({ 
+        error: 'Invalid response from provider API',
+        success: false
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
     
     if (!response.ok || !(raw?.success === true || String(raw?.success).toLowerCase() === 'true')) {
       console.error('Provider API error:', raw);

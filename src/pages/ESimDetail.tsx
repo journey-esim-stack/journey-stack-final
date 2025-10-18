@@ -550,8 +550,36 @@ const ESimDetail = () => {
     }
   };
 
-  const handleManualRefresh = () => {
-    fetchESIMDetails(true);
+  const handleManualRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      // First sync the status from the provider API
+      const { data: syncData, error: syncError } = await supabase.functions.invoke('sync-esim-status', {
+        body: { iccid }
+      });
+
+      if (syncError) {
+        console.error('Sync error:', syncError);
+        toast({ 
+          title: "Sync Warning", 
+          description: "Failed to sync with provider. Showing cached data.", 
+          variant: "default" 
+        });
+      } else {
+        console.log('Sync successful:', syncData);
+      }
+
+      // Then fetch the updated details
+      await fetchESIMDetails(true);
+    } catch (error) {
+      console.error('Manual refresh error:', error);
+      toast({ 
+        title: "Error", 
+        description: "Failed to refresh eSIM data", 
+        variant: "destructive" 
+      });
+      setIsRefreshing(false);
+    }
   };
 
   const copyToClipboard = (text: string) => {

@@ -18,6 +18,13 @@ const queryClient = new QueryClient({
   },
 })
 
+// Expose Supabase on window for console testing (after DOM loads)
+document.addEventListener('DOMContentLoaded', () => {
+  // @ts-ignore
+  (window as any).supabase = supabase;
+  console.log('✅ Supabase exposed on window.supabase');
+});
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>

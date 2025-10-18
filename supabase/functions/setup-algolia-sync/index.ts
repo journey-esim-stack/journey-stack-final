@@ -75,8 +75,8 @@ serve(async (req) => {
     // Configure optimized index settings based on implementation guide
     const indexSettings = {
       searchableAttributes: [
-        'country_name',  // Prioritize country for accurate country-based search
         'title',
+        'country_name', 
         'data_amount',
         'description'
       ],
@@ -106,7 +106,7 @@ serve(async (req) => {
       attributesToRetrieve: [
         'objectID', 'id', 'title', 'description', 'country_name', 
         'country_code', 'data_amount', 'validity_days', 'wholesale_price', 
-        'currency', 'supplier_name', 'supplier_plan_id', 'is_active', 'admin_only'
+        'currency', 'supplier_name', 'is_active', 'admin_only'
       ],
       attributesToHighlight: ['title', 'country_name', 'data_amount'],
       attributesToSnippet: ['description:20'],
@@ -115,11 +115,8 @@ serve(async (req) => {
       typoTolerance: true,
       minWordSizefor1Typo: 4,
       minWordSizefor2Typos: 8,
-      removeWordsIfNoResults: 'none',  // Changed from 'allOptional' to prevent irrelevant results
+      removeWordsIfNoResults: 'allOptional',
       queryType: 'prefixLast',
-      queryLanguages: ['en'],  // Added for better language-specific search
-      ignorePlurals: true,  // Added to handle singular/plural variations
-      advancedSyntax: true,  // Added for advanced query features
       highlightPreTag: '<mark>',
       highlightPostTag: '</mark>',
       snippetEllipsisText: '…'
@@ -144,36 +141,20 @@ serve(async (req) => {
       );
     }
 
-    // Get current eSIM plans data with pagination to bypass 1000-row limit
-    const pageSize = 1000;
-    let fromIndex = 0;
-    let allPlans: any[] = [];
+    // Get current eSIM plans data
+    const { data: plans, error: plansError } = await supabaseClient
+      .from('esim_plans')
+      .select('*')
+      .eq('is_active', true)
+      .eq('admin_only', false);
 
-    while (true) {
-      const { data: page, error: pageError } = await supabaseClient
-        .from('esim_plans')
-        .select('*')
-        .eq('is_active', true)
-        .eq('admin_only', false)
-        .range(fromIndex, fromIndex + pageSize - 1);
-
-      if (pageError) {
-        console.error('Error fetching plans page:', pageError);
-        return new Response(
-          JSON.stringify({ error: 'Failed to fetch plans data' }),
-          { status: 500, headers: corsHeaders }
-        );
-      }
-
-      if (page && page.length > 0) {
-        allPlans = allPlans.concat(page);
-      }
-
-      if (!page || page.length < pageSize) break; // last page reached
-      fromIndex += pageSize;
+    if (plansError) {
+      console.error('Error fetching plans:', plansError);
+      return new Response(
+        JSON.stringify({ error: 'Failed to fetch plans data' }),
+        { status: 500, headers: corsHeaders }
+      );
     }
-
-    const plans = allPlans;
 
     // Transform plans data for Algolia with enhanced data processing
     const algoliaRecords = plans?.map(plan => {
@@ -206,7 +187,6 @@ serve(async (req) => {
         wholesale_price: parseFloat(plan.wholesale_price),
         currency: plan.currency,
         supplier_name: plan.supplier_name,
-        supplier_plan_id: plan.supplier_plan_id,
         is_active: plan.is_active,
         admin_only: plan.admin_only,
         created_at: plan.created_at,

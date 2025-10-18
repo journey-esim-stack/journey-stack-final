@@ -45,23 +45,8 @@ serve(async (req) => {
       }
     });
 
-    const rawText = await statusResponse.text();
-    console.log('[get-maya-esim-status] Raw response:', rawText);
-    
-    let statusResult;
-    try {
-      statusResult = JSON.parse(rawText);
-      console.log('[get-maya-esim-status] Parsed response:', statusResult);
-    } catch (parseError) {
-      console.error('[get-maya-esim-status] JSON parse error:', parseError, 'Raw text:', rawText);
-      return new Response(
-        JSON.stringify({ 
-          error: 'Invalid JSON response from Maya API',
-          success: false
-        }),
-        { status: 500, headers: corsHeaders }
-      );
-    }
+    const statusResult = await statusResponse.json();
+    console.log('Maya status response:', statusResult);
 
     if (!statusResponse.ok || statusResult.result !== 1) {
       const errorMsg = statusResult.developer_message || statusResult.message || 'Failed to get eSIM status';

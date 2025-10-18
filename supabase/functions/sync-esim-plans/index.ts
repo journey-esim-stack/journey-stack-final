@@ -140,40 +140,17 @@ const transformedPlans = plans.map((plan: any) => {
 
     console.log(`Successfully synced ${upsertedPlans?.length || 0} plans`);
 
-    // Robust deactivation: reset all esim_access plans then reactivate the ones returned by provider (batched)
+    // Deactivate plans that are no longer available
     const activePlanIds = transformedPlans.map(p => p.supplier_plan_id);
     if (activePlanIds.length > 0) {
-      console.log(`Resetting is_active for esim_access, then reactivating ${activePlanIds.length} plans...`);
-
-      // 1) Set all esim_access plans to inactive (avoids huge NOT IN filters and URL length limits)
-      const { error: resetError } = await supabase
+      const { error: deactivateError } = await supabase
         .from('esim_plans')
         .update({ is_active: false })
-        .eq('supplier_name', 'esim_access');
+        .not('supplier_plan_id', 'in', `(${activePlanIds.map(id => `"${id}"`).join(',')})`);
 
-      if (resetError) {
-        console.error('Error resetting active flags:', resetError);
+      if (deactivateError) {
+        console.error('Error deactivating old plans:', deactivateError);
       }
-
-      // 2) Reactivate only the current provider plans in safe chunks
-      const chunkSize = 200;
-      let reactivatedTotal = 0;
-      for (let i = 0; i < activePlanIds.length; i += chunkSize) {
-        const chunk = activePlanIds.slice(i, i + chunkSize);
-        const { data: reactivated, error: reactivateError } = await supabase
-          .from('esim_plans')
-          .update({ is_active: true })
-          .eq('supplier_name', 'esim_access')
-          .in('supplier_plan_id', chunk)
-          .select('supplier_plan_id');
-
-        if (reactivateError) {
-          console.error('Error reactivating chunk:', reactivateError, { index: i, size: chunk.length });
-          continue;
-        }
-        reactivatedTotal += reactivated?.length || 0;
-      }
-      console.log(`Reactivated ${reactivatedTotal} plans; stale plans remain inactive.`);
     } else {
       console.log('No active plans returned; skipping deactivation step.');
     }

@@ -140,24 +140,6 @@ if (profileErr) throw profileErr;
         throw new Error("customer_info with name and email required for cart checkout");
       }
       
-      // Validate all cart items have valid agent prices (Layer 3: Backend Validation)
-      for (const item of cart_items) {
-        if (!item.agentPrice || item.agentPrice <= 0 || !Number.isFinite(item.agentPrice)) {
-          await logTrace(supabase, 'invalid_price_rejected', { 
-            item: item.planId, 
-            price: item.agentPrice 
-          }, user.id);
-          
-          return new Response(
-            JSON.stringify({ 
-              error: "Invalid pricing detected. Please refresh and try again.",
-              details: "One or more items have invalid pricing."
-            }),
-            { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
-          );
-        }
-      }
-      
       const orders = cart_items.map((item: any) => ({
         agent_id: profile.id,
         plan_id: item.planId,

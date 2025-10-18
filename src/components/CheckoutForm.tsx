@@ -122,19 +122,6 @@ export const CheckoutForm = ({ onSuccess, onCancel }: CheckoutFormProps) => {
       console.log('💵 USD total after conversion:', usdTotal);
       console.log('🛍️ Cart items:', state.items.length);
       
-      // Validate all cart items have valid prices (Layer 2: Frontend Guard)
-      const invalidItems = state.items.filter(item => !item.agentPrice || item.agentPrice <= 0);
-      if (invalidItems.length > 0) {
-        console.error('❌ Cart contains items with invalid pricing:', invalidItems);
-        toast({
-          title: 'Invalid pricing detected',
-          description: 'Some items have invalid pricing. Please refresh the page and try again.',
-          variant: 'destructive'
-        });
-        setIsSubmitting(false);
-        return;
-      }
-      
       const requestBody = {
         amount: usdTotal,
         description: `eSIM purchase: ${state.items.map(item => item.title).join(", ")}`,

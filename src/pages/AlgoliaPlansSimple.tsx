@@ -9,9 +9,9 @@ import { useToast } from "@/hooks/use-toast";
 import { getSearchClient, ESIM_PLANS_INDEX } from "@/lib/algolia";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { usePriceCalculator } from "@/hooks/usePriceCalculator";
+import { useAgentMarkup } from "@/hooks/useAgentMarkup";
 import { useCart } from "@/contexts/CartContext";
-import { Globe, Clock, Database, Wifi, ShoppingCart, Check, Search as SearchIcon, AlertCircle, RefreshCw, Loader2, Plus, Search, Filter, MapPin, Zap, Bug } from "lucide-react";
+import { Globe, Clock, Database, Wifi, ShoppingCart, Check, Search as SearchIcon, AlertCircle, RefreshCw, Loader2, Plus, Search, Filter, MapPin, Zap } from "lucide-react";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { SearchAutocomplete } from "@/components/SearchAutocomplete";
 import { useSearchHistory } from "@/hooks/useSearchHistory";
@@ -21,9 +21,6 @@ import Layout from "@/components/Layout";
 import { getCountryFlag } from "@/utils/countryFlags";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import RegionalPlanDropdown from "@/components/RegionalPlanDropdown";
-import { AgentPreviewSelector } from "@/components/AgentPreviewSelector";
-import { useAgentPreview } from "@/contexts/AgentPreviewContext";
-import { useAgentPlanPrices } from "@/hooks/useAgentPlanPrices";
 interface EsimPlan {
   objectID: string;
   id: string;
@@ -37,29 +34,29 @@ interface EsimPlan {
   is_active: boolean;
   admin_only: boolean;
   wholesale_price: number;
-  supplier_plan_id: string;
-  agentPrice?: number;
 }
 function PlanCard({
   plan,
-  calculatePrice,
-  debugGetPriceMeta,
-  isAdmin
+  calculatePrice
 }: {
   plan: EsimPlan;
-  calculatePrice?: (price: number, options?: { supplierPlanId?: string; countryCode?: string; planId?: string; }) => number;
-  debugGetPriceMeta?: (price: number, options?: { supplierPlanId?: string; countryCode?: string; planId?: string; }) => any;
-  isAdmin?: boolean;
+  calculatePrice?: (price: number) => number;
 }) {
   const [addedToCart, setAddedToCart] = useState(false);
   const [dayPassDays, setDayPassDays] = useState(Math.max(plan.validity_days || 1, 1));
-  const { toast } = useToast();
-  const { addToCart } = useCart();
-  const { convertPrice, getCurrencySymbol } = useCurrency();
-  const { previewAgentId } = useAgentPreview();
+  const {
+    toast
+  } = useToast();
+  const {
+    addToCart
+  } = useCart();
+  const {
+    convertPrice,
+    getCurrencySymbol
+  } = useCurrency();
 
-  // Price comes from parent via batch Edge Function
-  const agentPrice = plan.agentPrice ?? 0;
+  // Compute agent price from wholesale using markup (USD base)
+  const agentPrice = calculatePrice?.(plan.wholesale_price || 0) ?? 0;
 
   // Detect Day Pass plans
   const isDayPass = (plan: EsimPlan) => {
@@ -159,14 +156,12 @@ export default function AlgoliaPlansSimple() {
   const [allPlans, setAllPlans] = useState<EsimPlan[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
-  const [isAdmin, setIsAdmin] = useState(false);
-  
-  // Batch pricing for all plans
-  const planIds = useMemo(() => allPlans.map(p => p.id), [allPlans]);
-  const { loading: batchPricesLoading, getPrice: getBatchPrice } = useAgentPlanPrices(planIds);
-  
-  const getAgentPrice = useCallback((p: EsimPlan) => getBatchPrice(p.id) ?? 0, [getBatchPrice]);
+  const {
+    markup: realAgentMarkup,
+    calculatePrice,
+    loading: markupLoading,
+    isConnected
+  } = useAgentMarkup();
 
   // Filter states
   const [selectedCountry, setSelectedCountry] = useState<string>("");
@@ -189,24 +184,6 @@ export default function AlgoliaPlansSimple() {
     searchHistory,
     addToHistory
   } = useSearchHistory();
-  
-  // Check if user is admin
-  useEffect(() => {
-    const checkAdmin = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data: roleData } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', user.id)
-        .eq('role', 'admin')
-        .maybeSingle();
-
-      setIsAdmin(!!roleData);
-    };
-    checkAdmin();
-  }, []);
 
   // In preview environments, Algolia adds a query param that causes 400s.
   // Force direct Supabase search to guarantee a working page.
@@ -233,31 +210,24 @@ export default function AlgoliaPlansSimple() {
     setError(null);
     try {
       if (FORCE_FALLBACK) {
-        let allPlans: any[] = [];
+        const pageSize = 1000;
         let from = 0;
-        const batchSize = 1000;
-        let hasMore = true;
-
-        while (hasMore) {
-          const { data: rpcData, error: rpcError } = await (supabase as any)
-            .rpc('get_agent_visible_plans')
-            .range(from, from + batchSize - 1);
-          
-          if (rpcError) throw rpcError;
-
-          const batch = Array.isArray(rpcData) ? rpcData : [];
-          if (batch.length > 0) {
-            allPlans.push(...batch);
-            hasMore = batch.length === batchSize;
-            from += batchSize;
-          } else {
-            hasMore = false;
-          }
+        let to = pageSize - 1;
+        let supaHits: any[] = [];
+        while (true) {
+          const {
+            data,
+            error
+          } = await supabase.from('esim_plans').select('*').eq('is_active', true).eq('admin_only', false).range(from, to);
+          if (error) throw error;
+          if (!data || data.length === 0) break;
+          supaHits.push(...data);
+          if (data.length < pageSize) break;
+          from += pageSize;
+          to += pageSize;
         }
-
-        setAllPlans(allPlans as unknown as EsimPlan[]);
-        setPlans(allPlans as unknown as EsimPlan[]);
-        toast({ title: 'Using fallback', description: `Loaded ${allPlans.length} plans via RPC.` });
+        setAllPlans(supaHits as unknown as EsimPlan[]);
+        setPlans(supaHits as unknown as EsimPlan[]);
         return;
       }
       const client = await getSearchClient();
@@ -301,31 +271,24 @@ export default function AlgoliaPlansSimple() {
       const nbHits = (first as any)?.nbHits ?? allHits.length;
       if (nbHits > allHits.length) {
         try {
-          let allPlans: any[] = [];
+          const pageSize = 1000;
           let from = 0;
-          const batchSize = 1000;
-          let hasMore = true;
-
-          while (hasMore) {
-            const { data: rpcData, error: rpcError } = await (supabase as any)
-              .rpc('get_agent_visible_plans')
-              .range(from, from + batchSize - 1);
-            
-            if (rpcError) throw rpcError;
-
-            const batch = Array.isArray(rpcData) ? rpcData : [];
-            if (batch.length > 0) {
-              allPlans.push(...batch);
-              hasMore = batch.length === batchSize;
-              from += batchSize;
-            } else {
-              hasMore = false;
-            }
+          let to = pageSize - 1;
+          let supaHits: any[] = [];
+          while (true) {
+            const {
+              data,
+              error
+            } = await supabase.from('esim_plans').select('*').eq('is_active', true).eq('admin_only', false).range(from, to);
+            if (error) throw error;
+            if (!data || data.length === 0) break;
+            supaHits.push(...data);
+            if (data.length < pageSize) break;
+            from += pageSize;
+            to += pageSize;
           }
-
-          setAllPlans(allPlans as unknown as EsimPlan[]);
-          setPlans(allPlans as unknown as EsimPlan[]);
-          toast({ title: 'Using RPC fallback', description: `Loaded ${allPlans.length} plans.` });
+          setAllPlans(supaHits as unknown as EsimPlan[]);
+          setPlans(supaHits as unknown as EsimPlan[]);
           return;
         } catch {}
       }
@@ -336,40 +299,33 @@ export default function AlgoliaPlansSimple() {
 
       // Fallback to Supabase query if Algolia fails
       try {
-        let allPlans: any[] = [];
+        const pageSize = 1000;
         let from = 0;
-        const batchSize = 1000;
-        let hasMore = true;
-
-        while (hasMore) {
-          const { data: rpcData, error: rpcError } = await (supabase as any)
-            .rpc('get_agent_visible_plans')
-            .range(from, from + batchSize - 1);
-          
-          if (rpcError) throw rpcError;
-
-          const batch = Array.isArray(rpcData) ? rpcData : [];
-          if (batch.length > 0) {
-            allPlans.push(...batch);
-            hasMore = batch.length === batchSize;
-            from += batchSize;
-          } else {
-            hasMore = false;
-          }
+        let to = pageSize - 1;
+        let supaHits: any[] = [];
+        while (true) {
+          const {
+            data,
+            error
+          } = await supabase.from('esim_plans').select('*').eq('is_active', true).eq('admin_only', false).range(from, to);
+          if (error) throw error;
+          if (!data || data.length === 0) break;
+          supaHits.push(...data);
+          if (data.length < pageSize) break;
+          from += pageSize;
+          to += pageSize;
         }
-
-        setAllPlans(allPlans as unknown as EsimPlan[]);
-        setPlans(allPlans as unknown as EsimPlan[]);
+        setAllPlans(supaHits as unknown as EsimPlan[]);
+        setPlans(supaHits as unknown as EsimPlan[]);
         toast({
-          title: 'Algolia unavailable, using RPC fallback',
-          description: `Loaded ${allPlans.length} plans.`
+          title: 'Algolia unavailable, using fallback',
+          description: `Loaded ${supaHits.length} plans from Supabase.`
         });
       } catch (fallbackErr: any) {
-        console.error('RPC fallback error:', fallbackErr);
         setError(err.message || 'Search failed');
         toast({
           title: 'Search Error',
-          description: 'Failed to load plans from Algolia and RPC fallback.',
+          description: 'Failed to load plans from Algolia and fallback. Please try again.',
           variant: 'destructive'
         });
       }
@@ -432,14 +388,14 @@ export default function AlgoliaPlansSimple() {
 
     // Apply price filter (calculate agent price for filtering)
     filtered = filtered.filter(plan => {
-      const priceUSD = getAgentPrice(plan);
+      const priceUSD = calculatePrice?.(plan.wholesale_price || 0) ?? 0;
       return priceUSD >= priceRange[0] && priceUSD <= priceRange[1];
     });
 
     // Apply sorting
     filtered.sort((a, b) => {
-      const aPrice = getAgentPrice(a);
-      const bPrice = getAgentPrice(b);
+      const aPrice = calculatePrice?.(a.wholesale_price || 0) ?? 0;
+      const bPrice = calculatePrice?.(b.wholesale_price || 0) ?? 0;
       switch (sortBy) {
         case 'price-asc':
           return aPrice - bPrice;
@@ -460,7 +416,7 @@ export default function AlgoliaPlansSimple() {
       }
     });
     setPlans(filtered);
-  }, [allPlans, selectedCountry, selectedRegionType, validityFilter, dataFilter, priceRange, sortBy, getAgentPrice, searchQuery]);
+  }, [allPlans, selectedCountry, selectedRegionType, validityFilter, dataFilter, priceRange, sortBy, calculatePrice, searchQuery, realAgentMarkup]);
   const extractDataValue = (dataStr: string): number => {
     const match = dataStr.match(/(\d+(?:\.\d+)?)\s*(GB|MB|TB)/i);
     if (!match) return 0;
@@ -593,11 +549,6 @@ export default function AlgoliaPlansSimple() {
               Direct Search
             </Badge>
           </div>
-        </div>
-
-        {/* Admin Preview Selector */}
-        <div className="max-w-4xl mx-auto">
-          <AgentPreviewSelector />
         </div>
 
         {/* Enhanced Search Section */}
@@ -760,7 +711,7 @@ export default function AlgoliaPlansSimple() {
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-semibold">
                 Available Plans ({plans.length})
-                {batchPricesLoading && <span className="text-sm text-muted-foreground ml-2">
+                {markupLoading && <span className="text-sm text-muted-foreground ml-2">
                     (Loading pricing...)
                   </span>}
               </h2>
@@ -785,13 +736,7 @@ export default function AlgoliaPlansSimple() {
                         <div className="h-8 bg-muted rounded"></div>
                       </div>
                     </CardContent>
-                  </Card>) : plans.length > 0 ? plans.map(plan => (
-                    <PlanCard
-                      key={plan.objectID}
-                      plan={{...plan, agentPrice: getAgentPrice(plan)}}
-                      isAdmin={isAdmin}
-                    />
-                  )) : <div className="col-span-full flex flex-col items-center justify-center py-12 text-center">
+                  </Card>) : plans.length > 0 ? plans.map(plan => <PlanCard key={plan.objectID} plan={plan} calculatePrice={calculatePrice} />) : <div className="col-span-full flex flex-col items-center justify-center py-12 text-center">
                   <AlertCircle className="h-12 w-12 text-muted-foreground mb-4" />
                   <h3 className="text-lg font-semibold text-foreground mb-2">No Plans Found</h3>
                   <p className="text-muted-foreground max-w-md">

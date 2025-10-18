@@ -490,11 +490,16 @@ const ESimDetail = () => {
           ? (apiData.esim?.network_status === 'ENABLED' && apiData.esim?.state !== 'RELEASED')
           : (isActive || apiData.obj?.network?.connected || false);
         
-        // For Maya eSIMs: Only set expiry date if network is ENABLED (connected)
+        // Calculate expiry date
         const shouldHaveExpiryDate = isMayaEsim ? networkConnected : isActive;
-        const expiryDate = shouldHaveExpiryDate 
-          ? (orderData.esim_expiry_date || apiData.obj?.plan?.expiresAt)
-          : null;
+        let expiryDate = null;
+        
+        if (shouldHaveExpiryDate) {
+          // Priority: DB stored date > API provided date > Calculate from creation + validity
+          expiryDate = orderData.esim_expiry_date 
+            || apiData.obj?.plan?.expiresAt 
+            || new Date(new Date(orderData.created_at).getTime() + (orderData.esim_plans?.validity_days || 7) * 24 * 60 * 60 * 1000).toISOString();
+        }
 
         console.log('ESimDetail - Final status for transform:', currentStatus);
 
@@ -1050,31 +1055,48 @@ Instructions:
                     </div>
                   </div>
 
-                  {/* Expiration (show only when connected and has expiry date) */}
-                  {esimDetails.network.connected && esimDetails.plan.expires_at && (
-                    <div className="text-center">
-                      <p className="text-sm text-muted-foreground mb-2">Expiration</p>
-                      <div className="text-sm">
-                        {format(new Date(esimDetails.plan.expires_at), "yyyy-MM-dd")}
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {format(new Date(esimDetails.plan.expires_at), "HH:mm:ss")}
-                      </div>
-                    </div>
-                  )}
-                  
-                  {/* Not Connected Status for Maya eSIMs */}
-                  {!esimDetails.network.connected && orderInfo?.esim_plans?.supplier_name?.toLowerCase() === 'maya' && (
-                    <div className="text-center">
-                      <p className="text-sm text-muted-foreground mb-2">Status</p>
-                      <div className="text-sm text-orange-600 font-medium">
-                        Awaiting Network Connection
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        No expiry until connected
-                      </div>
-                    </div>
-                  )}
+                  {/* Expiration - Show for active/used eSIMs */}
+                  {(() => {
+                    const isActiveStatus = ['IN_USE', 'USED_UP', 'ACTIVE', 'ENABLED'].includes(esimDetails.status);
+                    const isMayaEsim = orderInfo?.esim_plans?.supplier_name?.toLowerCase() === 'maya';
+                    
+                    // For Maya: only show if connected
+                    // For others: show if status is active/used
+                    const shouldShowExpiry = isMayaEsim 
+                      ? (esimDetails.network.connected && esimDetails.plan.expires_at)
+                      : (isActiveStatus && esimDetails.plan.expires_at);
+                    
+                    if (shouldShowExpiry) {
+                      return (
+                        <div className="text-center">
+                          <p className="text-sm text-muted-foreground mb-2">Expiration</p>
+                          <div className="text-sm">
+                            {format(new Date(esimDetails.plan.expires_at), "yyyy-MM-dd")}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {format(new Date(esimDetails.plan.expires_at), "HH:mm:ss")}
+                          </div>
+                        </div>
+                      );
+                    }
+                    
+                    // Show "Awaiting Connection" for Maya eSIMs not connected
+                    if (isMayaEsim && !esimDetails.network.connected) {
+                      return (
+                        <div className="text-center">
+                          <p className="text-sm text-muted-foreground mb-2">Status</p>
+                          <div className="text-sm text-orange-600 font-medium">
+                            Awaiting Network Connection
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            No expiry until connected
+                          </div>
+                        </div>
+                      );
+                    }
+                    
+                    return null;
+                  })()}
                 </div>
 
                 {/* Top-up Button Row */}

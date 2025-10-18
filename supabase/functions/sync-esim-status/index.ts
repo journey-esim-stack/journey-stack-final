@@ -113,9 +113,28 @@ serve(async (req) => {
         // Store eSIM Access status
         updatePayload.real_status = statusData.status;
 
-        // Set expiry if active
-        if (statusData.status === 'IN_USE' && statusData.plan?.expiresAt) {
-          updatePayload.esim_expiry_date = statusData.plan.expiresAt;
+        // Set expiry date for active/used eSIMs
+        const isActiveStatus = ['IN_USE', 'USED_UP', 'ACTIVE'].includes(statusData.status);
+        
+        if (isActiveStatus) {
+          // Use API-provided expiry if available, otherwise calculate from creation + validity
+          if (statusData.plan?.expiresAt) {
+            updatePayload.esim_expiry_date = statusData.plan.expiresAt;
+          } else {
+            // Calculate expiry: order creation date + plan validity days
+            const { data: planData } = await supabaseClient
+              .from('orders')
+              .select('created_at, esim_plans(validity_days)')
+              .eq('id', order.id)
+              .single();
+            
+            if (planData?.esim_plans?.validity_days) {
+              const createdDate = new Date(planData.created_at);
+              const expiryDate = new Date(createdDate.getTime() + planData.esim_plans.validity_days * 24 * 60 * 60 * 1000);
+              updatePayload.esim_expiry_date = expiryDate.toISOString();
+              console.log(`[sync-esim-status] Calculated expiry: ${expiryDate.toISOString()}`);
+            }
+          }
         }
       }
     }

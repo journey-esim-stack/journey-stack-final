@@ -483,7 +483,7 @@ const ESimDetail = () => {
         // Determine if active based on status
         const isActive = isMayaEsim
           ? (apiData.esim?.network_status === 'ENABLED' && apiData.esim?.state !== 'RELEASED')
-          : currentStatus === 'IN_USE';
+          : ['IN_USE', 'USED_UP', 'ACTIVE'].includes(String(currentStatus).toUpperCase());
         
         // For Maya, 'Connected' requires network_status === 'ENABLED' and state not RELEASED
         const networkConnected = isMayaEsim

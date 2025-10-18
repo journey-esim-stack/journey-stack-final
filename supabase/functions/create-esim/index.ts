@@ -360,13 +360,52 @@ serve(async (req) => {
       orderNo,
     });
 
+    // Download and re-host QR code to Supabase to hide supplier identity
+    let finalQrCodeUrl = esimProfile.qrCodeUrl;
+    if (esimProfile.qrCodeUrl) {
+      try {
+        console.log('Re-hosting QR code from provider to Supabase storage...');
+        
+        // Download QR image from provider
+        const qrResponse = await fetch(esimProfile.qrCodeUrl);
+        if (qrResponse.ok) {
+          const qrBlob = await qrResponse.blob();
+          const qrPath = `esim-qr/${esimProfile.iccid}.png`;
+          
+          // Upload to Supabase storage
+          const { data: uploadData, error: uploadError } = await supabaseClient.storage
+            .from('qr-codes')
+            .upload(qrPath, qrBlob, { 
+              contentType: 'image/png', 
+              upsert: true,
+              cacheControl: '3600'
+            });
+          
+          if (!uploadError && uploadData) {
+            const { data: urlData } = supabaseClient.storage
+              .from('qr-codes')
+              .getPublicUrl(qrPath);
+            finalQrCodeUrl = urlData.publicUrl;
+            console.log(`QR code re-hosted successfully for ICCID ${esimProfile.iccid}`);
+          } else {
+            console.error('QR upload error:', uploadError);
+          }
+        } else {
+          console.error('Failed to download QR from provider:', qrResponse.status);
+        }
+      } catch (error) {
+        console.error('QR re-hosting failed, using original URL:', error);
+        // Fallback to original URL if re-hosting fails
+      }
+    }
+
     // Update the order with eSIM details
     const { error: updateError } = await supabaseClient
       .from('orders')
       .update({
         status: 'completed',
         esim_iccid: esimProfile.iccid,
-        esim_qr_code: esimProfile.qrCodeUrl,
+        esim_qr_code: finalQrCodeUrl,
         activation_code: esimProfile.ac,
         supplier_order_id: orderNo,
         updated_at: new Date().toISOString(),

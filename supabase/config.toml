@@ -77,3 +77,6 @@ verify_jwt = true
 
 [functions.sync-esim-status]
 verify_jwt = true
+
+[functions.migrate-esim-qr-codes]
+verify_jwt = true

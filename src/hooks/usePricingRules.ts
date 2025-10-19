@@ -133,8 +133,10 @@ export const usePricingRules = () => {
     }, undefined);
 
     if (!selectedRule) {
-      // Fallback to 300% markup if no rules found
-      return wholesalePrice * 4; // 300% markup = 4x price
+      // No matching rule - check partner type for fallback
+      // This will be handled asynchronously, but for sync calculation we use default
+      // The actual fallback is handled in useAgentMarkupRules
+      return wholesalePrice * 4; // 300% markup = 4x price (default for agents)
     }
 
     // Apply the markup based on type

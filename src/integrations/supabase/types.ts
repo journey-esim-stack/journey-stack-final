@@ -73,6 +73,7 @@ export type Database = {
           id: string
           markup_type: string
           markup_value: number
+          partner_type: Database["public"]["Enums"]["partner_type"]
           phone: string
           status: Database["public"]["Enums"]["agent_status"]
           updated_at: string
@@ -88,6 +89,7 @@ export type Database = {
           id?: string
           markup_type?: string
           markup_value?: number
+          partner_type?: Database["public"]["Enums"]["partner_type"]
           phone: string
           status?: Database["public"]["Enums"]["agent_status"]
           updated_at?: string
@@ -103,6 +105,7 @@ export type Database = {
           id?: string
           markup_type?: string
           markup_value?: number
+          partner_type?: Database["public"]["Enums"]["partner_type"]
           phone?: string
           status?: Database["public"]["Enums"]["agent_status"]
           updated_at?: string
@@ -110,6 +113,94 @@ export type Database = {
           wallet_balance?: number
         }
         Relationships: []
+      }
+      api_credentials: {
+        Row: {
+          agent_id: string
+          api_key: string
+          created_at: string
+          id: string
+          is_active: boolean
+          last_used_at: string | null
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          agent_id: string
+          api_key: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          last_used_at?: string | null
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          agent_id?: string
+          api_key?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          last_used_at?: string | null
+          name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "api_credentials_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agent_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      api_usage_logs: {
+        Row: {
+          created_at: string
+          credential_id: string
+          endpoint: string
+          http_method: string
+          id: string
+          ip_address: unknown | null
+          request_body: Json | null
+          response_body: Json | null
+          response_time_ms: number | null
+          status_code: number
+        }
+        Insert: {
+          created_at?: string
+          credential_id: string
+          endpoint: string
+          http_method: string
+          id?: string
+          ip_address?: unknown | null
+          request_body?: Json | null
+          response_body?: Json | null
+          response_time_ms?: number | null
+          status_code: number
+        }
+        Update: {
+          created_at?: string
+          credential_id?: string
+          endpoint?: string
+          http_method?: string
+          id?: string
+          ip_address?: unknown | null
+          request_body?: Json | null
+          response_body?: Json | null
+          response_time_ms?: number | null
+          status_code?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "api_usage_logs_credential_id_fkey"
+            columns: ["credential_id"]
+            isOneToOne: false
+            referencedRelation: "api_credentials"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       audit_logs: {
         Row: {
@@ -601,6 +692,88 @@ export type Database = {
           },
         ]
       }
+      webhook_logs: {
+        Row: {
+          created_at: string
+          error: string | null
+          event_type: string
+          id: string
+          payload: Json
+          response_body: string | null
+          response_status: number | null
+          webhook_id: string
+        }
+        Insert: {
+          created_at?: string
+          error?: string | null
+          event_type: string
+          id?: string
+          payload: Json
+          response_body?: string | null
+          response_status?: number | null
+          webhook_id: string
+        }
+        Update: {
+          created_at?: string
+          error?: string | null
+          event_type?: string
+          id?: string
+          payload?: Json
+          response_body?: string | null
+          response_status?: number | null
+          webhook_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "webhook_logs_webhook_id_fkey"
+            columns: ["webhook_id"]
+            isOneToOne: false
+            referencedRelation: "webhooks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      webhooks: {
+        Row: {
+          agent_id: string
+          created_at: string
+          events: string[]
+          id: string
+          is_active: boolean
+          secret: string
+          updated_at: string
+          url: string
+        }
+        Insert: {
+          agent_id: string
+          created_at?: string
+          events?: string[]
+          id?: string
+          is_active?: boolean
+          secret: string
+          updated_at?: string
+          url: string
+        }
+        Update: {
+          agent_id?: string
+          created_at?: string
+          events?: string[]
+          id?: string
+          is_active?: boolean
+          secret?: string
+          updated_at?: string
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "webhooks_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agent_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       agent_safe_orders: {
@@ -827,6 +1000,7 @@ export type Database = {
       agent_status: "pending" | "approved" | "suspended"
       app_role: "admin" | "agent"
       order_status: "pending" | "completed" | "failed" | "cancelled"
+      partner_type: "agent" | "api_partner"
       transaction_type: "deposit" | "purchase" | "refund"
     }
     CompositeTypes: {
@@ -958,6 +1132,7 @@ export const Constants = {
       agent_status: ["pending", "approved", "suspended"],
       app_role: ["admin", "agent"],
       order_status: ["pending", "completed", "failed", "cancelled"],
+      partner_type: ["agent", "api_partner"],
       transaction_type: ["deposit", "purchase", "refund"],
     },
   },

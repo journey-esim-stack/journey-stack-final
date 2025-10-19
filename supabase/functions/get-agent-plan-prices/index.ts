@@ -215,7 +215,7 @@ try {
         }
         
         // Calculate final price
-        let finalPrice = wholesalePrice * 4; // Default 300% markup (4x)
+        let finalPrice = wholesalePrice * 4; // Default 300% markup (4x) for agents
         
         if (selectedRule) {
           if (selectedRule.markup_type === 'percent') {
@@ -223,6 +223,17 @@ try {
             finalPrice = wholesalePrice * multiplier;
           } else if (selectedRule.markup_type === 'fixed') {
             finalPrice = Number(selectedRule.markup_value);
+          }
+        } else {
+          // No rule matched - check partner type for fallback
+          const { data: agentProfile } = await adminClient
+            .from('agent_profiles')
+            .select('partner_type')
+            .eq('id', agentId)
+            .single();
+          
+          if (agentProfile?.partner_type === 'api_partner') {
+            finalPrice = wholesalePrice * 1.3; // 30% markup for API partners
           }
         }
         

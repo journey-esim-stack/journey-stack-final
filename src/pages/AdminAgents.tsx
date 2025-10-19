@@ -23,6 +23,7 @@ interface AgentProfileRow {
   created_at: string;
   business_license?: string;
   lifetime_revenue?: number;
+  partner_type: 'agent' | 'api_partner';
 }
 
 export default function AdminAgents() {
@@ -30,6 +31,7 @@ export default function AdminAgents() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [partnerTypeFilter, setPartnerTypeFilter] = useState<string>("all");
   const { toast } = useToast();
 
   useEffect(() => {
@@ -82,7 +84,8 @@ export default function AdminAgents() {
           return {
             ...agent,
             email: emailMap.get(agent.user_id) || 'Unknown',
-            lifetime_revenue: lifetimeRevenue
+            lifetime_revenue: lifetimeRevenue,
+            partner_type: agent.partner_type || 'agent'
           } as AgentProfileRow;
         })
       );
@@ -108,8 +111,12 @@ export default function AdminAgents() {
       result = result.filter(a => a.status === statusFilter);
     }
 
+    if (partnerTypeFilter !== "all") {
+      result = result.filter(a => a.partner_type === partnerTypeFilter);
+    }
+
     return result;
-  }, [agents, search, statusFilter]);
+  }, [agents, search, statusFilter, partnerTypeFilter]);
 
   const saveAgent = async (agent: AgentProfileRow) => {
     try {
@@ -213,6 +220,17 @@ export default function AdminAgents() {
               <SelectItem value="suspended">Suspended</SelectItem>
             </SelectContent>
           </Select>
+          
+          <Select value={partnerTypeFilter} onValueChange={setPartnerTypeFilter}>
+            <SelectTrigger className="w-40">
+              <SelectValue placeholder="Filter by type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Partners</SelectItem>
+              <SelectItem value="agent">Agents</SelectItem>
+              <SelectItem value="api_partner">API Partners</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
         {loading ? (
@@ -244,9 +262,17 @@ export default function AdminAgents() {
                         </button>
                       </p>
                     </div>
-                    <Badge variant={getStatusBadgeVariant(agent.status)}>
-                      {agent.status}
-                    </Badge>
+                    <div className="flex gap-2">
+                      <Badge variant={getStatusBadgeVariant(agent.status)}>
+                        {agent.status}
+                      </Badge>
+                      <Badge
+                        variant="secondary"
+                        className={agent.partner_type === 'api_partner' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200' : 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'}
+                      >
+                        {agent.partner_type === 'api_partner' ? 'API Partner' : 'Agent'}
+                      </Badge>
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -323,7 +349,7 @@ export default function AdminAgents() {
                       </Button>
                       
                       <div className="text-xs text-muted-foreground text-center pt-2 border-t">
-                        Custom pricing available in Agent Pricing Manager. Default: 300% markup.
+                        Custom pricing available in Agent Pricing Manager. Default: {agent.partner_type === 'api_partner' ? '30%' : '300%'} markup.
                       </div>
                     </div>
                   )}

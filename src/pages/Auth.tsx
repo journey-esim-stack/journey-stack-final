@@ -100,6 +100,7 @@ const Auth = () => {
           contact_person: contact,
           phone,
           country,
+          partner_type: 'api_partner',
         },
       },
     });

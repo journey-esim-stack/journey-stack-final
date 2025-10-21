@@ -37,13 +37,6 @@ try {
     }
 
     const authHeader = req.headers.get('Authorization') || '';
-    if (!authHeader) {
-      console.warn('Missing Authorization header');
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
-    }
 
     const userClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       global: { headers: { Authorization: authHeader } }
@@ -61,10 +54,9 @@ try {
 
     // Authorization: allow admins or the agent owner
     let isAdmin = false;
-    let userId: string | null = null;
     try {
       const { data: userRes } = await userClient.auth.getUser();
-      userId = userRes?.user?.id ?? null;
+      const userId = userRes?.user?.id;
       if (userId) {
         const { data: adminCheck } = await userClient.rpc('has_role', { _user_id: userId, _role: 'admin' });
         isAdmin = !!adminCheck;
@@ -73,91 +65,55 @@ try {
       console.warn('Auth user fetch failed, proceeding with standard access check');
     }
 
-    // Fallback: if admin check failed, verify via service role against user_roles
-    if (!isAdmin) {
-      try {
-        if (!userId) {
-          const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : authHeader;
-          if (token) {
-            try {
-              const payloadPart = token.split('.')[1] || '';
-              const json = payloadPart ? atob(payloadPart.replace(/-/g, '+').replace(/_/g, '/')) : '';
-              const payload = json ? JSON.parse(json) : null;
-              userId = payload?.sub || null;
-            } catch (_) {
-              // ignore decoding errors
-            }
-          }
-        }
-        if (userId) {
-          const { data: roleRow } = await adminClient
-            .from('user_roles')
-            .select('role')
-            .eq('user_id', userId)
-            .eq('role', 'admin')
-            .maybeSingle();
-          isAdmin = !!roleRow;
-        }
-      } catch (e) {
-        console.warn('Admin fallback check failed', e);
-      }
-    }
-
     let hasAccess = false;
     if (!isAdmin) {
-      try {
-        // Service-role ownership verification to avoid RLS/auth context issues
-        const { data: ownerRow, error: ownerErr } = await adminClient
-          .from('agent_profiles')
-          .select('user_id, status')
-          .eq('id', agentId)
-          .single();
-        if (ownerErr) {
-          console.error('agent_profiles ownership check error', ownerErr);
-          return new Response(JSON.stringify({ error: 'Access check failed' }), {
-            status: 500,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-          });
-        }
-        hasAccess = !!(ownerRow && userId && ownerRow.user_id === userId && ownerRow.status === 'approved');
-      } catch (e) {
-        console.error('Ownership verification failed', e);
-        return new Response(JSON.stringify({ error: 'Access check failed' }), {
+      const { data: accessOk, error: accessErr } = await userClient.rpc('validate_agent_wallet_access', { _agent_id: agentId });
+      if (accessErr) {
+        console.error('validate_agent_wallet_access error', accessErr);
+        return new Response(JSON.stringify({ error: 'Access check failed' }), { 
           status: 500,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         });
       }
+      hasAccess = !!accessOk;
     }
 
     if (!isAdmin && !hasAccess) {
-      console.warn('[Auth] Forbidden access', { userId, agentId, isAdmin, hasAccessComputed: hasAccess });
-      return new Response(JSON.stringify({ error: 'Forbidden' }), {
+      return new Response(JSON.stringify({ error: 'Forbidden' }), { 
         status: 403,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
 
-    // STEP 1: Fetch CSV pricing (agent_pricing table) - SINGLE QUERY (optimized, no IN to avoid URL length limits)
-    const startTime = Date.now();
-    const planIdsSet = new Set<string>(planIds || []);
-    const { data: csvPricing, error: pricingError } = await adminClient
-      .from('agent_pricing')
-      .select('plan_id, retail_price, updated_at')
-      .eq('agent_id', agentId)
-      .order('updated_at', { ascending: false });
+    // STEP 1: Fetch CSV pricing (agent_pricing table) in chunks
+    const chunkSize = 50;
+    const csvPricing: Array<{ plan_id: string; retail_price: number; updated_at: string }> = [];
 
-    if (pricingError) {
-      console.error('agent_pricing fetch error', pricingError);
-      return new Response(JSON.stringify({ error: 'Failed to fetch pricing' }), { 
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
+    for (let i = 0; i < planIds.length; i += chunkSize) {
+      const slice = planIds.slice(i, i + chunkSize);
+      const { data, error } = await adminClient
+        .from('agent_pricing')
+        .select('plan_id, retail_price, updated_at')
+        .eq('agent_id', agentId)
+        .in('plan_id', slice)
+        .order('updated_at', { ascending: false });
+      if (error) {
+        console.error('agent_pricing fetch error', { index: i, error });
+        return new Response(JSON.stringify({ error: 'Failed to fetch pricing' }), { 
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+      if (data) csvPricing.push(...(data as any));
     }
 
-    // Build CSV price map (plan_id -> retail_price) for requested planIds only
+    // Sort by updated_at desc to ensure latest wins
+    csvPricing.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+
+    // Build CSV price map (plan_id -> retail_price)
     const csvMap: Record<string, number> = {};
-    for (const row of (csvPricing || [])) {
-      if (planIdsSet.has(row.plan_id) && csvMap[row.plan_id] === undefined) {
+    for (const row of csvPricing) {
+      if (csvMap[row.plan_id] === undefined) {
         csvMap[row.plan_id] = Number(row.retail_price);
       }
     }
@@ -180,38 +136,41 @@ try {
       
       const rules = rulesData || [];
       
-      // Fetch plan wholesale prices for missing plans - chunked to avoid URL length limits
-      let plansData: any[] = [];
-      if (missingPlanIds.length <= 300) {
-        const { data, error } = await adminClient
+      // Fetch plan wholesale prices for missing plans in chunks to avoid URL length limits
+      const PLAN_CHUNK_SIZE = 80;
+      const allPlans: any[] = [];
+      const totalChunks = Math.ceil(missingPlanIds.length / PLAN_CHUNK_SIZE);
+
+      console.log(`Fetching ${missingPlanIds.length} missing plans in ${totalChunks} chunks`);
+
+      for (let i = 0; i < missingPlanIds.length; i += PLAN_CHUNK_SIZE) {
+        const chunk = missingPlanIds.slice(i, i + PLAN_CHUNK_SIZE);
+        const chunkNum = Math.floor(i / PLAN_CHUNK_SIZE) + 1;
+        
+        console.log(`Fetching esim_plans chunk ${chunkNum}/${totalChunks} (${chunk.length} IDs)`);
+        
+        const { data: chunkData, error: chunkError } = await adminClient
           .from('esim_plans')
           .select('id, wholesale_price, country_code, supplier_plan_id')
-          .in('id', missingPlanIds);
-        if (error) {
-          console.error('esim_plans fetch error', error);
+          .in('id', chunk);
+        
+        if (chunkError) {
+          console.error(`Error fetching esim_plans chunk ${chunkNum}:`, chunkError);
           return new Response(JSON.stringify({ error: 'Failed to fetch plan data' }), { 
             status: 500,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
           });
         }
-        plansData = data || [];
-      } else {
-        const CHUNK = 300;
-        for (let i = 0; i < missingPlanIds.length; i += CHUNK) {
-          const slice = missingPlanIds.slice(i, i + CHUNK);
-          const { data, error } = await adminClient
-            .from('esim_plans')
-            .select('id, wholesale_price, country_code, supplier_plan_id')
-            .in('id', slice);
-          if (error) {
-            console.error('esim_plans chunk fetch error', { index: i, error });
-            return new Response(JSON.stringify({ error: 'Failed to fetch plan data' }), { 
-              status: 500,
-              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-            });
-          }
-          if (data) plansData.push(...data);
-        }
+        
+        allPlans.push(...(chunkData || []));
+      }
+
+      console.log(`Successfully fetched ${allPlans.length} plans from ${totalChunks} chunks`);
+      const plansData = allPlans;
+      const plansError = null;
+      
+      if (plansError) {
+        console.error('esim_plans fetch error', plansError);
       }
       
       const plansMap = new Map((plansData || []).map(p => [p.id, p]));
@@ -280,13 +239,6 @@ try {
         
         csvMap[planId] = finalPrice;
       }
-    }
-
-    const fetchTime = Date.now() - startTime;
-    console.log(`[Performance] Fetched ${planIds.length} prices in ${fetchTime}ms for agent ${agentId}`);
-    
-    if (fetchTime > 1000) {
-      console.warn(`[Performance] Slow pricing query detected: ${fetchTime}ms`);
     }
 
     return new Response(JSON.stringify({ prices: csvMap }), { 

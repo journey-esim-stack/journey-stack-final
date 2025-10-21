@@ -429,6 +429,30 @@ export type Database = {
         }
         Relationships: []
       }
+      exchange_rates: {
+        Row: {
+          base_currency: string
+          created_at: string
+          id: string
+          last_updated: string
+          rates: Json
+        }
+        Insert: {
+          base_currency?: string
+          created_at?: string
+          id?: string
+          last_updated?: string
+          rates: Json
+        }
+        Update: {
+          base_currency?: string
+          created_at?: string
+          id?: string
+          last_updated?: string
+          rates?: Json
+        }
+        Relationships: []
+      }
       orders: {
         Row: {
           activation_code: string | null

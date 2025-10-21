@@ -54,15 +54,46 @@ try {
 
     // Authorization: allow admins or the agent owner
     let isAdmin = false;
+    let userId: string | null = null;
     try {
       const { data: userRes } = await userClient.auth.getUser();
-      const userId = userRes?.user?.id;
+      userId = userRes?.user?.id ?? null;
       if (userId) {
         const { data: adminCheck } = await userClient.rpc('has_role', { _user_id: userId, _role: 'admin' });
         isAdmin = !!adminCheck;
       }
     } catch (e) {
       console.warn('Auth user fetch failed, proceeding with standard access check');
+    }
+
+    // Fallback: if admin check failed, verify via service role against user_roles
+    if (!isAdmin) {
+      try {
+        if (!userId) {
+          const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : authHeader;
+          if (token) {
+            try {
+              const payloadPart = token.split('.')[1] || '';
+              const json = payloadPart ? atob(payloadPart.replace(/-/g, '+').replace(/_/g, '/')) : '';
+              const payload = json ? JSON.parse(json) : null;
+              userId = payload?.sub || null;
+            } catch (_) {
+              // ignore decoding errors
+            }
+          }
+        }
+        if (userId) {
+          const { data: roleRow } = await adminClient
+            .from('user_roles')
+            .select('role')
+            .eq('user_id', userId)
+            .eq('role', 'admin')
+            .maybeSingle();
+          isAdmin = !!roleRow;
+        }
+      } catch (e) {
+        console.warn('Admin fallback check failed', e);
+      }
     }
 
     let hasAccess = false;

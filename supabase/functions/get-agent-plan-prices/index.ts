@@ -85,34 +85,26 @@ try {
       });
     }
 
-    // STEP 1: Fetch CSV pricing (agent_pricing table) in chunks
-    const chunkSize = 50;
-    const csvPricing: Array<{ plan_id: string; retail_price: number; updated_at: string }> = [];
+    // STEP 1: Fetch CSV pricing (agent_pricing table) - SINGLE QUERY (optimized)
+    const startTime = Date.now();
+    const { data: csvPricing, error: pricingError } = await adminClient
+      .from('agent_pricing')
+      .select('plan_id, retail_price, updated_at')
+      .eq('agent_id', agentId)
+      .in('plan_id', planIds)
+      .order('updated_at', { ascending: false });
 
-    for (let i = 0; i < planIds.length; i += chunkSize) {
-      const slice = planIds.slice(i, i + chunkSize);
-      const { data, error } = await adminClient
-        .from('agent_pricing')
-        .select('plan_id, retail_price, updated_at')
-        .eq('agent_id', agentId)
-        .in('plan_id', slice)
-        .order('updated_at', { ascending: false });
-      if (error) {
-        console.error('agent_pricing fetch error', { index: i, error });
-        return new Response(JSON.stringify({ error: 'Failed to fetch pricing' }), { 
-          status: 500,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        });
-      }
-      if (data) csvPricing.push(...(data as any));
+    if (pricingError) {
+      console.error('agent_pricing fetch error', pricingError);
+      return new Response(JSON.stringify({ error: 'Failed to fetch pricing' }), { 
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
     }
-
-    // Sort by updated_at desc to ensure latest wins
-    csvPricing.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
 
     // Build CSV price map (plan_id -> retail_price)
     const csvMap: Record<string, number> = {};
-    for (const row of csvPricing) {
+    for (const row of (csvPricing || [])) {
       if (csvMap[row.plan_id] === undefined) {
         csvMap[row.plan_id] = Number(row.retail_price);
       }
@@ -136,38 +128,11 @@ try {
       
       const rules = rulesData || [];
       
-      // Fetch plan wholesale prices for missing plans in chunks to avoid URL length limits
-      const PLAN_CHUNK_SIZE = 80;
-      const allPlans: any[] = [];
-      const totalChunks = Math.ceil(missingPlanIds.length / PLAN_CHUNK_SIZE);
-
-      console.log(`Fetching ${missingPlanIds.length} missing plans in ${totalChunks} chunks`);
-
-      for (let i = 0; i < missingPlanIds.length; i += PLAN_CHUNK_SIZE) {
-        const chunk = missingPlanIds.slice(i, i + PLAN_CHUNK_SIZE);
-        const chunkNum = Math.floor(i / PLAN_CHUNK_SIZE) + 1;
-        
-        console.log(`Fetching esim_plans chunk ${chunkNum}/${totalChunks} (${chunk.length} IDs)`);
-        
-        const { data: chunkData, error: chunkError } = await adminClient
-          .from('esim_plans')
-          .select('id, wholesale_price, country_code, supplier_plan_id')
-          .in('id', chunk);
-        
-        if (chunkError) {
-          console.error(`Error fetching esim_plans chunk ${chunkNum}:`, chunkError);
-          return new Response(JSON.stringify({ error: 'Failed to fetch plan data' }), { 
-            status: 500,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-          });
-        }
-        
-        allPlans.push(...(chunkData || []));
-      }
-
-      console.log(`Successfully fetched ${allPlans.length} plans from ${totalChunks} chunks`);
-      const plansData = allPlans;
-      const plansError = null;
+      // Fetch plan wholesale prices for missing plans - SINGLE QUERY (optimized)
+      const { data: plansData, error: plansError } = await adminClient
+        .from('esim_plans')
+        .select('id, wholesale_price, country_code, supplier_plan_id')
+        .in('id', missingPlanIds);
       
       if (plansError) {
         console.error('esim_plans fetch error', plansError);
@@ -239,6 +204,13 @@ try {
         
         csvMap[planId] = finalPrice;
       }
+    }
+
+    const fetchTime = Date.now() - startTime;
+    console.log(`[Performance] Fetched ${planIds.length} prices in ${fetchTime}ms for agent ${agentId}`);
+    
+    if (fetchTime > 1000) {
+      console.warn(`[Performance] Slow pricing query detected: ${fetchTime}ms`);
     }
 
     return new Response(JSON.stringify({ prices: csvMap }), { 

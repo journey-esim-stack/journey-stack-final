@@ -257,7 +257,6 @@ export default function AlgoliaPlansSimple() {
 
         setAllPlans(allPlans as unknown as EsimPlan[]);
         setPlans(allPlans as unknown as EsimPlan[]);
-        toast({ title: 'Using fallback', description: `Loaded ${allPlans.length} plans via RPC.` });
         return;
       }
       const client = await getSearchClient();
@@ -325,7 +324,6 @@ export default function AlgoliaPlansSimple() {
 
           setAllPlans(allPlans as unknown as EsimPlan[]);
           setPlans(allPlans as unknown as EsimPlan[]);
-          toast({ title: 'Using RPC fallback', description: `Loaded ${allPlans.length} plans.` });
           return;
         } catch {}
       }
@@ -360,10 +358,6 @@ export default function AlgoliaPlansSimple() {
 
         setAllPlans(allPlans as unknown as EsimPlan[]);
         setPlans(allPlans as unknown as EsimPlan[]);
-        toast({
-          title: 'Algolia unavailable, using RPC fallback',
-          description: `Loaded ${allPlans.length} plans.`
-        });
       } catch (fallbackErr: any) {
         console.error('RPC fallback error:', fallbackErr);
         setError(err.message || 'Search failed');

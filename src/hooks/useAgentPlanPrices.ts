@@ -70,8 +70,19 @@ export const useAgentPlanPrices = (planIds: string[]) => {
       const startTime = Date.now();
 
       try {
+        // Ensure Authorization header is present for Edge Function (prevents 403)
+        const { data: { session } } = await supabase.auth.getSession();
+        let token = session?.access_token;
+        if (!token) {
+          console.warn('[useAgentPlanPrices] No auth token yet, retrying shortly...');
+          await new Promise((r) => setTimeout(r, 300));
+          const { data: { session: s2 } } = await supabase.auth.getSession();
+          token = s2?.access_token;
+        }
+
         const { data, error } = await supabase.functions.invoke('get-agent-plan-prices', {
-          body: { agentId: effectiveAgentId, planIds }
+          body: { agentId: effectiveAgentId, planIds },
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined
         });
 
         if (error) {

@@ -70,7 +70,7 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.get-agent-plan-prices]
-verify_jwt = true
+verify_jwt = false
 
 [functions.system-health-check]
 verify_jwt = true

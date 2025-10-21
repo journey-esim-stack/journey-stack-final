@@ -105,19 +105,33 @@ try {
 
     let hasAccess = false;
     if (!isAdmin) {
-      const { data: accessOk, error: accessErr } = await userClient.rpc('validate_agent_wallet_access', { _agent_id: agentId });
-      if (accessErr) {
-        console.error('validate_agent_wallet_access error', accessErr);
-        return new Response(JSON.stringify({ error: 'Access check failed' }), { 
+      try {
+        // Service-role ownership verification to avoid RLS/auth context issues
+        const { data: ownerRow, error: ownerErr } = await adminClient
+          .from('agent_profiles')
+          .select('user_id, status')
+          .eq('id', agentId)
+          .single();
+        if (ownerErr) {
+          console.error('agent_profiles ownership check error', ownerErr);
+          return new Response(JSON.stringify({ error: 'Access check failed' }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+        hasAccess = !!(ownerRow && userId && ownerRow.user_id === userId && ownerRow.status === 'approved');
+      } catch (e) {
+        console.error('Ownership verification failed', e);
+        return new Response(JSON.stringify({ error: 'Access check failed' }), {
           status: 500,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         });
       }
-      hasAccess = !!accessOk;
     }
 
     if (!isAdmin && !hasAccess) {
-      return new Response(JSON.stringify({ error: 'Forbidden' }), { 
+      console.warn('[Auth] Forbidden access', { userId, agentId, isAdmin, hasAccessComputed: hasAccess });
+      return new Response(JSON.stringify({ error: 'Forbidden' }), {
         status: 403,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });

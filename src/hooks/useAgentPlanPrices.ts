@@ -56,7 +56,7 @@ export const useAgentPlanPrices = (planIds: string[]) => {
   const effectiveAgentId = previewAgentId || agentId;
   
   // Stable query key based on sorted plan IDs to prevent unnecessary refetches
-  const queryKey = ['agent-plan-prices', effectiveAgentId, planIds.length > 0 ? planIds.sort().join(',') : 'empty'];
+  const queryKey = ['agent-plan-prices', effectiveAgentId, planIds.length > 0 ? [...planIds].sort().join(',') : 'empty'];
 
   // React Query with caching for instant subsequent loads
   const { data: prices = {}, isLoading, refetch } = useQuery({

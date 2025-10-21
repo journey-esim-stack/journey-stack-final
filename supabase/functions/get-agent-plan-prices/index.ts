@@ -85,13 +85,13 @@ try {
       });
     }
 
-    // STEP 1: Fetch CSV pricing (agent_pricing table) - SINGLE QUERY (optimized)
+    // STEP 1: Fetch CSV pricing (agent_pricing table) - SINGLE QUERY (optimized, no IN to avoid URL length limits)
     const startTime = Date.now();
+    const planIdsSet = new Set<string>(planIds || []);
     const { data: csvPricing, error: pricingError } = await adminClient
       .from('agent_pricing')
       .select('plan_id, retail_price, updated_at')
       .eq('agent_id', agentId)
-      .in('plan_id', planIds)
       .order('updated_at', { ascending: false });
 
     if (pricingError) {
@@ -102,10 +102,10 @@ try {
       });
     }
 
-    // Build CSV price map (plan_id -> retail_price)
+    // Build CSV price map (plan_id -> retail_price) for requested planIds only
     const csvMap: Record<string, number> = {};
     for (const row of (csvPricing || [])) {
-      if (csvMap[row.plan_id] === undefined) {
+      if (planIdsSet.has(row.plan_id) && csvMap[row.plan_id] === undefined) {
         csvMap[row.plan_id] = Number(row.retail_price);
       }
     }
@@ -128,14 +128,38 @@ try {
       
       const rules = rulesData || [];
       
-      // Fetch plan wholesale prices for missing plans - SINGLE QUERY (optimized)
-      const { data: plansData, error: plansError } = await adminClient
-        .from('esim_plans')
-        .select('id, wholesale_price, country_code, supplier_plan_id')
-        .in('id', missingPlanIds);
-      
-      if (plansError) {
-        console.error('esim_plans fetch error', plansError);
+      // Fetch plan wholesale prices for missing plans - chunked to avoid URL length limits
+      let plansData: any[] = [];
+      if (missingPlanIds.length <= 300) {
+        const { data, error } = await adminClient
+          .from('esim_plans')
+          .select('id, wholesale_price, country_code, supplier_plan_id')
+          .in('id', missingPlanIds);
+        if (error) {
+          console.error('esim_plans fetch error', error);
+          return new Response(JSON.stringify({ error: 'Failed to fetch plan data' }), { 
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+        plansData = data || [];
+      } else {
+        const CHUNK = 300;
+        for (let i = 0; i < missingPlanIds.length; i += CHUNK) {
+          const slice = missingPlanIds.slice(i, i + CHUNK);
+          const { data, error } = await adminClient
+            .from('esim_plans')
+            .select('id, wholesale_price, country_code, supplier_plan_id')
+            .in('id', slice);
+          if (error) {
+            console.error('esim_plans chunk fetch error', { index: i, error });
+            return new Response(JSON.stringify({ error: 'Failed to fetch plan data' }), { 
+              status: 500,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            });
+          }
+          if (data) plansData.push(...data);
+        }
       }
       
       const plansMap = new Map((plansData || []).map(p => [p.id, p]));

@@ -66,10 +66,16 @@ serve(async (req) => {
 
     const amountInPaise = Math.round(amount_inr * 100); // Convert to paise
 
+    // Generate a short receipt ID (max 40 chars for Razorpay)
+    // Use first 8 chars of user ID + timestamp (last 8 digits)
+    const shortUserId = user.id.substring(0, 8);
+    const shortTimestamp = String(Date.now()).slice(-8);
+    const receiptId = `wt_${shortUserId}_${shortTimestamp}`;
+
     const orderPayload = {
       amount: amountInPaise,
       currency: "INR",
-      receipt: `wallet_topup_${user.id}_${Date.now()}`,
+      receipt: receiptId,
       notes: {
         user_id: user.id,
         purpose: "wallet_topup"

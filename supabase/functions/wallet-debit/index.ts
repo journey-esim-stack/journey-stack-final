@@ -88,25 +88,41 @@ serve(async (req) => {
     }
     const user = userData.user;
 
-    // Get agent profile
+    // Get agent profile with wallet currency
     const { data: profile, error: profileErr } = await supabase
       .from("agent_profiles")
-      .select("id, wallet_balance")
+      .select("id, wallet_balance, wallet_currency")
       .eq("user_id", user.id)
       .single();
-if (profileErr) throw profileErr;
+    if (profileErr) throw profileErr;
 
-    await logTrace(supabase, 'start', { correlationId, amount, reference_id, cart_items_count: cart_items?.length || 0 }, user.id);
+    // Get exchange rates for currency conversion
+    const { data: ratesData } = await supabase.functions.invoke('get-exchange-rates');
+    const exchangeRates = ratesData?.rates || { USD: 1, INR: 90, AUD: 1.58, EUR: 0.95 };
+
+    // Cart items are in USD, convert to agent's wallet currency
+    const walletCurrency = profile.wallet_currency || 'USD';
+    const conversionRate = exchangeRates[walletCurrency] || 1;
+    const amountInWalletCurrency = amount * conversionRate;
+
+    console.log(`Converting USD ${amount} to ${walletCurrency} ${amountInWalletCurrency.toFixed(2)} (rate: ${conversionRate})`);
+
+    await logTrace(supabase, 'start', { correlationId, amount, reference_id, cart_items_count: cart_items?.length || 0, wallet_currency: walletCurrency, amount_in_wallet_currency: amountInWalletCurrency }, user.id);
 
     const currentBalance = Number(profile.wallet_balance);
-    if (currentBalance < amount) {
-      return new Response(JSON.stringify({ error: "INSUFFICIENT_FUNDS", balance: currentBalance }), {
+    if (currentBalance < amountInWalletCurrency) {
+      return new Response(JSON.stringify({ 
+        error: "INSUFFICIENT_FUNDS", 
+        balance: currentBalance, 
+        currency: walletCurrency,
+        required: amountInWalletCurrency 
+      }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 402,
       });
     }
 
-    const newBalance = currentBalance - amount;
+    const newBalance = currentBalance - amountInWalletCurrency;
 
     // Update balance
     const { error: updateErr } = await supabase
@@ -122,13 +138,13 @@ if (profileErr) throw profileErr;
       transactionDescription = `eSIM purchase: ${planNames}`;
     }
 
-    // Insert transaction
+    // Insert transaction in wallet currency
     const { error: insertErr } = await supabase.from("wallet_transactions").insert({
       agent_id: profile.id,
       transaction_type: "purchase", // Use correct enum value
       description: transactionDescription,
       reference_id: reference_id ?? `cart-${Date.now()}`,
-      amount: -amount, // Negative for debit/purchase
+      amount: -amountInWalletCurrency, // Negative for debit/purchase, in wallet currency
       balance_after: newBalance,
     });
     if (insertErr) throw insertErr;

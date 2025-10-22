@@ -8,10 +8,11 @@ interface CurrencyContextType {
   selectedCurrency: Currency;
   setSelectedCurrency: (currency: Currency) => void;
   convertPrice: (usdPrice: number) => number;
-  getCurrencySymbol: () => string;
+  getCurrencySymbol: (currency?: Currency) => string;
   lastUpdated: string | null;
   isLoading: boolean;
   refreshRates: () => Promise<void>;
+  getAgentWalletCurrency: () => Promise<Currency>;
 }
 
 const CurrencyContext = createContext<CurrencyContextType | undefined>(undefined);
@@ -87,8 +88,26 @@ export function CurrencyProvider({ children }: CurrencyProviderProps) {
     return usdPrice * rate;
   };
 
-  const getCurrencySymbol = (): string => {
-    return CURRENCY_SYMBOLS[selectedCurrency];
+  const getCurrencySymbol = (currency?: Currency): string => {
+    return CURRENCY_SYMBOLS[currency || selectedCurrency];
+  };
+
+  const getAgentWalletCurrency = async (): Promise<Currency> => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return 'USD';
+
+      const { data: profile } = await supabase
+        .from('agent_profiles')
+        .select('wallet_currency')
+        .eq('user_id', user.id)
+        .single();
+
+      return (profile?.wallet_currency as Currency) || 'USD';
+    } catch (error) {
+      console.error('Failed to get agent wallet currency:', error);
+      return 'USD';
+    }
   };
 
   return (
@@ -100,7 +119,8 @@ export function CurrencyProvider({ children }: CurrencyProviderProps) {
         getCurrencySymbol,
         lastUpdated,
         isLoading,
-        refreshRates
+        refreshRates,
+        getAgentWalletCurrency
       }}
     >
       {children}

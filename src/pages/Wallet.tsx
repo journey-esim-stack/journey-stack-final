@@ -8,7 +8,8 @@ import Layout from "@/components/Layout";
 import { format } from "date-fns";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Download, FileText, FileSpreadsheet, ChevronLeft, ChevronRight, Shield, Lock, CheckCircle, Wallet as WalletIcon } from "lucide-react";
+import { Download, FileText, FileSpreadsheet, ChevronLeft, ChevronRight, Shield, Lock, CheckCircle, Wallet as WalletIcon, RefreshCw } from "lucide-react";
+import { useCurrency, Currency } from "@/contexts/CurrencyContext";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -25,16 +26,17 @@ interface WalletTransaction {
 interface AgentProfile {
   id: string;
   wallet_balance: number;
+  wallet_currency: string;
 }
 export default function Wallet() {
   const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
   const [allTransactions, setAllTransactions] = useState<WalletTransaction[]>([]);
   const [profile, setProfile] = useState<AgentProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const {
-    toast
-  } = useToast();
+  const { toast } = useToast();
+  const { getCurrencySymbol } = useCurrency();
   const [topUpAmount, setTopUpAmount] = useState<number>(10);
+  const [isRazorpayLoading, setIsRazorpayLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const itemsPerPage = 20;
@@ -81,11 +83,11 @@ export default function Wallet() {
       } = await supabase.auth.getUser();
       if (!user) throw new Error("No user found");
 
-      // Get agent profile
+      // Get agent profile with wallet currency
       const {
         data: profileData,
         error: profileError
-      } = await supabase.from("agent_profiles").select("id, wallet_balance").eq("user_id", user.id).maybeSingle();
+      } = await supabase.from("agent_profiles").select("id, wallet_balance, wallet_currency").eq("user_id", user.id).maybeSingle();
       if (profileError) throw profileError;
       if (!profileData) {
         console.warn("No agent profile found for user");
@@ -139,7 +141,111 @@ export default function Wallet() {
       inFlightRef.current = false;
     }
   };
-  const handleTopUp = async () => {
+  // Load Razorpay script
+  const loadRazorpayScript = (): Promise<boolean> => {
+    return new Promise((resolve) => {
+      if ((window as any).Razorpay) {
+        resolve(true);
+        return;
+      }
+      const script = document.createElement('script');
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
+
+  const handleRazorpayTopUp = async () => {
+    const minAmount = profile?.wallet_currency === 'INR' ? 100 : 10;
+    const currencySymbol = getCurrencySymbol(profile?.wallet_currency as Currency);
+    
+    if (topUpAmount < minAmount) {
+      toast({
+        title: `Minimum top-up is ${currencySymbol}${minAmount}`,
+        description: `Please enter ${currencySymbol}${minAmount} or more.`,
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsRazorpayLoading(true);
+    try {
+      const res = await loadRazorpayScript();
+      if (!res) {
+        toast({
+          title: 'Payment Gateway Error',
+          description: 'Razorpay SDK failed to load. Please try again.',
+          variant: 'destructive'
+        });
+        return;
+      }
+
+      // Create Razorpay order
+      const { data, error } = await supabase.functions.invoke('create-razorpay-order', {
+        body: { amount_inr: topUpAmount }
+      });
+
+      if (error) throw error;
+
+      const options = {
+        key: data.key_id,
+        amount: data.amount,
+        currency: data.currency,
+        name: 'Journey Stack',
+        description: 'Wallet Top-Up',
+        order_id: data.order_id,
+        handler: async (response: any) => {
+          try {
+            // Verify payment
+            const { data: verifyData, error: verifyError } = await supabase.functions.invoke('verify-razorpay-payment', {
+              body: {
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature
+              }
+            });
+
+            if (verifyError) throw verifyError;
+
+            toast({
+              title: 'Top-up successful!',
+              description: `₹${verifyData.amount_added.toFixed(2)} added to your wallet.`,
+            });
+
+            fetchWalletData();
+          } catch (e) {
+            console.error('Payment verification error:', e);
+            toast({
+              title: 'Payment verification failed',
+              description: 'Please contact support if amount was deducted.',
+              variant: 'destructive'
+            });
+          }
+        },
+        modal: {
+          ondismiss: () => {
+            setIsRazorpayLoading(false);
+          }
+        },
+        theme: { color: '#3399cc' }
+      };
+
+      const paymentObject = new (window as any).Razorpay(options);
+      paymentObject.open();
+    } catch (e) {
+      console.error('Razorpay top-up error:', e);
+      toast({
+        title: 'Top-up failed',
+        description: 'Could not create payment session',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsRazorpayLoading(false);
+    }
+  };
+
+  const handleStripeTopUp = async () => {
     if (topUpAmount < 10) {
       toast({
         title: "Minimum top-up is $10",
@@ -149,19 +255,13 @@ export default function Wallet() {
       return;
     }
     try {
-      const {
-        data,
-        error
-      } = await supabase.functions.invoke('create-topup', {
-        body: {
-          amount_dollars: topUpAmount
-        }
+      const { data, error } = await supabase.functions.invoke('create-topup', {
+        body: { amount_dollars: topUpAmount }
       });
       if (error) throw error;
       if (data?.url) {
         const popup = window.open(data.url, '_blank');
         if (!popup) {
-          // Fallback if popup blocked
           toast({
             title: "Payment Window Blocked",
             description: "Please allow popups and try again, or click the link below:",
@@ -170,7 +270,6 @@ export default function Wallet() {
               </a>
           });
         } else {
-          // Add a slight delay before refreshing to allow the window to open
           setTimeout(() => {
             fetchWalletData();
           }, 1000);
@@ -183,6 +282,14 @@ export default function Wallet() {
         description: 'Could not create top-up session',
         variant: 'destructive'
       });
+    }
+  };
+
+  const handleTopUp = () => {
+    if (profile?.wallet_currency === 'INR') {
+      handleRazorpayTopUp();
+    } else {
+      handleStripeTopUp();
     }
   };
 
@@ -213,9 +320,11 @@ export default function Wallet() {
     doc.setFontSize(20);
     doc.text('Transaction History', 20, 20);
 
-    // Add current balance
+    // Add current balance with wallet currency
     doc.setFontSize(12);
-    doc.text(`Current Balance: USD ${profile?.wallet_balance?.toFixed(2) || "0.00"}`, 20, 35);
+    const walletCurrency = profile?.wallet_currency || 'USD';
+    const currencySymbol = getCurrencySymbol(walletCurrency as Currency);
+    doc.text(`Current Balance: ${currencySymbol}${profile?.wallet_balance?.toFixed(2) || "0.00"}`, 20, 35);
     doc.text(`Generated on: ${format(new Date(), "MMM dd, yyyy HH:mm")}`, 20, 45);
 
     // Prepare table data
@@ -290,7 +399,11 @@ export default function Wallet() {
             <div className="flex items-start justify-between">
               <div>
                 <CardTitle>Top Up Wallet</CardTitle>
-                <CardDescription>Minimum top-up is USD 10</CardDescription>
+                <CardDescription>
+                  {profile?.wallet_currency === 'INR' 
+                    ? 'Minimum top-up is ₹100 - Pay via UPI, Cards, Net Banking'
+                    : 'Minimum top-up is $10'}
+                </CardDescription>
               </div>
               {/* Security badges moved to top right */}
               <div className="flex items-center gap-4 text-muted-foreground">
@@ -312,11 +425,24 @@ export default function Wallet() {
           <CardContent>
             <div className="flex flex-col sm:flex-row gap-3">
               <div className="flex-1 space-y-1">
-                <label className="text-sm text-muted-foreground">Amount (USD)</label>
-                <Input type="number" min={10} step="10" value={topUpAmount} onChange={e => setTopUpAmount(Number(e.target.value))} />
+                <label className="text-sm text-muted-foreground">
+                  Amount ({profile?.wallet_currency || 'USD'})
+                </label>
+                <Input 
+                  type="number" 
+                  min={profile?.wallet_currency === 'INR' ? 100 : 10} 
+                  step={profile?.wallet_currency === 'INR' ? 100 : 10} 
+                  value={topUpAmount} 
+                  onChange={e => setTopUpAmount(Number(e.target.value))} 
+                />
               </div>
-              <Button onClick={handleTopUp} className="sm:self-end">
-                Top Up
+              <Button 
+                onClick={handleTopUp} 
+                className="sm:self-end"
+                disabled={isRazorpayLoading}
+              >
+                {isRazorpayLoading && <RefreshCw className="mr-2 h-4 w-4 animate-spin" />}
+                {profile?.wallet_currency === 'INR' ? 'Pay with Razorpay' : 'Top Up with Stripe'}
               </Button>
             </div>
             
@@ -336,8 +462,11 @@ export default function Wallet() {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-primary">
-              USD {profile?.wallet_balance?.toFixed(2) || "0.00"}
+              {getCurrencySymbol(profile?.wallet_currency as Currency)} {profile?.wallet_balance?.toFixed(2) || "0.00"}
             </div>
+            <p className="text-sm text-muted-foreground mt-2">
+              Wallet Currency: {profile?.wallet_currency || 'USD'}
+            </p>
           </CardContent>
         </Card>
 

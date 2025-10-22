@@ -3,12 +3,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import Layout from "@/components/Layout";
 import { format } from "date-fns";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Download, FileText, FileSpreadsheet, ChevronLeft, ChevronRight, Shield, Lock, CheckCircle, Wallet as WalletIcon, RefreshCw } from "lucide-react";
+import { Download, FileText, FileSpreadsheet, ChevronLeft, ChevronRight, Shield, Lock, CheckCircle, Wallet as WalletIcon, RefreshCw, Database } from "lucide-react";
 import { useCurrency, Currency } from "@/contexts/CurrencyContext";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import jsPDF from 'jspdf';
@@ -392,7 +393,27 @@ export default function Wallet() {
             Simple &amp; Secure Wallet Top-Ups
           </h1>
           <p className="text-muted-foreground">Manage your wallet balance and view transaction history</p>
+          {profile?.wallet_currency && (
+            <p className="text-sm text-muted-foreground mt-1">
+              Your Wallet Currency: <span className="font-semibold">{profile.wallet_currency} ({profile.wallet_currency === 'INR' ? '🇮🇳 India' : '🌍 International'})</span>
+            </p>
+          )}
         </div>
+
+        {/* Info Alert */}
+        {profile?.wallet_currency && (
+          <Alert className="border-primary/20 bg-primary/5">
+            <Database className="h-4 w-4" />
+            <AlertTitle>About Your Wallet</AlertTitle>
+            <AlertDescription>
+              Your wallet is set to <strong>{profile.wallet_currency}</strong> based on your country during registration. 
+              {profile.wallet_currency === 'INR' 
+                ? ' Top-ups are processed via Razorpay in INR.' 
+                : ' Top-ups are processed via Stripe in USD.'}
+              {' '}Plan prices shown in other currencies are for reference only - you'll be charged in {profile.wallet_currency} at checkout.
+            </AlertDescription>
+          </Alert>
+        )}
 
         <Card className="glass-card border-black">
           <CardHeader className="relative">

@@ -7,10 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 // Fixed imports - using Router instead of HotspotIcon
-import { Search, Globe, Clock, Database, Wifi, Router, ShoppingCart, Check, ArrowUpDown, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, Globe, Clock, Database, Wifi, Router, ShoppingCart, Check, ArrowUpDown, ChevronLeft, ChevronRight, Info } from "lucide-react";
 import Layout from "@/components/Layout";
 import { getCountryFlag, getRegion, getAllRegions } from "@/utils/countryFlags";
 import { useCart } from "@/contexts/CartContext";
@@ -442,6 +443,15 @@ export default function Plans() {
             <span>{regions.length} regions covered</span>
           </div>
         </div>
+
+        {/* Currency Info Alert */}
+        <Alert className="border-primary/20 bg-primary/5">
+          <Info className="h-4 w-4" />
+          <AlertTitle>Currency Display</AlertTitle>
+          <AlertDescription>
+            Prices are shown in your selected display currency ({selectedCurrency}) for reference. At checkout, you'll be charged in your wallet currency based on current exchange rates.
+          </AlertDescription>
+        </Alert>
 
         {/* Search and Filter Section */}
         <Card className="glass-card">

@@ -366,9 +366,10 @@ export default function Plans() {
       ? (dayPassDays[plan.id] ?? Math.max(plan.validity_days || 1, 1)) 
       : plan.validity_days;
 
-    const price = isDayPass(plan)
-      ? convertPrice(Number(plan.agent_price)) * days
-      : convertPrice(Number(plan.agent_price));
+    // Store USD price in cart - conversion happens only for display
+    const priceUSD = isDayPass(plan)
+      ? Number(plan.agent_price) * days
+      : Number(plan.agent_price);
     
     addToCart({
       id: plan.id,
@@ -378,8 +379,8 @@ export default function Plans() {
       countryCode: plan.country_code,
       dataAmount: plan.data_amount,
       validityDays: days,
-      agentPrice: price,
-      currency: selectedCurrency,
+      agentPrice: priceUSD,
+      currency: 'USD', // Always store as USD
       
     });
 

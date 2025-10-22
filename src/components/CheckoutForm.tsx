@@ -18,7 +18,7 @@ interface CheckoutFormProps {
 
 export const CheckoutForm = ({ onSuccess, onCancel }: CheckoutFormProps) => {
   const { state, clearCart } = useCart();
-  const { getCurrencySymbol, selectedCurrency } = useCurrency();
+  const { getCurrencySymbol, selectedCurrency, convertPrice } = useCurrency();
   const { toast } = useToast();
   
   const [customerInfo, setCustomerInfo] = useState({
@@ -320,12 +320,12 @@ export const CheckoutForm = ({ onSuccess, onCancel }: CheckoutFormProps) => {
             {state.items.map((item) => (
               <div key={item.id} className="flex justify-between text-sm">
                 <span>{item.title} (×{item.quantity})</span>
-                <span>{getCurrencySymbol()}{(item.agentPrice * item.quantity).toFixed(2)} {selectedCurrency}</span>
+                <span>{getCurrencySymbol()}{convertPrice(item.agentPrice * item.quantity).toFixed(2)} {selectedCurrency}</span>
               </div>
             ))}
             <div className="border-t pt-2 flex justify-between font-semibold">
               <span>Total:</span>
-              <span>{getCurrencySymbol()}{state.total.toFixed(2)} {selectedCurrency}</span>
+              <span>{getCurrencySymbol()}{convertPrice(state.total).toFixed(2)} {selectedCurrency}</span>
             </div>
           </div>
         </CardContent>

@@ -27,25 +27,37 @@ export default function CurrencySelector() {
 
   return (
     <div className="flex items-center gap-2">
-      <Select value={selectedCurrency} onValueChange={setSelectedCurrency}>
-        <SelectTrigger className="w-24 md:w-28 h-8 text-xs md:text-sm bg-background border-border">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent className="bg-background border-border shadow-lg">
-          {CURRENCIES.map((currency) => (
-            <SelectItem 
-              key={currency.value} 
-              value={currency.value}
-              className="hover:bg-accent focus:bg-accent"
-            >
-              <div className="flex items-center space-x-2">
-                <span>{currency.flag}</span>
-                <span>{currency.label}</span>
-              </div>
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div>
+              <Select value={selectedCurrency} onValueChange={setSelectedCurrency}>
+                <SelectTrigger className="w-24 md:w-28 h-8 text-xs md:text-sm bg-background border-border">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-background border-border shadow-lg">
+                  {CURRENCIES.map((currency) => (
+                    <SelectItem 
+                      key={currency.value} 
+                      value={currency.value}
+                      className="hover:bg-accent focus:bg-accent"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <span>{currency.flag}</span>
+                        <span>{currency.label}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p className="text-xs">Display Currency - For viewing plan prices only</p>
+            <p className="text-xs text-muted-foreground">Your wallet currency is set based on your country</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
       
       <TooltipProvider>
         <Tooltip>

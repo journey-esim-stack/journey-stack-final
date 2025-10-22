@@ -242,7 +242,7 @@ function PlanHit({ hit, isAdmin }: { hit: EsimPlan & { _canonical_supplier_id?: 
       dataAmount: hit.data_amount,
       validityDays: days,
       agentPrice: price,
-      currency: hit.currency,
+      currency: 'USD',
     };
 
     addToCart(cartItem);

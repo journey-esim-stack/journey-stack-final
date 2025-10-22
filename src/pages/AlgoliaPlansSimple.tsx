@@ -79,7 +79,7 @@ function PlanCard({
       dataAmount: plan.data_amount,
       validityDays: days,
       agentPrice: priceUSD,
-      currency: plan.currency
+      currency: 'USD'
     };
     addToCart(cartItem);
     setAddedToCart(true);

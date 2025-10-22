@@ -198,7 +198,7 @@ const PlanCard = ({ plan, calculatePrice, debugGetPriceMeta, isAdmin, isPriceLoa
         dataAmount: plan.data_amount,
         validityDays: plan.validity_days,
         agentPrice: priceUSD,
-        currency: plan.currency,
+        currency: 'USD',
         
       });
       

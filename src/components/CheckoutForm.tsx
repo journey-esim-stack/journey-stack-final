@@ -112,13 +112,8 @@ export const CheckoutForm = ({ onSuccess, onCancel }: CheckoutFormProps) => {
     console.log('💰 Cart total:', state.total, selectedCurrency);
     
     try {
-      // Convert prices back to USD for backend processing
-      const usdConversionRate = selectedCurrency === 'USD' ? 1 : 
-        selectedCurrency === 'INR' ? 1/84.50 :
-        selectedCurrency === 'AUD' ? 1/1.58 :
-        selectedCurrency === 'EUR' ? 1/0.95 : 1;
-      
-      const usdTotal = Number((state.total * usdConversionRate).toFixed(2));
+      // Cart stores USD; no reconversion needed
+      const usdTotal = Number(state.total.toFixed(2));
       console.log('💵 USD total after conversion:', usdTotal);
       console.log('🛍️ Cart items:', state.items.length);
       
@@ -141,7 +136,7 @@ export const CheckoutForm = ({ onSuccess, onCancel }: CheckoutFormProps) => {
         reference_id: `cart-${Date.now()}`,
         cart_items: state.items.map(item => ({
           ...item,
-          agentPrice: item.agentPrice * usdConversionRate, // Convert back to USD
+          agentPrice: item.agentPrice, // Already in USD
           supplier_name: item.supplier_name // Include supplier info to route to correct create function
         })),
         customer_info: {

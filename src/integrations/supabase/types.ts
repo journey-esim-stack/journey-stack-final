@@ -165,7 +165,7 @@ export type Database = {
           endpoint: string
           http_method: string
           id: string
-          ip_address: unknown | null
+          ip_address: unknown
           request_body: Json | null
           response_body: Json | null
           response_time_ms: number | null
@@ -177,7 +177,7 @@ export type Database = {
           endpoint: string
           http_method: string
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           request_body?: Json | null
           response_body?: Json | null
           response_time_ms?: number | null
@@ -189,7 +189,7 @@ export type Database = {
           endpoint?: string
           http_method?: string
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           request_body?: Json | null
           response_body?: Json | null
           response_time_ms?: number | null
@@ -210,7 +210,7 @@ export type Database = {
           action: string
           created_at: string
           id: string
-          ip_address: unknown | null
+          ip_address: unknown
           new_values: Json | null
           old_values: Json | null
           record_id: string | null
@@ -222,7 +222,7 @@ export type Database = {
           action: string
           created_at?: string
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           new_values?: Json | null
           old_values?: Json | null
           record_id?: string | null
@@ -234,7 +234,7 @@ export type Database = {
           action?: string
           created_at?: string
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           new_values?: Json | null
           old_values?: Json | null
           record_id?: string | null
@@ -968,7 +968,7 @@ export type Database = {
         Returns: undefined
       }
       get_agent_safe_plans: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           admin_only: boolean
           country_code: string
@@ -985,7 +985,7 @@ export type Database = {
         }[]
       }
       get_agent_visible_plans: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           admin_only: boolean
           country_code: string

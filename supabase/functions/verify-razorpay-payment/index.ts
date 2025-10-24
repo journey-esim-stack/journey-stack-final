@@ -129,7 +129,7 @@ serve(async (req) => {
       .from("wallet_transactions")
       .insert({
         agent_id: profile.id,
-        transaction_type: "credit",
+        transaction_type: "deposit",
         amount: amountInr,
         balance_after: newBalance,
         description: `Razorpay wallet top-up via ${payment.method}`,

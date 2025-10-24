@@ -214,7 +214,10 @@ export default function Wallet() {
               description: `₹${verifyData.amount_added.toFixed(2)} added to your wallet.`,
             });
 
-            fetchWalletData();
+            // Wait a moment for transaction to be committed, then refresh
+            setTimeout(() => {
+              fetchWalletData();
+            }, 500);
           } catch (e) {
             console.error('Payment verification error:', e);
             toast({
@@ -329,7 +332,14 @@ export default function Wallet() {
     doc.text(`Generated on: ${format(new Date(), "MMM dd, yyyy HH:mm")}`, 20, 45);
 
     // Prepare table data
-    const tableData = allTransactions.map(transaction => [format(new Date(transaction.created_at), "MMM dd, yyyy HH:mm"), transaction.transaction_type === "deposit" ? "Top-up" : transaction.transaction_type === "purchase" ? "Purchase" : "Refund", transaction.description || "-", `${transaction.transaction_type === "deposit" || transaction.transaction_type === "refund" ? "+" : "-"}USD ${Math.abs(transaction.amount).toFixed(2)}`, `USD ${transaction.balance_after.toFixed(2)}`, transaction.reference_id || "-"]);
+    const tableData = allTransactions.map(transaction => [
+      format(new Date(transaction.created_at), "MMM dd, yyyy HH:mm"), 
+      transaction.transaction_type === "deposit" ? "Top-up" : transaction.transaction_type === "purchase" ? "Purchase" : "Refund", 
+      transaction.description || "-", 
+      `${transaction.transaction_type === "deposit" || transaction.transaction_type === "refund" ? "+" : "-"}${walletCurrency} ${Math.abs(transaction.amount).toFixed(2)}`, 
+      `${walletCurrency} ${transaction.balance_after.toFixed(2)}`, 
+      transaction.reference_id || "-"
+    ]);
 
     // Add table
     autoTable(doc, {
@@ -350,6 +360,7 @@ export default function Wallet() {
     });
   };
   const downloadExcel = () => {
+    const walletCurrency = profile?.wallet_currency || 'USD';
     const ws = XLSX.utils.json_to_sheet(allTransactions.map(transaction => ({
       Date: format(new Date(transaction.created_at), "MMM dd, yyyy HH:mm"),
       Type: transaction.transaction_type === "deposit" ? "Top-up" : transaction.transaction_type === "purchase" ? "Purchase" : "Refund",
@@ -363,7 +374,7 @@ export default function Wallet() {
 
     // Add current balance as a separate sheet
     const balanceSheet = XLSX.utils.json_to_sheet([{
-      'Current Balance': profile?.wallet_balance?.toFixed(2) || "0.00",
+      'Current Balance': `${walletCurrency} ${profile?.wallet_balance?.toFixed(2) || "0.00"}`,
       'Generated On': format(new Date(), "MMM dd, yyyy HH:mm")
     }]);
     XLSX.utils.book_append_sheet(wb, balanceSheet, "Summary");
@@ -371,6 +382,46 @@ export default function Wallet() {
     toast({
       title: "Excel Downloaded",
       description: "Transaction history has been downloaded as Excel file"
+    });
+  };
+
+  const downloadCSV = () => {
+    const walletCurrency = profile?.wallet_currency || 'USD';
+    const currencySymbol = getCurrencySymbol(walletCurrency as Currency);
+    
+    // Create CSV header
+    const headers = ['Date', 'Type', 'Description', 'Amount', 'Balance After', 'Reference'];
+    
+    // Create CSV rows
+    const rows = allTransactions.map(transaction => [
+      format(new Date(transaction.created_at), "MMM dd, yyyy HH:mm"),
+      transaction.transaction_type === "deposit" ? "Top-up" : transaction.transaction_type === "purchase" ? "Purchase" : "Refund",
+      transaction.description || "-",
+      `${transaction.transaction_type === "deposit" || transaction.transaction_type === "refund" ? "+" : "-"}${walletCurrency} ${Math.abs(transaction.amount).toFixed(2)}`,
+      `${walletCurrency} ${transaction.balance_after.toFixed(2)}`,
+      transaction.reference_id || "-"
+    ]);
+    
+    // Combine header and rows
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+    ].join('\n');
+    
+    // Create and download file
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', 'transaction-history.csv');
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    toast({
+      title: "CSV Downloaded",
+      description: "Transaction history has been downloaded as CSV file"
     });
   };
   const goToPage = (page: number) => {
@@ -510,6 +561,10 @@ export default function Wallet() {
                       <FileText className="h-4 w-4 mr-2" />
                       Download PDF
                     </DropdownMenuItem>
+                    <DropdownMenuItem onClick={downloadCSV}>
+                      <FileText className="h-4 w-4 mr-2" />
+                      Download CSV
+                    </DropdownMenuItem>
                     <DropdownMenuItem onClick={downloadExcel}>
                       <FileSpreadsheet className="h-4 w-4 mr-2" />
                       Download Excel
@@ -544,10 +599,10 @@ export default function Wallet() {
                       <TableCell>
                         <span className={transaction.transaction_type === "deposit" || transaction.transaction_type === "refund" ? "text-green-600" : "text-red-600"}>
                           {transaction.transaction_type === "deposit" || transaction.transaction_type === "refund" ? "+" : "-"}
-                          USD {Math.abs(transaction.amount).toFixed(2)}
+                          {profile?.wallet_currency || 'USD'} {Math.abs(transaction.amount).toFixed(2)}
                         </span>
                       </TableCell>
-                      <TableCell>USD {transaction.balance_after.toFixed(2)}</TableCell>
+                      <TableCell>{profile?.wallet_currency || 'USD'} {transaction.balance_after.toFixed(2)}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">
                         {transaction.reference_id || "-"}
                       </TableCell>

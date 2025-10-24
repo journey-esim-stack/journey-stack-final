@@ -1,82 +1,28 @@
-// Country code to flag emoji mapping
-export const getCountryFlag = (countryCode: string): string => {
-  const flagMap: Record<string, string> = {
-    'AF': '🇦🇫', // Afghanistan
-    'SG': '🇸🇬', // Singapore
-    'MY': '🇲🇾', // Malaysia
-    'TH': '🇹🇭', // Thailand
-    'ID': '🇮🇩', // Indonesia
-    'PH': '🇵🇭', // Philippines
-    'VN': '🇻🇳', // Vietnam
-    'JP': '🇯🇵', // Japan
-    'KR': '🇰🇷', // South Korea
-    'CN': '🇨🇳', // China
-    'HK': '🇭🇰', // Hong Kong
-    'TW': '🇹🇼', // Taiwan
-    'IN': '🇮🇳', // India
-    'US': '🇺🇸', // United States
-    'CA': '🇨🇦', // Canada
-    'GB': '🇬🇧', // United Kingdom
-    'DE': '🇩🇪', // Germany
-    'FR': '🇫🇷', // France
-    'IT': '🇮🇹', // Italy
-    'ES': '🇪🇸', // Spain
-    'AU': '🇦🇺', // Australia
-    'NZ': '🇳🇿', // New Zealand
-    'BR': '🇧🇷', // Brazil
-    'MX': '🇲🇽', // Mexico
-    'AE': '🇦🇪', // United Arab Emirates
-    'SA': '🇸🇦', // Saudi Arabia
-    'TR': '🇹🇷', // Turkey
-    'EG': '🇪🇬', // Egypt
-    'ZA': '🇿🇦', // South Africa
-    'NG': '🇳🇬', // Nigeria
-    'KE': '🇰🇪', // Kenya
-    'IL': '🇮🇱', // Israel
-    'RU': '🇷🇺', // Russia
-    'UA': '🇺🇦', // Ukraine
-    'PL': '🇵🇱', // Poland
-    'CZ': '🇨🇿', // Czech Republic
-    'AT': '🇦🇹', // Austria
-    'CH': '🇨🇭', // Switzerland
-    'NL': '🇳🇱', // Netherlands
-    'BE': '🇧🇪', // Belgium
-    'DK': '🇩🇰', // Denmark
-    'SE': '🇸🇪', // Sweden
-    'NO': '🇳🇴', // Norway
-    'FI': '🇫🇮', // Finland
-    'IE': '🇮🇪', // Ireland
-    'PT': '🇵🇹', // Portugal
-    'GR': '🇬🇷', // Greece
-    'HR': '🇭🇷', // Croatia
-    'HU': '🇭🇺', // Hungary
-    'RO': '🇷🇴', // Romania
-    'BG': '🇧🇬', // Bulgaria
-    'LT': '🇱🇹', // Lithuania
-    'LV': '🇱🇻', // Latvia
-    'EE': '🇪🇪', // Estonia
-    'SI': '🇸🇮', // Slovenia
-    'SK': '🇸🇰', // Slovakia
-    'LU': '🇱🇺', // Luxembourg
-    'MT': '🇲🇹', // Malta
-    'CY': '🇨🇾', // Cyprus
-    'BD': '🇧🇩', // Bangladesh
-    'PK': '🇵🇰', // Pakistan
-    'LK': '🇱🇰', // Sri Lanka
-    'NP': '🇳🇵', // Nepal
-    'MM': '🇲🇲', // Myanmar
-    'KH': '🇰🇭', // Cambodia
-    'LA': '🇱🇦', // Laos
-    'BN': '🇧🇳', // Brunei
-    'MN': '🇲🇳', // Mongolia
-    'KZ': '🇰🇿', // Kazakhstan
-    'UZ': '🇺🇿', // Uzbekistan
-    'TM': '🇹🇲', // Turkmenistan
-    'KG': '🇰🇬', // Kyrgyzstan
-    'TJ': '🇹🇯', // Tajikistan
-  };
+// Country code validation - used to check if a country code is valid
+// No longer returns emoji flags - use FlagIcon component instead
+export const isValidCountryCode = (countryCode: string): boolean => {
+  const validCodes = [
+    'AF', 'SG', 'MY', 'TH', 'ID', 'PH', 'VN', 'JP', 'KR', 'CN', 'HK', 'TW',
+    'IN', 'US', 'CA', 'GB', 'DE', 'FR', 'IT', 'ES', 'AU', 'NZ', 'BR', 'MX',
+    'AE', 'SA', 'TR', 'EG', 'ZA', 'NG', 'KE', 'IL', 'RU', 'UA', 'PL', 'CZ',
+    'AT', 'CH', 'NL', 'BE', 'DK', 'SE', 'NO', 'FI', 'IE', 'PT', 'GR', 'HR',
+    'HU', 'RO', 'BG', 'LT', 'LV', 'EE', 'SI', 'SK', 'LU', 'MT', 'CY', 'BD',
+    'PK', 'LK', 'NP', 'MM', 'KH', 'LA', 'BN', 'MN', 'KZ', 'UZ', 'TM', 'KG', 'TJ',
+    'AL', 'BY', 'BA', 'IS', 'LI', 'MD', 'MC', 'ME', 'MK', 'RS',
+    'AM', 'AZ', 'BH', 'GE', 'IR', 'IQ', 'JO', 'KW', 'LB', 'MA', 'OM', 'QA', 'TN',
+    'AR', 'BO', 'CL', 'CO', 'CR', 'DO', 'EC', 'SV', 'GT', 'HN', 'NI', 'PA', 'PY', 'PE', 'UY', 'VE',
+    'DZ', 'AO', 'BW', 'CM', 'ET', 'GH', 'LY', 'RW', 'SN', 'TZ', 'UG', 'ZM',
+    'FJ', 'PG', 'WS', 'TO', 'VU', 'MO'
+  ];
+  
+  return validCodes.includes(countryCode.toUpperCase());
+};
 
-  return flagMap[countryCode.toUpperCase()] || '🌍';
+// Legacy function for backward compatibility - now returns empty string
+// Use FlagIcon component instead for rendering flags
+export const getCountryFlag = (countryCode: string): string => {
+  console.warn('getCountryFlag() is deprecated. Use <FlagIcon /> component instead.');
+  return '';
 };
 
 // Regional groupings for filtering

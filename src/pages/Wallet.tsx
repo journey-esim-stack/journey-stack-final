@@ -9,9 +9,10 @@ import Layout from "@/components/Layout";
 import { format } from "date-fns";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Download, FileText, FileSpreadsheet, ChevronLeft, ChevronRight, Shield, Lock, CheckCircle, Wallet as WalletIcon, RefreshCw, Database } from "lucide-react";
+import { Download, FileText, FileSpreadsheet, ChevronLeft, ChevronRight, Shield, Lock, CheckCircle, Wallet as WalletIcon, RefreshCw, Database, Globe } from "lucide-react";
 import { useCurrency, Currency } from "@/contexts/CurrencyContext";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { FlagIcon } from "@/components/ui/flag-icon";
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
@@ -445,8 +446,20 @@ export default function Wallet() {
           </h1>
           <p className="text-muted-foreground">Manage your wallet balance and view transaction history</p>
           {profile?.wallet_currency && (
-            <p className="text-sm text-muted-foreground mt-1">
-              Your Wallet Currency: <span className="font-semibold">{profile.wallet_currency} ({profile.wallet_currency === 'INR' ? '🇮🇳 India' : '🌍 International'})</span>
+            <p className="text-sm text-muted-foreground mt-1 flex items-center gap-2">
+              Your Wallet Currency: <span className="font-semibold flex items-center gap-1">
+                {profile.wallet_currency} (
+                {profile.wallet_currency === 'INR' ? (
+                  <>
+                    <FlagIcon countryCode="IN" size="sm" /> India
+                  </>
+                ) : (
+                  <>
+                    <Globe className="h-4 w-4" /> International
+                  </>
+                )}
+                )
+              </span>
             </p>
           )}
         </div>

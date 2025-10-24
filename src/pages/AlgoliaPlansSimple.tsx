@@ -24,6 +24,7 @@ import RegionalPlanDropdown from "@/components/RegionalPlanDropdown";
 import { AgentPreviewSelector } from "@/components/AgentPreviewSelector";
 import { useAgentPreview } from "@/contexts/AgentPreviewContext";
 import { useAgentPlanPrices } from "@/hooks/useAgentPlanPrices";
+import { FlagIcon } from "@/components/ui/flag-icon";
 interface EsimPlan {
   objectID: string;
   id: string;
@@ -89,7 +90,7 @@ function PlanCard({
     });
     setTimeout(() => setAddedToCart(false), 2000);
   };
-  const flag = getCountryFlag(plan.country_code);
+  const flag = plan.country_code;
   const isDayPassPlan = isDayPass(plan);
   const displayPriceUSD = (isDayPassPlan ? agentPrice * dayPassDays : agentPrice) || 0;
   const convertedPrice = convertPrice(displayPriceUSD);
@@ -101,7 +102,7 @@ function PlanCard({
               {plan.title}
             </CardTitle>
             <CardDescription className="flex items-center gap-2 mt-2 text-muted-foreground">
-              <span className="text-lg">{flag}</span>
+              <FlagIcon countryCode={flag} size="md" />
               <span className="font-medium">{plan.country_name}</span>
               {plan.country_code === 'RG' && <RegionalPlanDropdown planTitle={plan.title} countryCode={plan.country_code} description={plan.description} />}
             </CardDescription>

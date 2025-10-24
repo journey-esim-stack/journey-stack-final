@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ChevronDown, Globe } from 'lucide-react';
 import { getRegionalPlanCountries, isRegionalPlan, type Country } from '@/utils/regionalMapping';
+import { FlagIcon } from '@/components/ui/flag-icon';
 
 interface RegionalPlanDropdownProps {
   planTitle: string;
@@ -54,7 +55,7 @@ export default function RegionalPlanDropdown({ planTitle, countryCode, descripti
           <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
             {countries.map((country) => (
               <div key={country.code} className="flex items-center gap-2 p-2 rounded-lg glass-subtle hover:glass-intense transition-all">
-                <span className="text-lg">{country.flag}</span>
+                <FlagIcon countryCode={country.code} size="sm" />
                 <span className="text-xs font-medium truncate">{country.name}</span>
               </div>
             ))}

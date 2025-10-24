@@ -13,8 +13,9 @@ import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 // Fixed imports - using Router instead of HotspotIcon
 import { Search, Globe, Clock, Database, Wifi, Router, ShoppingCart, Check, ArrowUpDown, ChevronLeft, ChevronRight, Info } from "lucide-react";
 import Layout from "@/components/Layout";
-import { getCountryFlag, getRegion, getAllRegions } from "@/utils/countryFlags";
+import { getRegion, getAllRegions } from "@/utils/countryFlags";
 import { useCart } from "@/contexts/CartContext";
+import { FlagIcon } from "@/components/ui/flag-icon";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import RegionalPlanDropdown from "@/components/RegionalPlanDropdown";
 import { SkeletonCard } from "@/components/ui/skeleton-card";
@@ -62,14 +63,14 @@ export default function Plans() {
 
   // Popular countries for quick filtering
   const popularCountries = [
-    { name: "UAE (Dubai)", code: "AE", flag: "🇦🇪" },
-    { name: "Singapore", code: "SG", flag: "🇸🇬" },
-    { name: "UK", code: "GB", flag: "🇬🇧" },
-    { name: "USA", code: "US", flag: "🇺🇸" },
-    { name: "Italy", code: "IT", flag: "🇮🇹" },
-    { name: "Thailand", code: "TH", flag: "🇹🇭" },
-    { name: "Indonesia", code: "ID", flag: "🇮🇩" },
-    { name: "Spain", code: "ES", flag: "🇪🇸" },
+    { name: "UAE (Dubai)", code: "AE" },
+    { name: "Singapore", code: "SG" },
+    { name: "UK", code: "GB" },
+    { name: "USA", code: "US" },
+    { name: "Italy", code: "IT" },
+    { name: "Thailand", code: "TH" },
+    { name: "Indonesia", code: "ID" },
+    { name: "Spain", code: "ES" },
   ];
 
   // Get unique regions from plans
@@ -517,7 +518,7 @@ export default function Plans() {
                       value={country.code}
                       className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-full px-4 py-2 text-sm flex items-center gap-2"
                     >
-                      <span>{country.flag}</span>
+                      <FlagIcon countryCode={country.code} size="sm" />
                       <span>{country.name}</span>
                     </TabsTrigger>
                   ))}
@@ -559,7 +560,7 @@ export default function Plans() {
               <CardHeader className="pb-4">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-3">
-                    <span className="text-3xl">{getCountryFlag(plan.country_code)}</span>
+                    <FlagIcon countryCode={plan.country_code} size="lg" />
                     <div className="flex-1">
                       <CardTitle className="text-lg leading-tight">{plan.title}</CardTitle>
                       <CardDescription className="text-sm font-medium flex flex-col gap-1">

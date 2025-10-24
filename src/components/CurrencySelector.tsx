@@ -1,15 +1,16 @@
 import React from 'react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useCurrency, Currency } from '@/contexts/CurrencyContext';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, Globe } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { FlagIcon } from '@/components/ui/flag-icon';
 
-const CURRENCIES: { value: Currency; label: string; flag: string }[] = [
-  { value: 'USD', label: 'USD', flag: '🇺🇸' },
-  { value: 'INR', label: 'INR', flag: '🇮🇳' },
-  { value: 'AUD', label: 'AUD', flag: '🇦🇺' },
-  { value: 'EUR', label: 'EUR', flag: '🇪🇺' }
+const CURRENCIES: { value: Currency; label: string; countryCode: string }[] = [
+  { value: 'USD', label: 'USD', countryCode: 'US' },
+  { value: 'INR', label: 'INR', countryCode: 'IN' },
+  { value: 'AUD', label: 'AUD', countryCode: 'AU' },
+  { value: 'EUR', label: 'EUR', countryCode: 'EU' } // EU is not valid ISO code, will show Globe
 ];
 
 export default function CurrencySelector() {
@@ -43,7 +44,7 @@ export default function CurrencySelector() {
                       className="hover:bg-accent focus:bg-accent"
                     >
                       <div className="flex items-center space-x-2">
-                        <span>{currency.flag}</span>
+                        <FlagIcon countryCode={currency.countryCode} size="sm" />
                         <span>{currency.label}</span>
                       </div>
                     </SelectItem>

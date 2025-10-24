@@ -549,34 +549,34 @@ export default function AlgoliaPlansSimple() {
   };
   const popularCountries = [{
     name: "All Countries",
-    flag: "🌍"
+    code: "GLOBAL"
   }, {
     name: "UAE",
-    flag: "🇦🇪",
+    code: "AE",
     alt: "Dubai"
   }, {
     name: "Singapore",
-    flag: "🇸🇬"
+    code: "SG"
   }, {
     name: "United Kingdom",
-    flag: "🇬🇧",
+    code: "GB",
     display: "UK"
   }, {
     name: "United States",
-    flag: "🇺🇸",
+    code: "US",
     display: "USA"
   }, {
     name: "Italy",
-    flag: "🇮🇹"
+    code: "IT"
   }, {
     name: "Thailand",
-    flag: "🇹🇭"
+    code: "TH"
   }, {
     name: "Indonesia",
-    flag: "🇮🇩"
+    code: "ID"
   }, {
     name: "Spain",
-    flag: "🇪🇸"
+    code: "ES"
   }];
   return <Layout>
       <div className="space-y-8">
@@ -617,7 +617,7 @@ export default function AlgoliaPlansSimple() {
                   <h3 className="text-sm font-medium text-muted-foreground">Popular Countries</h3>
                   <div className="flex flex-wrap gap-2">
                     {popularCountries.map(country => <Button key={country.name} variant={selectedCountry === country.name || country.name === "All Countries" && !selectedCountry && !selectedRegionType && !searchQuery.trim() ? "default" : "outline"} size="sm" onClick={() => handleCountryPillClick(country.name)} className="h-8 px-3 rounded-full">
-                        <span className="mr-1.5">{country.flag}</span>
+                        <FlagIcon countryCode={country.code} size="sm" className="mr-1.5" />
                         {country.display || country.name}
                         {country.alt && ` (${country.alt})`}
                       </Button>)}

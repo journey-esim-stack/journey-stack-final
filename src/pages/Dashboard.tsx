@@ -12,6 +12,7 @@ import { MetricCard } from "@/components/ui/metric-card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { SkeletonCard } from "@/components/ui/skeleton-enhanced";
 import { MayaStatusParser } from "@/utils/mayaStatus";
+import { useCurrency, Currency } from "@/contexts/CurrencyContext";
 
 interface Order {
   id: string;
@@ -39,6 +40,7 @@ interface AgentProfile {
   company_name: string;
   contact_person: string;
   wallet_balance: number;
+  wallet_currency: Currency;
 }
 
 interface HighDataUsageESim {
@@ -60,6 +62,7 @@ export default function Dashboard() {
   const [statusMap, setStatusMap] = useState<Record<string, string>>({});
   const [statusCache, setStatusCache] = useState<Record<string, any>>({});
   const { toast } = useToast();
+  const { getCurrencySymbol } = useCurrency();
   
   const mountedRef = useRef(true);
   const inFlightRef = useRef(false);
@@ -86,7 +89,7 @@ export default function Dashboard() {
       // Get agent profile
       const { data: profile, error: profileError } = await supabase
         .from("agent_profiles")
-        .select("id, company_name, contact_person, wallet_balance")
+        .select("id, company_name, contact_person, wallet_balance, wallet_currency")
         .eq("user_id", user.id)
         .maybeSingle();
 
@@ -102,7 +105,10 @@ export default function Dashboard() {
         return;
       }
       
-      setAgentProfile(profile);
+      setAgentProfile({
+        ...profile,
+        wallet_currency: (profile.wallet_currency || 'USD') as Currency
+      });
 
       // Fetch orders
       const { data: ordersData, error: ordersError } = await supabase
@@ -434,7 +440,7 @@ export default function Dashboard() {
           
           <MetricCard
             title="Wallet Balance"
-            value={`$${agentProfile?.wallet_balance?.toFixed(2) || "0.00"}`}
+            value={`${getCurrencySymbol(agentProfile?.wallet_currency)}${agentProfile?.wallet_balance?.toFixed(2) || "0.00"}`}
             description="Available credit"
             icon={<DollarSign className="h-4 w-4" />}
             illustration="/illustrations/idea-new.png"

@@ -14,113 +14,7 @@ CREATE TYPE public.order_status AS ENUM ('pending', 'completed', 'failed', 'canc
 CREATE TYPE public.transaction_type AS ENUM ('credit', 'debit');
 
 -- =====================================================
--- STEP 2: Create Database Functions (before tables to avoid dependency issues)
--- =====================================================
-
--- Function to check user roles (prevents RLS recursion)
-CREATE OR REPLACE FUNCTION public.has_role(_user_id uuid, _role app_role)
-RETURNS boolean
-LANGUAGE sql
-STABLE
-SECURITY DEFINER
-SET search_path = public
-AS $$
-  SELECT EXISTS (
-    SELECT 1 FROM public.user_roles
-    WHERE user_id = _user_id AND role = _role
-  );
-$$;
-
--- Function to update updated_at timestamps
-CREATE OR REPLACE FUNCTION public.update_updated_at_column()
-RETURNS trigger
-LANGUAGE plpgsql
-SET search_path = public
-AS $$
-BEGIN
-  NEW.updated_at = now();
-  RETURN NEW;
-END;
-$$;
-
--- Function to validate agent order access
-CREATE OR REPLACE FUNCTION public.validate_agent_order_access(_agent_id uuid, _order_id uuid)
-RETURNS boolean
-LANGUAGE sql
-STABLE
-SECURITY DEFINER
-SET search_path = public
-AS $$
-  SELECT EXISTS (
-    SELECT 1 FROM public.orders o
-    INNER JOIN public.agent_profiles ap ON o.agent_id = ap.id
-    WHERE o.id = _order_id 
-      AND ap.id = _agent_id
-      AND ap.user_id = auth.uid()
-      AND ap.status = 'approved'::agent_status
-  );
-$$;
-
--- Function to validate agent wallet access
-CREATE OR REPLACE FUNCTION public.validate_agent_wallet_access(_agent_id uuid)
-RETURNS boolean
-LANGUAGE sql
-STABLE
-SECURITY DEFINER
-SET search_path = public
-AS $$
-  SELECT EXISTS (
-    SELECT 1 FROM public.agent_profiles ap
-    WHERE ap.id = _agent_id
-      AND ap.user_id = auth.uid()
-      AND ap.status = 'approved'::agent_status
-  );
-$$;
-
--- Function to audit sensitive operations
-CREATE OR REPLACE FUNCTION public.audit_sensitive_operation(_table_name text, _operation text, _record_id text, _details jsonb DEFAULT NULL)
-RETURNS void
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-BEGIN
-  INSERT INTO audit_logs (
-    table_name,
-    action,
-    record_id,
-    user_id,
-    new_values,
-    created_at
-  ) VALUES (
-    _table_name,
-    _operation,
-    _record_id,
-    auth.uid(),
-    _details,
-    now()
-  );
-END;
-$$;
-
--- Function to check profile markup equality
-CREATE OR REPLACE FUNCTION public.profile_markups_equal(_id uuid, _markup_type text, _markup_value numeric)
-RETURNS boolean
-LANGUAGE sql
-STABLE
-SECURITY DEFINER
-SET search_path = public
-AS $$
-  SELECT EXISTS (
-    SELECT 1 FROM public.agent_profiles p
-    WHERE p.id = _id
-      AND p.markup_type IS NOT DISTINCT FROM _markup_type
-      AND p.markup_value IS NOT DISTINCT FROM _markup_value
-  );
-$$;
-
--- =====================================================
--- STEP 3: Create Tables
+-- STEP 2: Create Tables First (before functions that reference them)
 -- =====================================================
 
 -- Table: user_roles
@@ -366,6 +260,112 @@ CREATE TABLE public.audit_logs (
   user_agent text,
   created_at timestamptz NOT NULL DEFAULT now()
 );
+
+-- =====================================================
+-- STEP 3: Create Database Functions (after tables exist)
+-- =====================================================
+
+-- Function to check user roles (prevents RLS recursion)
+CREATE OR REPLACE FUNCTION public.has_role(_user_id uuid, _role app_role)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.user_roles
+    WHERE user_id = _user_id AND role = _role
+  );
+$$;
+
+-- Function to update updated_at timestamps
+CREATE OR REPLACE FUNCTION public.update_updated_at_column()
+RETURNS trigger
+LANGUAGE plpgsql
+SET search_path = public
+AS $$
+BEGIN
+  NEW.updated_at = now();
+  RETURN NEW;
+END;
+$$;
+
+-- Function to validate agent order access
+CREATE OR REPLACE FUNCTION public.validate_agent_order_access(_agent_id uuid, _order_id uuid)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.orders o
+    INNER JOIN public.agent_profiles ap ON o.agent_id = ap.id
+    WHERE o.id = _order_id 
+      AND ap.id = _agent_id
+      AND ap.user_id = auth.uid()
+      AND ap.status = 'approved'::agent_status
+  );
+$$;
+
+-- Function to validate agent wallet access
+CREATE OR REPLACE FUNCTION public.validate_agent_wallet_access(_agent_id uuid)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.agent_profiles ap
+    WHERE ap.id = _agent_id
+      AND ap.user_id = auth.uid()
+      AND ap.status = 'approved'::agent_status
+  );
+$$;
+
+-- Function to audit sensitive operations
+CREATE OR REPLACE FUNCTION public.audit_sensitive_operation(_table_name text, _operation text, _record_id text, _details jsonb DEFAULT NULL)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  INSERT INTO audit_logs (
+    table_name,
+    action,
+    record_id,
+    user_id,
+    new_values,
+    created_at
+  ) VALUES (
+    _table_name,
+    _operation,
+    _record_id,
+    auth.uid(),
+    _details,
+    now()
+  );
+END;
+$$;
+
+-- Function to check profile markup equality
+CREATE OR REPLACE FUNCTION public.profile_markups_equal(_id uuid, _markup_type text, _markup_value numeric)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.agent_profiles p
+    WHERE p.id = _id
+      AND p.markup_type IS NOT DISTINCT FROM _markup_type
+      AND p.markup_value IS NOT DISTINCT FROM _markup_value
+  );
+$$;
 
 -- =====================================================
 -- STEP 4: Create Views

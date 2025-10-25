@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { User, Session } from '@supabase/supabase-js';
-import { supabase, __SUPABASE_URL__ } from '@/integrations/supabase/client';
+import { supabase } from '@/integrations/supabase/client';
 
 export function useAuthState() {
   const [user, setUser] = useState<User | null>(null);
@@ -10,8 +10,6 @@ export function useAuthState() {
 
   useEffect(() => {
     let mounted = true;
-
-    console.log('Supabase URL:', __SUPABASE_URL__);
 
     // Set up auth state listener first
     const { data: { subscription } } = supabase.auth.onAuthStateChange(

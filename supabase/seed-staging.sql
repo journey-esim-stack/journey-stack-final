@@ -329,18 +329,19 @@ INSERT INTO esim_plans (
 -- STEP 5: Add Sample Pricing Rules (Optional)
 -- ============================================================================
 -- Add global pricing rules for testing
+-- Note: These are commented out - uncomment and customize if needed
 
-INSERT INTO pricing_rules (
-  country_code,
-  markup_type,
-  markup_value,
-  currency,
-  is_active,
-  created_by
-) VALUES
-  ('AE', 'percentage', 250, 'USD', true, '<ADMIN_USER_ID>'),
-  ('SG', 'percentage', 280, 'USD', true, '<ADMIN_USER_ID>'),
-  ('US', 'percentage', 320, 'USD', true, '<ADMIN_USER_ID>');
+-- INSERT INTO pricing_rules (
+--   rule_type,
+--   target_id,
+--   markup_type,
+--   markup_value,
+--   priority,
+--   is_active
+-- ) VALUES
+--   ('country', 'AE', 'percent', 250, 100, true),
+--   ('country', 'SG', 'percent', 280, 100, true),
+--   ('country', 'US', 'percent', 320, 100, true);
 
 -- ============================================================================
 -- STEP 6: Verify Data
